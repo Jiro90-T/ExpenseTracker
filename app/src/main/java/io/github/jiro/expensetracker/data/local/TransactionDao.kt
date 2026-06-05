@@ -1,4 +1,4 @@
-package io.github.yourusername.expensetracker.data.local
+package io.github.jiro.expensetracker.data.local
 
 import androidx.room.Dao
 import androidx.room.Delete

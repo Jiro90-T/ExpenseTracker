@@ -1,7 +1,7 @@
-package io.github.yourusername.expensetracker.data.repository
+package io.github.jiro.expensetracker.data.repository
 
-import io.github.yourusername.expensetracker.data.local.TransactionDao
-import io.github.yourusername.expensetracker.data.local.TransactionEntity
+import io.github.jiro.expensetracker.data.local.TransactionDao
+import io.github.jiro.expensetracker.data.local.TransactionEntity
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow

@@ -1,4 +1,4 @@
-package io.github.yourusername.expensetracker
+package io.github.jiro.expensetracker
 
 import android.app.Application
 import dagger.hilt.android.HiltAndroidApp

@@ -1,9 +1,9 @@
-package io.github.yourusername.expensetracker
+package io.github.jiro.expensetracker
 
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import io.github.yourusername.expensetracker.ui.home.HomeScreen
-import io.github.yourusername.expensetracker.ui.theme.ExpenseTrackerTheme
+import io.github.jiro.expensetracker.ui.home.HomeScreen
+import io.github.jiro.expensetracker.ui.theme.ExpenseTrackerTheme
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith

@@ -1,4 +1,4 @@
-package io.github.yourusername.expensetracker
+package io.github.jiro.expensetracker
 
 import org.junit.Assert.assertEquals
 import org.junit.Test

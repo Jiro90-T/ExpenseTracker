@@ -1,10 +1,10 @@
-package io.github.yourusername.expensetracker.ui.home
+package io.github.jiro.expensetracker.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import io.github.yourusername.expensetracker.data.local.TransactionEntity
-import io.github.yourusername.expensetracker.data.repository.TransactionRepository
+import io.github.jiro.expensetracker.data.local.TransactionEntity
+import io.github.jiro.expensetracker.data.repository.TransactionRepository
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow

@@ -10,9 +10,9 @@ Requirements: clean UI, fast performance, **offline support**, future scalabilit
 
 ## Status
 
-Greenfield — directory is empty. Project structure, package layout, and build files are not yet committed. Confirm the chosen tech stack with the user before scaffolding (Kotlin + Jetpack Compose + Room is the recommended default for new Android apps in 2026, but the user has not yet chosen).
+Scaffolded. Single-module Android app at `app/`, offline-first data layer, empty feature set. Stack is the one chosen at scaffold time — see `gradle/libs.versions.toml` for the authoritative versions.
 
-## Planned Tech Stack (proposed — confirm before using)
+## Tech Stack (confirmed at scaffold time)
 
 - **Language:** Kotlin
 - **UI:** Jetpack Compose + Material 3
@@ -20,9 +20,10 @@ Greenfield — directory is empty. Project structure, package layout, and build 
 - **Local storage:** Room (offline-first per requirements)
 - **DI:** Hilt
 - **Async:** Kotlin Coroutines + Flow
-- **Build:** Gradle (Kotlin DSL), version catalog (`gradle/libs.versions.toml`)
-- **Min SDK / Target SDK:** TBD — confirm with user
+- **Build:** Gradle (Kotlin DSL), version catalog at `gradle/libs.versions.toml`
+- **minSdk / targetSdk / compileSdk:** 24 / 35 / 35
 - **Testing:** JUnit + Compose UI tests + Room in-memory tests
+- **Application ID / namespace:** `io.github.jiro.expensetracker` (confirmed owner: Jiro)
 
 ## Standard Commands
 
@@ -43,8 +44,8 @@ These assume a standard Gradle/AGP layout (`./gradlew` at the repo root). Run fr
 ./gradlew test                       # all unit tests
 ./gradlew testDebugUnitTest          # debug-variant unit tests only
 ./gradlew connectedAndroidTest       # instrumented tests (needs device/emulator)
-./gradlew test --tests "com.example.expensetracker.ExampleTest"  # single test class
-./gradlew test --tests "*ExampleTest.methodName"                   # single test method
+./gradlew test --tests "io.github.jiro.expensetracker.ExampleUnitTest"  # single test class
+./gradlew test --tests "*ExampleUnitTest.addition_isCorrect"           # single test method
 
 # Clean
 ./gradlew clean
@@ -61,8 +62,7 @@ The "offline-first" requirement is the load-bearing constraint — it implies:
 
 ## Conventions to Establish Early
 
-When the project is scaffolded, lock these in via `gradle/libs.versions.toml` and a code-style config (`.editorconfig` + ktlint/detekt) before writing feature code:
-
 - One Gradle module to start (`app/`). Split into feature modules only when build times justify it.
-- Package layout: `com.example.expensetracker.{data, ui, domain}` (or feature-based if the user prefers).
-- All new dependencies go through the version catalog — no inline version strings in `build.gradle.kts`.
+- Package layout: `io.github.jiro.expensetracker.{data.{local,repository}, di, domain.model, ui.{theme,<feature>}}`.
+- All new dependencies go through `gradle/libs.versions.toml` — no inline version strings in `build.gradle.kts`.
+- Add an `.editorconfig` and code-style config (ktlint or Detekt) before the first feature lands.

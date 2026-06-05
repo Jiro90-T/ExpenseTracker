@@ -1,4 +1,4 @@
-package io.github.yourusername.expensetracker.ui.home
+package io.github.jiro.expensetracker.ui.home
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,9 +25,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import io.github.yourusername.expensetracker.R
-import io.github.yourusername.expensetracker.data.local.TransactionEntity
-import io.github.yourusername.expensetracker.ui.theme.ExpenseTrackerTheme
+import io.github.jiro.expensetracker.R
+import io.github.jiro.expensetracker.data.local.TransactionEntity
+import io.github.jiro.expensetracker.ui.theme.ExpenseTrackerTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

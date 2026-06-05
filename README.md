@@ -30,16 +30,9 @@ If you have JDK 17 and `ANDROID_HOME` pointing at an Android SDK:
 ./gradlew connectedAndroidTest   # needs a running emulator / device
 ```
 
-## Placeholder package
+## Application ID
 
-`io.github.yourusername.expensetracker` is a placeholder. Before publishing, do a project-wide find-and-replace of `yourusername` with your real value across:
-
-- `app/build.gradle.kts` (namespace, applicationId)
-- `app/src/main/AndroidManifest.xml` (none — uses the namespace)
-- All `package` declarations under `app/src/`
-- `CLAUDE.md` references
-
-Gradle / AGP can also do this via `android.namespace` rewrites; the manual replace above is simpler for a one-time rename.
+`io.github.jiro.expensetracker` (owner: Jiro). Lives in `app/build.gradle.kts` as both `namespace` and `applicationId`. To rename (e.g. before publishing), update those two lines, all `package` declarations under `app/src/`, and the directory paths under `app/src/{main,test,androidTest}/java/io/github/`.
 
 ## Architecture (big picture)
 

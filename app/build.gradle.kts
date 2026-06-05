@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace = "io.github.yourusername.expensetracker"
+    namespace = "io.github.jiro.expensetracker"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "io.github.yourusername.expensetracker"
+        applicationId = "io.github.jiro.expensetracker"
         minSdk = 24
         targetSdk = 35
         versionCode = 1

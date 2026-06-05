@@ -1,4 +1,4 @@
-package io.github.yourusername.expensetracker.ui.theme
+package io.github.jiro.expensetracker.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
