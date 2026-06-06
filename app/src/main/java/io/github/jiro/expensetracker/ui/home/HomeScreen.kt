@@ -56,6 +56,7 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val transactions by viewModel.transactions.collectAsStateWithLifecycle()
+    val period by viewModel.period.collectAsStateWithLifecycle()
     val undoState by viewModel.undo.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val undoLabel = stringResource(R.string.action_undo)
@@ -85,32 +86,39 @@ fun HomeScreen(
             }
         },
     ) { padding ->
-        if (transactions.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = stringResource(R.string.home_empty),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-            }
-        } else {
-            val grouped = remember(transactions) { groupByDay(transactions) }
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                grouped.forEach { group ->
-                    item(key = "day_${group.dayStartMs}") {
-                        DayHeader(group.dayStartMs)
-                    }
-                    items(group.items, key = { it.transaction.id }) { row ->
-                        SwipeableTransactionRow(
-                            row = row,
-                            onEdit = { onEditClick(row.transaction.id) },
-                            onDelete = { viewModel.delete(row) },
-                        )
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            PeriodSelector(
+                period = period,
+                onPeriodChange = viewModel::setPeriod,
+                onStepMonth = viewModel::stepMonth,
+            )
+            if (transactions.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = stringResource(R.string.home_empty),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+            } else {
+                val grouped = remember(transactions) { groupByDay(transactions) }
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    grouped.forEach { group ->
+                        item(key = "day_${group.dayStartMs}") {
+                            DayHeader(group.dayStartMs)
+                        }
+                        items(group.items, key = { it.transaction.id }) { row ->
+                            SwipeableTransactionRow(
+                                row = row,
+                                onEdit = { onEditClick(row.transaction.id) },
+                                onDelete = { viewModel.delete(row) },
+                            )
+                        }
                     }
                 }
             }

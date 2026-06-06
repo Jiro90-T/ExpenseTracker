@@ -30,4 +30,11 @@
     <!-- Snackbar -->
     <string name="action_undo">Undo</string>
     <string name="snackbar_transaction_deleted">Transaction deleted</string>
+
+    <!-- Period selector -->
+    <string name="action_prev_month">Previous month</string>
+    <string name="action_next_month">Next month</string>
+    <string name="action_all_time">All time</string>
+    <string name="action_pick_month">Pick month</string>
+    <string name="label_all_time">All time</string>
 </resources>
