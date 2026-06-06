@@ -25,10 +25,10 @@ import androidx.compose.ui.unit.dp
 import io.github.jiro.expensetracker.R
 
 private val IncomeGreen = Color(0xFF1B5E20)
-private val ExpenseRed = MaterialTheme.colorScheme.error
 
 @Composable
 fun DashboardSummaryCard(summary: DashboardSummary, modifier: Modifier = Modifier) {
+    val expenseColor = MaterialTheme.colorScheme.error
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -51,13 +51,13 @@ fun DashboardSummaryCard(summary: DashboardSummary, modifier: Modifier = Modifie
                 StatColumn(
                     label = stringResource(R.string.dashboard_expense),
                     amountMinor = summary.expenseMinor,
-                    color = ExpenseRed,
+                    color = expenseColor,
                     modifier = Modifier.weight(1f),
                 )
                 StatColumn(
                     label = stringResource(R.string.dashboard_balance),
                     amountMinor = summary.balanceMinor,
-                    color = if (summary.balanceMinor >= 0) IncomeGreen else ExpenseRed,
+                    color = if (summary.balanceMinor >= 0) IncomeGreen else expenseColor,
                     showSign = true,
                     modifier = Modifier.weight(1f),
                 )
@@ -75,6 +75,7 @@ fun DashboardSummaryCard(summary: DashboardSummary, modifier: Modifier = Modifie
                             name = item.categoryName,
                             amountMinor = item.amountMinor,
                             totalMinor = summary.totalExpenseForBreakdownMinor,
+                            color = expenseColor,
                         )
                     }
                 }
@@ -107,7 +108,7 @@ private fun StatColumn(
 }
 
 @Composable
-private fun CategoryBar(name: String, amountMinor: Long, totalMinor: Long) {
+private fun CategoryBar(name: String, amountMinor: Long, totalMinor: Long, color: Color) {
     val ratio = if (totalMinor <= 0) 0f else (amountMinor.toFloat() / totalMinor.toFloat()).coerceIn(0f, 1f)
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
         Text(
@@ -125,7 +126,7 @@ private fun CategoryBar(name: String, amountMinor: Long, totalMinor: Long) {
                 modifier = Modifier
                     .fillMaxHeight()
                     .fillMaxWidth(ratio)
-                    .background(ExpenseRed, RoundedCornerShape(4.dp)),
+                    .background(color, RoundedCornerShape(4.dp)),
             )
         }
         Text(

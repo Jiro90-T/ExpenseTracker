@@ -241,7 +241,7 @@ private fun CategoryDropdown(
                 .menuAnchor()
                 .fillMaxWidth(),
         )
-        androidx.compose.material3.ExposedDropdownMenu(
+        ExposedDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
         ) {
