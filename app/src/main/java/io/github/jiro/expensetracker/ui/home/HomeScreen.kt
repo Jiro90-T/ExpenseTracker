@@ -57,6 +57,7 @@ fun HomeScreen(
 ) {
     val transactions by viewModel.transactions.collectAsStateWithLifecycle()
     val period by viewModel.period.collectAsStateWithLifecycle()
+    val summary by viewModel.summary.collectAsStateWithLifecycle()
     val undoState by viewModel.undo.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val undoLabel = stringResource(R.string.action_undo)
@@ -92,6 +93,7 @@ fun HomeScreen(
                 onPeriodChange = viewModel::setPeriod,
                 onStepMonth = viewModel::stepMonth,
             )
+            DashboardSummaryCard(summary = summary)
             if (transactions.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),

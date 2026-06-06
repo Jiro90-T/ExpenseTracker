@@ -37,4 +37,10 @@
     <string name="action_all_time">All time</string>
     <string name="action_pick_month">Pick month</string>
     <string name="label_all_time">All time</string>
+
+    <!-- Dashboard -->
+    <string name="dashboard_income">Income</string>
+    <string name="dashboard_expense">Expense</string>
+    <string name="dashboard_balance">Balance</string>
+    <string name="dashboard_top_expenses">Top expenses</string>
 </resources>
