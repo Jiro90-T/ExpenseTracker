@@ -1,7 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Expense Tracker</string>
+
+    <!-- Home -->
     <string name="home_title">Transactions</string>
     <string name="home_empty">No transactions yet. Tap + to add one.</string>
     <string name="action_add_transaction">Add transaction</string>
+    <string name="action_back">Back</string>
+
+    <!-- Add / edit form -->
+    <string name="title_add_transaction">New transaction</string>
+    <string name="title_edit_transaction">Edit transaction</string>
+    <string name="type_expense">Expense</string>
+    <string name="type_income">Income</string>
+    <string name="field_title">Title</string>
+    <string name="field_amount">Amount</string>
+    <string name="field_category">Category</string>
+    <string name="field_date">Date</string>
+    <string name="field_note">Note (optional)</string>
+    <string name="action_pick">Pick</string>
+    <string name="action_save">Save</string>
+    <string name="action_ok">OK</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="error_title_required">Title is required</string>
+    <string name="error_amount_invalid">Enter a valid amount greater than 0</string>
+    <string name="error_category_required">Pick a category</string>
+    <string name="empty_categories">No categories for this type</string>
 </resources>

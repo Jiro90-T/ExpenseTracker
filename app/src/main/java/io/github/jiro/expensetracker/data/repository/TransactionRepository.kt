@@ -20,6 +20,8 @@ class TransactionRepository @Inject constructor(
     fun observeInRange(startMs: Long, endMs: Long): Flow<List<TransactionWithCategory>> =
         dao.observeInRangeWithCategory(startMs, endMs)
 
+    suspend fun findById(id: Long): TransactionEntity? = dao.findById(id)
+
     suspend fun add(transaction: TransactionEntity): Long = dao.insert(transaction)
 
     suspend fun update(transaction: TransactionEntity) = dao.update(transaction)

@@ -5,7 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import dagger.hilt.android.AndroidEntryPoint
-import io.github.jiro.expensetracker.ui.home.HomeScreen
+import io.github.jiro.expensetracker.ui.navigation.AppNavHost
 import io.github.jiro.expensetracker.ui.theme.ExpenseTrackerTheme
 
 @AndroidEntryPoint
@@ -15,7 +15,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             ExpenseTrackerTheme {
-                HomeScreen()
+                AppNavHost()
             }
         }
     }

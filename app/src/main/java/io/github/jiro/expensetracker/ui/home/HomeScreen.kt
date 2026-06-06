@@ -1,5 +1,6 @@
 package io.github.jiro.expensetracker.ui.home
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,11 +29,14 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.jiro.expensetracker.R
 import io.github.jiro.expensetracker.data.local.TransactionWithCategory
+import io.github.jiro.expensetracker.domain.model.TransactionType
 import io.github.jiro.expensetracker.ui.theme.ExpenseTrackerTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    onAddClick: () -> Unit = {},
+    onEditClick: (Long) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val transactions by viewModel.transactions.collectAsStateWithLifecycle()
@@ -42,7 +46,7 @@ fun HomeScreen(
             TopAppBar(title = { Text(stringResource(R.string.home_title)) })
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { /* TODO: open add-transaction form */ }) {
+            FloatingActionButton(onClick = onAddClick) {
                 Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.action_add_transaction))
             }
         },
@@ -63,7 +67,7 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(transactions, key = { it.transaction.id }) { row ->
-                    TransactionRow(row)
+                    TransactionRow(row, onClick = { onEditClick(row.transaction.id) })
                 }
             }
         }
@@ -71,16 +75,30 @@ fun HomeScreen(
 }
 
 @Composable
-private fun TransactionRow(row: TransactionWithCategory) {
+private fun TransactionRow(row: TransactionWithCategory, onClick: () -> Unit) {
     val txn = row.transaction
     val category = row.category
-    Column(modifier = Modifier.fillMaxWidth()) {
+    val type = TransactionType.fromStorage(txn.type)
+    val sign = if (type == TransactionType.EXPENSE) "-" else "+"
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+    ) {
         Text(txn.title, style = MaterialTheme.typography.titleMedium)
         Text(
-            text = "${txn.type} · ${category.name} · ${txn.currencyCode} " +
-                "${txn.amountMinor / 100}.${"%02d".format(txn.amountMinor % 100)}",
+            text = "${category.name} · ${txn.currencyCode} " +
+                "$sign${txn.amountMinor / 100}.${"%02d".format(txn.amountMinor % 100)}",
             style = MaterialTheme.typography.bodySmall,
         )
+        if (!txn.note.isNullOrBlank()) {
+            Text(
+                text = txn.note,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
