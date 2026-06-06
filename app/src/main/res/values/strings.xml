@@ -26,4 +26,8 @@
     <string name="error_amount_invalid">Enter a valid amount greater than 0</string>
     <string name="error_category_required">Pick a category</string>
     <string name="empty_categories">No categories for this type</string>
+
+    <!-- Snackbar -->
+    <string name="action_undo">Undo</string>
+    <string name="snackbar_transaction_deleted">Transaction deleted</string>
 </resources>

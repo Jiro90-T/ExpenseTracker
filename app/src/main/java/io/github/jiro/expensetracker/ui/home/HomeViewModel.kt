@@ -7,10 +7,19 @@ import io.github.jiro.expensetracker.data.local.TransactionEntity
 import io.github.jiro.expensetracker.data.local.TransactionWithCategory
 import io.github.jiro.expensetracker.data.repository.TransactionRepository
 import javax.inject.Inject
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+
+/**
+ * One-shot state describing the most recently deleted row so the UI can show
+ * a snackbar with an Undo affordance. Cleared on undo, dismiss, or replace.
+ */
+data class UndoState(val row: TransactionWithCategory)
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -24,7 +33,25 @@ class HomeViewModel @Inject constructor(
             initialValue = emptyList(),
         )
 
-    fun delete(transaction: TransactionEntity) {
-        viewModelScope.launch { repository.delete(transaction) }
+    private val _undo = MutableStateFlow<UndoState?>(null)
+    val undo: StateFlow<UndoState?> = _undo.asStateFlow()
+
+    fun delete(row: TransactionWithCategory) {
+        viewModelScope.launch {
+            repository.delete(row.transaction)
+            _undo.value = UndoState(row)
+        }
+    }
+
+    fun undoDelete() {
+        val pending = _undo.value ?: return
+        viewModelScope.launch {
+            repository.restore(pending.row.transaction)
+            _undo.value = null
+        }
+    }
+
+    fun dismissUndo() {
+        _undo.value = null
     }
 }

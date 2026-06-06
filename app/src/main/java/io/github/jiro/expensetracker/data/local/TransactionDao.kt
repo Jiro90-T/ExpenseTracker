@@ -33,6 +33,9 @@ interface TransactionDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(transaction: TransactionEntity): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun restore(transaction: TransactionEntity): Long
+
     @Update
     suspend fun update(transaction: TransactionEntity)
 

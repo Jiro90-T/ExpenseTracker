@@ -27,4 +27,10 @@ class TransactionRepository @Inject constructor(
     suspend fun update(transaction: TransactionEntity) = dao.update(transaction)
 
     suspend fun delete(transaction: TransactionEntity) = dao.delete(transaction)
+
+    /**
+     * Re-insert a previously deleted transaction, preserving its original id.
+     * Used by the swipe-to-delete undo flow.
+     */
+    suspend fun restore(transaction: TransactionEntity): Long = dao.restore(transaction)
 }
