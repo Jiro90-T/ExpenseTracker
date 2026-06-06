@@ -5,12 +5,14 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.jiro.expensetracker.data.local.TransactionWithCategory
 import io.github.jiro.expensetracker.data.repository.TransactionRepository
+import io.github.jiro.expensetracker.export.CsvExporter
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -81,5 +83,14 @@ class HomeViewModel @Inject constructor(
 
     fun dismissUndo() {
         _undo.value = null
+    }
+
+    /**
+     * Builds a CSV for the current period using the latest transactions snapshot.
+     * Returns the CSV string. Empty list -> CSV with header only.
+     */
+    suspend fun buildCsvForCurrentPeriod(): String {
+        val rows = transactions.first()
+        return CsvExporter.toCsv(rows)
     }
 }

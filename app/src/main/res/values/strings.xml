@@ -43,4 +43,8 @@
     <string name="dashboard_expense">Expense</string>
     <string name="dashboard_balance">Balance</string>
     <string name="dashboard_top_expenses">Top expenses</string>
+
+    <!-- Share / export -->
+    <string name="action_share_csv">Share as CSV</string>
+    <string name="share_chooser_title">Share transactions</string>
 </resources>

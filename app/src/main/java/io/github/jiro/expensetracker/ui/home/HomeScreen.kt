@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -30,9 +31,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -42,11 +45,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.jiro.expensetracker.R
 import io.github.jiro.expensetracker.data.local.TransactionWithCategory
 import io.github.jiro.expensetracker.domain.model.TransactionType
+import io.github.jiro.expensetracker.export.TransactionCsvShare
 import io.github.jiro.expensetracker.ui.theme.ExpenseTrackerTheme
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import android.content.Intent
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,6 +68,10 @@ fun HomeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val undoLabel = stringResource(R.string.action_undo)
     val deletedLabel = stringResource(R.string.snackbar_transaction_deleted)
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val shareLabel = stringResource(R.string.action_share_csv)
+    val shareChooserTitle = stringResource(R.string.share_chooser_title)
 
     LaunchedEffect(undoState) {
         val pending = undoState ?: return@LaunchedEffect
@@ -78,7 +88,27 @@ fun HomeScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text(stringResource(R.string.home_title)) })
+            TopAppBar(
+                title = { Text(stringResource(R.string.home_title)) },
+                actions = {
+                    IconButton(
+                        onClick = {
+                            coroutineScope.launch {
+                                val csv = viewModel.buildCsvForCurrentPeriod()
+                                val intent = TransactionCsvShare.share(
+                                    context = context,
+                                    csv = csv,
+                                    periodLabel = period.label(),
+                                )
+                                context.startActivity(Intent.createChooser(intent, shareChooserTitle))
+                            }
+                        },
+                        enabled = transactions.isNotEmpty(),
+                    ) {
+                        Icon(Icons.Filled.Share, contentDescription = shareLabel)
+                    }
+                },
+            )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
