@@ -8,6 +8,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import io.github.jiro.expensetracker.data.local.AppDatabase
+import io.github.jiro.expensetracker.data.local.CategoryDao
 import io.github.jiro.expensetracker.data.local.TransactionDao
 import javax.inject.Singleton
 
@@ -19,10 +20,13 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME)
-            // No real migrations yet; this is a v1 fresh-install app.
+            // Pre-1.0 schema: destructive migration is acceptable; we have no user data yet.
             .fallbackToDestructiveMigration()
             .build()
 
     @Provides
     fun provideTransactionDao(db: AppDatabase): TransactionDao = db.transactionDao()
+
+    @Provides
+    fun provideCategoryDao(db: AppDatabase): CategoryDao = db.categoryDao()
 }

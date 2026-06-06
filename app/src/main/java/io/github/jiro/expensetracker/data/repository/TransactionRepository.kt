@@ -2,6 +2,7 @@ package io.github.jiro.expensetracker.data.repository
 
 import io.github.jiro.expensetracker.data.local.TransactionDao
 import io.github.jiro.expensetracker.data.local.TransactionEntity
+import io.github.jiro.expensetracker.data.local.TransactionWithCategory
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
@@ -14,9 +15,14 @@ import kotlinx.coroutines.flow.Flow
 class TransactionRepository @Inject constructor(
     private val dao: TransactionDao,
 ) {
-    fun observeAll(): Flow<List<TransactionEntity>> = dao.observeAll()
+    fun observeAll(): Flow<List<TransactionWithCategory>> = dao.observeAllWithCategory()
+
+    fun observeInRange(startMs: Long, endMs: Long): Flow<List<TransactionWithCategory>> =
+        dao.observeInRangeWithCategory(startMs, endMs)
 
     suspend fun add(transaction: TransactionEntity): Long = dao.insert(transaction)
+
+    suspend fun update(transaction: TransactionEntity) = dao.update(transaction)
 
     suspend fun delete(transaction: TransactionEntity) = dao.delete(transaction)
 }

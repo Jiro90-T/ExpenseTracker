@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -26,7 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.jiro.expensetracker.R
-import io.github.jiro.expensetracker.data.local.TransactionEntity
+import io.github.jiro.expensetracker.data.local.TransactionWithCategory
 import io.github.jiro.expensetracker.ui.theme.ExpenseTrackerTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -41,7 +42,7 @@ fun HomeScreen(
             TopAppBar(title = { Text(stringResource(R.string.home_title)) })
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = viewModel::addSample) {
+            FloatingActionButton(onClick = { /* TODO: open add-transaction form */ }) {
                 Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.action_add_transaction))
             }
         },
@@ -61,8 +62,8 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                items(transactions, key = { it.id }) { txn ->
-                    TransactionRow(txn)
+                items(transactions, key = { it.transaction.id }) { row ->
+                    TransactionRow(row)
                 }
             }
         }
@@ -70,11 +71,14 @@ fun HomeScreen(
 }
 
 @Composable
-private fun TransactionRow(txn: TransactionEntity) {
-    Column {
+private fun TransactionRow(row: TransactionWithCategory) {
+    val txn = row.transaction
+    val category = row.category
+    Column(modifier = Modifier.fillMaxWidth()) {
         Text(txn.title, style = MaterialTheme.typography.titleMedium)
         Text(
-            text = "${txn.type} · ${txn.category} · ${txn.currencyCode} ${txn.amountMinor / 100}.${"%02d".format(txn.amountMinor % 100)}",
+            text = "${txn.type} · ${category.name} · ${txn.currencyCode} " +
+                "${txn.amountMinor / 100}.${"%02d".format(txn.amountMinor % 100)}",
             style = MaterialTheme.typography.bodySmall,
         )
     }
