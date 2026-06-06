@@ -10,10 +10,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -47,6 +50,8 @@ import io.github.jiro.expensetracker.R
 import io.github.jiro.expensetracker.data.local.TransactionWithCategory
 import io.github.jiro.expensetracker.domain.model.TransactionType
 import io.github.jiro.expensetracker.export.TransactionCsvShare
+import io.github.jiro.expensetracker.ui.charts.MonthlyBarChart
+import io.github.jiro.expensetracker.ui.charts.MonthlyTotals
 import io.github.jiro.expensetracker.ui.theme.ExpenseTrackerTheme
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -65,6 +70,7 @@ fun HomeScreen(
     val transactions by viewModel.transactions.collectAsStateWithLifecycle()
     val period by viewModel.period.collectAsStateWithLifecycle()
     val summary by viewModel.summary.collectAsStateWithLifecycle()
+    val monthlyTotals by viewModel.monthlyTotals.collectAsStateWithLifecycle()
     val undoState by viewModel.undo.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val undoLabel = stringResource(R.string.action_undo)
@@ -125,6 +131,7 @@ fun HomeScreen(
                 onStepMonth = viewModel::stepMonth,
             )
             DashboardSummaryCard(summary = summary)
+            MonthlyTrendCard(data = monthlyTotals)
             if (transactions.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -238,6 +245,25 @@ private fun TransactionRow(row: TransactionWithCategory, onClick: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+    }
+}
+
+@Composable
+private fun MonthlyTrendCard(data: List<MonthlyTotals>) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = stringResource(R.string.dashboard_monthly_trend),
+                style = MaterialTheme.typography.titleSmall,
+            )
+            MonthlyBarChart(data = data)
         }
     }
 }

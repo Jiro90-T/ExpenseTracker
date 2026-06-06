@@ -1,18 +1,13 @@
 package io.github.jiro.expensetracker.ui.home
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,6 +18,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.jiro.expensetracker.R
+import io.github.jiro.expensetracker.ui.charts.PieChartWithLegend
 
 private val IncomeGreen = Color(0xFF1B5E20)
 
@@ -64,21 +60,11 @@ fun DashboardSummaryCard(summary: DashboardSummary, modifier: Modifier = Modifie
             }
 
             if (summary.topExpenseCategories.isNotEmpty()) {
-                HorizontalDivider()
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        text = stringResource(R.string.dashboard_top_expenses),
-                        style = MaterialTheme.typography.titleSmall,
-                    )
-                    summary.topExpenseCategories.forEach { item ->
-                        CategoryBar(
-                            name = item.categoryName,
-                            amountMinor = item.amountMinor,
-                            totalMinor = summary.totalExpenseForBreakdownMinor,
-                            color = expenseColor,
-                        )
-                    }
-                }
+                Text(
+                    text = stringResource(R.string.dashboard_top_expenses),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                PieChartWithLegend(slices = summary.topExpenseCategories)
             }
         }
     }
@@ -103,37 +89,6 @@ private fun StatColumn(
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
             color = color,
-        )
-    }
-}
-
-@Composable
-private fun CategoryBar(name: String, amountMinor: Long, totalMinor: Long, color: Color) {
-    val ratio = if (totalMinor <= 0) 0f else (amountMinor.toFloat() / totalMinor.toFloat()).coerceIn(0f, 1f)
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = name,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(end = 8.dp).weight(0.4f),
-        )
-        Box(
-            modifier = Modifier
-                .weight(0.45f)
-                .height(8.dp)
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(4.dp)),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .fillMaxWidth(ratio)
-                    .background(color, RoundedCornerShape(4.dp)),
-            )
-        }
-        Text(
-            text = formatCurrency(amountMinor),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 8.dp).weight(0.25f),
         )
     }
 }

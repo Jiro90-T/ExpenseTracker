@@ -6,6 +6,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.jiro.expensetracker.data.local.TransactionWithCategory
 import io.github.jiro.expensetracker.data.repository.TransactionRepository
 import io.github.jiro.expensetracker.export.CsvExporter
+import io.github.jiro.expensetracker.ui.charts.MonthlyTotals
+import io.github.jiro.expensetracker.ui.charts.computeMonthlyTotals
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,6 +53,19 @@ class HomeViewModel @Inject constructor(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = DashboardSummary(),
+        )
+
+    /**
+     * Last 6 months of income/expense totals, derived from ALL transactions
+     * (not period-filtered) — the bar chart is a trend view, independent of
+     * the user's current period filter.
+     */
+    val monthlyTotals: StateFlow<List<MonthlyTotals>> = repository.observeAll()
+        .map { computeMonthlyTotals(it, monthsBack = 6) }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList(),
         )
 
     private val _undo = MutableStateFlow<UndoState?>(null)
