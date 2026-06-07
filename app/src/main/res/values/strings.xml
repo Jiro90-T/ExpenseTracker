@@ -7,6 +7,8 @@
     <string name="home_empty">No transactions yet. Tap + to add one.</string>
     <string name="action_add_transaction">Add transaction</string>
     <string name="action_back">Back</string>
+    <string name="action_edit">Edit</string>
+    <string name="action_delete">Delete</string>
 
     <!-- Add / edit form -->
     <string name="title_add_transaction">New transaction</string>
