@@ -1,94 +1,55 @@
 package io.github.jiro.expensetracker.ui.home
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Category
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.jiro.expensetracker.R
-import io.github.jiro.expensetracker.data.local.TransactionWithCategory
-import io.github.jiro.expensetracker.domain.model.TransactionType
-import io.github.jiro.expensetracker.export.TransactionCsvShare
-import io.github.jiro.expensetracker.ui.charts.MonthlyBarChart
-import io.github.jiro.expensetracker.ui.charts.MonthlyTotals
 import io.github.jiro.expensetracker.ui.theme.ExpenseTrackerTheme
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
-import java.util.Locale
-import android.content.Intent
-import kotlinx.coroutines.launch
+import io.github.jiro.expensetracker.ui.theme.IncomeGreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onEditClick: (Long) -> Unit = {},
-    onManageCategories: () -> Unit = {},
+    onTransactionClick: (Long) -> Unit = {},
+    onSeeAllClick: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
-    val transactions by viewModel.transactions.collectAsStateWithLifecycle()
-    val visibleTransactions by viewModel.visibleTransactions.collectAsStateWithLifecycle()
-    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
-    val period by viewModel.period.collectAsStateWithLifecycle()
-    val summary by viewModel.summary.collectAsStateWithLifecycle()
-    val monthlyTotals by viewModel.monthlyTotals.collectAsStateWithLifecycle()
+    val recent by viewModel.recentTransactions.collectAsStateWithLifecycle()
     val undoState by viewModel.undo.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val undoLabel = stringResource(R.string.action_undo)
     val deletedLabel = stringResource(R.string.snackbar_transaction_deleted)
-    val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
-    val shareLabel = stringResource(R.string.action_share_csv)
-    val shareChooserTitle = stringResource(R.string.share_chooser_title)
 
     LaunchedEffect(undoState) {
         val pending = undoState ?: return@LaunchedEffect
@@ -108,314 +69,79 @@ fun HomeScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.home_title)) },
                 actions = {
-                    IconButton(onClick = onManageCategories) {
+                    IconButton(onClick = onSeeAllClick) {
                         Icon(
-                            Icons.Filled.Category,
-                            contentDescription = stringResource(R.string.action_manage_categories),
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = stringResource(R.string.action_see_all),
                         )
                     }
-                    IconButton(
-                        onClick = {
-                            coroutineScope.launch {
-                                val csv = viewModel.buildCsvForCurrentPeriod()
-                                val intent = TransactionCsvShare.share(
-                                    context = context,
-                                    csv = csv,
-                                    periodLabel = period.label(),
-                                )
-                                context.startActivity(Intent.createChooser(intent, shareChooserTitle))
-                            }
-                        },
-                        enabled = transactions.isNotEmpty(),
-                    ) {
-                        Icon(Icons.Filled.Share, contentDescription = shareLabel)
-                    }
                 },
+                // DESIGN 2: vibrant purple header bar with white text.
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
-        // Group outside the LazyColumn — `remember` is @Composable and
-        // LazyListScope.() -> Unit is not. Hoisting keeps the group computed
-        // only when the visible transactions change.
-        val groupedTransactions = remember(visibleTransactions) {
-            groupByDay(visibleTransactions)
-        }
-
-        // Single LazyColumn for the whole content. The charts are items at
-        // the top; the transaction list is a natural continuation. User
-        // scrolls to see more — the charts don't take fixed space and push
-        // the list off-screen.
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            item(key = "search") {
-                SearchField(
-                    query = searchQuery,
-                    onQueryChange = viewModel::setSearchQuery,
-                    onClear = viewModel::clearSearch,
+        if (recent.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = stringResource(R.string.home_recent_empty),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            item(key = "period") {
-                PeriodSelector(
-                    period = period,
-                    onPeriodChange = viewModel::setPeriod,
-                    onStepMonth = viewModel::stepMonth,
-                )
-            }
-            item(key = "dashboard") {
-                DashboardSummaryCard(summary = summary)
-            }
-            item(key = "monthly") {
-                MonthlyTrendCard(data = monthlyTotals)
-            }
-            when {
-                transactions.isEmpty() -> item(key = "empty") {
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                item(key = "section_header") {
                     Text(
-                        text = stringResource(R.string.home_empty),
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
+                        text = stringResource(R.string.home_recent_header),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     )
                 }
-                visibleTransactions.isEmpty() -> item(key = "no_matches") {
-                    Text(
-                        text = stringResource(R.string.search_no_matches, searchQuery),
-                        style = MaterialTheme.typography.bodyLarge,
+                items(recent, key = { it.transaction.id }) { row ->
+                    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                        SwipeableTransactionRow(
+                            row = row,
+                            onEdit = { onTransactionClick(row.transaction.id) },
+                            onDelete = { viewModel.delete(row) },
+                        )
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    }
+                }
+                item(key = "see_all") {
+                    TextButton(
+                        onClick = onSeeAllClick,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(32.dp),
-                    )
-                }
-                else -> {
-                    groupedTransactions.forEach { group ->
-                        item(key = "day_${group.dayStartMs}") {
-                            DayHeader(group.dayStartMs)
-                        }
-                        items(group.items, key = { it.transaction.id }) { row ->
-                            SwipeableTransactionRow(
-                                row = row,
-                                onEdit = { onEditClick(row.transaction.id) },
-                                onDelete = { viewModel.delete(row) },
-                            )
-                        }
+                            .padding(8.dp),
+                    ) {
+                        Text(stringResource(R.string.action_see_all))
                     }
                 }
             }
         }
     }
 }
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SearchField(
-    query: String,
-    onQueryChange: (String) -> Unit,
-    onClear: () -> Unit,
-) {
-    OutlinedTextField(
-        value = query,
-        onValueChange = onQueryChange,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        singleLine = true,
-        placeholder = { Text(stringResource(R.string.search_placeholder)) },
-        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-        trailingIcon = {
-            if (query.isNotEmpty()) {
-                IconButton(onClick = onClear) {
-                    Icon(
-                        Icons.Filled.Close,
-                        contentDescription = stringResource(R.string.action_clear_search),
-                    )
-                }
-            }
-        },
-        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = ImeAction.Search),
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SwipeableTransactionRow(
-    row: TransactionWithCategory,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit,
-) {
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { value ->
-            if (value == SwipeToDismissBoxValue.EndToStart) {
-                onDelete()
-                true
-            } else {
-                false
-            }
-        },
-    )
-    SwipeToDismissBox(
-        state = dismissState,
-        enableDismissFromStartToEnd = false,
-        enableDismissFromEndToStart = true,
-        backgroundContent = { DeleteBackground(dismissState.dismissDirection) },
-    ) {
-        TransactionRow(row = row, onClick = onEdit)
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun DeleteBackground(direction: SwipeToDismissBoxValue) {
-    val color = MaterialTheme.colorScheme.errorContainer
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(color)
-            .padding(horizontal = 24.dp),
-        contentAlignment = Alignment.CenterEnd,
-    ) {
-        if (direction == SwipeToDismissBoxValue.EndToStart) {
-            Icon(
-                imageVector = Icons.Filled.Delete,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onErrorContainer,
-            )
-        }
-    }
-}
-
-@Composable
-private fun TransactionRow(row: TransactionWithCategory, onClick: () -> Unit) {
-    val txn = row.transaction
-    val category = row.category
-    val type = TransactionType.fromStorage(txn.type)
-    val sign = if (type == TransactionType.EXPENSE) "-" else "+"
-    val amountColor = if (type == TransactionType.EXPENSE) {
-        MaterialTheme.colorScheme.error
-    } else {
-        Color(0xFF1B5E20) // dark green for income
-    }
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
-            .clickable(onClick = onClick)
-            .padding(vertical = 8.dp),
-    ) {
-        CategoryIconBadge(name = category.name, size = 40)
-        Spacer(Modifier.padding(start = 12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(txn.title, style = MaterialTheme.typography.titleMedium)
-            Text(
-                text = "${category.name} · ${txn.currencyCode} " +
-                    "$sign${txn.amountMinor / 100}.${"%02d".format(txn.amountMinor % 100)}",
-                style = MaterialTheme.typography.bodySmall,
-                color = amountColor,
-            )
-            if (!txn.note.isNullOrBlank()) {
-                Text(
-                    text = txn.note,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun CategoryIconBadge(name: String, size: Int) {
-    val color = categoryColor(name)
-    Box(
-        modifier = Modifier
-            .size(size.dp)
-            .clip(CircleShape)
-            .background(color),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = categoryIcon(name),
-            contentDescription = name,
-            tint = Color.White,
-            modifier = Modifier.size((size * 0.55f).dp),
-        )
-    }
-}
-
-@Composable
-private fun MonthlyTrendCard(data: List<MonthlyTotals>) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-    ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(
-                text = stringResource(R.string.dashboard_monthly_trend),
-                style = MaterialTheme.typography.titleSmall,
-            )
-            MonthlyBarChart(data = data)
-        }
-    }
-}
-
-@Composable
-private fun DayHeader(dayStartMs: Long) {
-    Text(
-        text = formatDayHeader(dayStartMs),
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
-    )
-}
-
-private data class DayGroup(
-    val dayStartMs: Long,
-    val items: List<TransactionWithCategory>,
-)
-
-private fun groupByDay(rows: List<TransactionWithCategory>): List<DayGroup> {
-    val groups = rows.groupBy { startOfDay(it.transaction.occurredAtEpochMillis) }
-    return groups.entries
-        .sortedByDescending { it.key }
-        .map { (day, items) -> DayGroup(day, items) }
-}
-
-private fun startOfDay(epochMs: Long): Long {
-    val cal = Calendar.getInstance().apply {
-        timeInMillis = epochMs
-        set(Calendar.HOUR_OF_DAY, 0)
-        set(Calendar.MINUTE, 0)
-        set(Calendar.SECOND, 0)
-        set(Calendar.MILLISECOND, 0)
-    }
-    return cal.timeInMillis
-}
-
-private fun formatDayHeader(dayStartMs: Long): String {
-    val today = startOfDay(System.currentTimeMillis())
-    val diff = (today - dayStartMs) / DAY_MS
-    val date = Date(dayStartMs)
-    val fmt = SimpleDateFormat("EEE, MMM d, yyyy", Locale.getDefault())
-    return when (diff) {
-        0L -> "Today"
-        1L -> "Yesterday"
-        else -> fmt.format(date)
-    }
-}
-
-private const val DAY_MS: Long = 24L * 60L * 60L * 1000L
 
 @Preview(showBackground = true)
 @Composable
 private fun HomeScreenPreview() {
     ExpenseTrackerTheme {
-        HomeScreen()
+        // No-op preview; the real HomeViewModel is needed for the lazy list.
+        Box(modifier = Modifier.fillMaxSize()) {
+            Text("Home preview")
+        }
     }
 }

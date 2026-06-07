@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.dp
 import io.github.jiro.expensetracker.R
 import io.github.jiro.expensetracker.ui.charts.PieChartWithLegend
 
-private val IncomeGreen = Color(0xFF1B5E20)
+private val IncomeGreen = io.github.jiro.expensetracker.ui.theme.IncomeGreen
 
 @Composable
 fun DashboardSummaryCard(summary: DashboardSummary, modifier: Modifier = Modifier) {

@@ -1,46 +1,36 @@
 package io.github.jiro.expensetracker.ui.theme
 
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
 
+/**
+ * DESIGN 2 (Modern Colorful) palette — light only, vibrant purple primary.
+ * Dynamic color is intentionally disabled so the brand is consistent across
+ * devices (Android 12+ Material You would otherwise override our purple).
+ */
 private val LightColors = lightColorScheme(
     primary = BrandPrimary,
+    onPrimary = OnBrandPrimary,
+    primaryContainer = BrandPrimaryContainer,
+    onPrimaryContainer = OnBrandPrimaryContainer,
     secondary = BrandSecondary,
+    onSecondary = OnBrandSecondary,
     surface = Surface,
     onSurface = OnSurface,
-)
-
-private val DarkColors = darkColorScheme(
-    primary = BrandPrimary,
-    secondary = BrandSecondary,
-    surface = SurfaceDark,
-    onSurface = OnSurfaceDark,
+    surfaceVariant = SurfaceVariant,
+    onSurfaceVariant = OnSurfaceVariant,
+    background = Background,
+    onBackground = OnBackground,
+    outline = Outline,
 )
 
 @Composable
 fun ExpenseTrackerTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
     content: @Composable () -> Unit,
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        darkTheme -> DarkColors
-        else -> LightColors
-    }
-
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = LightColors,
         typography = Typography,
         content = content,
     )

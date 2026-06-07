@@ -91,6 +91,21 @@ class HomeViewModel @Inject constructor(
             initialValue = emptyList(),
         )
 
+    /**
+     * Top 5 most recent transactions, all-time. Used by the Home tab's
+     * "recent activity" glance; the Transactions tab uses [transactions]
+     * (period-filtered) instead.
+     */
+    val recentTransactions: StateFlow<List<TransactionWithCategory>> = repository.observeAll()
+        .map { rows ->
+            rows.sortedByDescending { it.transaction.occurredAtEpochMillis }.take(5)
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList(),
+        )
+
     private val _undo = MutableStateFlow<UndoState?>(null)
     val undo: StateFlow<UndoState?> = _undo.asStateFlow()
 

@@ -3,12 +3,12 @@ package io.github.jiro.expensetracker.ui.navigation
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Assessment
-import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.FloatingActionButtonDefaults
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -27,18 +27,18 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import io.github.jiro.expensetracker.R
 
-/** Tabs shown in the bottom navigation. Order = left-to-right in the bar. */
 internal enum class BottomTab(
     val route: String,
     val labelRes: Int,
     val icon: ImageVector,
 ) {
     Home(Routes.HOME, R.string.nav_home, Icons.Filled.Home),
-    Categories(Routes.CATEGORIES, R.string.nav_categories, Icons.Filled.Category),
-    // Add is special: it navigates to the add-edit route and is visually distinct.
-    // It isn't a destination, just a button.
+    Transactions(Routes.TRANSACTIONS, R.string.nav_transactions, Icons.AutoMirrored.Filled.List),
+    // Add is a button, not a destination. Tapping it navigates to the
+    // add-edit route via the onAddClick callback wired from AppNavHost.
+    Budget(Routes.BUDGET, R.string.nav_budget, Icons.Filled.AccountBalanceWallet),
     Reports(Routes.REPORTS, R.string.nav_reports, Icons.Filled.Assessment),
-    Settings(Routes.SETTINGS, R.string.nav_settings, Icons.Filled.Settings),
+    More(Routes.MORE, R.string.nav_more, Icons.Filled.MoreHoriz),
 }
 
 @Composable
@@ -50,7 +50,7 @@ internal fun AppBottomBar(
     val currentDestination = backStackEntry?.destination
 
     NavigationBar {
-        // Left side: Home, Categories
+        // Left side: Home, Transactions
         BottomTab.entries.take(2).forEach { tab ->
             NavigationBarItem(
                 selected = currentDestination?.hierarchy?.any { it.route == tab.route } == true,
@@ -89,7 +89,7 @@ internal fun AppBottomBar(
             ),
         )
 
-        // Right side: Reports, Settings
+        // Right side: Budget, Reports, More
         BottomTab.entries.drop(2).forEach { tab ->
             NavigationBarItem(
                 selected = currentDestination?.hierarchy?.any { it.route == tab.route } == true,
@@ -108,13 +108,10 @@ internal fun AppBottomBar(
 
 private fun navigateToTab(navController: NavHostController, route: String) {
     navController.navigate(route) {
-        // Pop up to the start destination of the graph to avoid building up a back stack.
         popUpTo(navController.graph.findStartDestination().id) {
             saveState = true
         }
-        // Avoid multiple copies of the same destination when reselecting the same item.
         launchSingleTop = true
-        // Restore state when reselecting a previously selected item.
         restoreState = true
     }
 }

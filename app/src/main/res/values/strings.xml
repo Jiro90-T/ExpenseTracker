@@ -75,15 +75,25 @@
 
     <!-- Bottom nav -->
     <string name="nav_home">Home</string>
-    <string name="nav_categories">Categories</string>
+    <string name="nav_transactions">Transactions</string>
+    <string name="nav_budget">Budget</string>
     <string name="nav_reports">Reports</string>
-    <string name="nav_settings">Settings</string>
+    <string name="nav_more">More</string>
     <string name="nav_add">Add</string>
 
     <!-- Stubs -->
     <string name="reports_title">Reports</string>
     <string name="settings_title">Settings</string>
+    <string name="budget_title">Budget</string>
+    <string name="transactions_title">Transactions</string>
+    <string name="more_title">More</string>
     <string name="coming_soon">Coming soon</string>
     <string name="reports_coming_soon_detail">Charts, trends, and budget tracking will live here.</string>
     <string name="settings_coming_soon_detail">Theme, default currency, and data export will live here.</string>
+    <string name="budget_coming_soon_detail">Per-category monthly budgets and overspend warnings will live here.</string>
+
+    <!-- Home (recent transactions) -->
+    <string name="home_recent_header">Recent transactions</string>
+    <string name="home_recent_empty">No transactions yet. Tap + to add one.</string>
+    <string name="action_see_all">See all</string>
 </resources>
