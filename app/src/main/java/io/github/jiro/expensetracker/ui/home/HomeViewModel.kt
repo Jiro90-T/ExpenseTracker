@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -36,11 +37,33 @@ class HomeViewModel @Inject constructor(
     private val _period = MutableStateFlow<Period>(Period.currentMonth())
     val period: StateFlow<Period> = _period.asStateFlow()
 
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    /**
+     * Period-filtered transactions. The summary, the bar chart, and the CSV
+     * export all read from this — the search filter only narrows the list.
+     */
     val transactions: StateFlow<List<TransactionWithCategory>> = _period
         .flatMapLatest { p ->
             p.monthBounds()?.let { (start, end) -> repository.observeInRange(start, end) }
                 ?: repository.observeAll()
         }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList(),
+        )
+
+    /**
+     * The list the UI actually renders: period-filtered, then narrowed by
+     * [searchQuery]. Case-insensitive substring match against title, note,
+     * and category name. Empty query is a no-op (all rows pass through).
+     */
+    val visibleTransactions: StateFlow<List<TransactionWithCategory>> = combine(
+        transactions,
+        _searchQuery,
+    ) { rows, query -> applySearch(rows, query) }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -81,6 +104,14 @@ class HomeViewModel @Inject constructor(
         _period.value = if (direction < 0) current.previous() else current.next()
     }
 
+    fun setSearchQuery(value: String) {
+        _searchQuery.value = value
+    }
+
+    fun clearSearch() {
+        _searchQuery.value = ""
+    }
+
     fun delete(row: TransactionWithCategory) {
         viewModelScope.launch {
             repository.delete(row.transaction)
@@ -102,10 +133,25 @@ class HomeViewModel @Inject constructor(
 
     /**
      * Builds a CSV for the current period using the latest transactions snapshot.
-     * Returns the CSV string. Empty list -> CSV with header only.
+     * Returns the CSV string. Empty list -> CSV with header only. The search
+     * filter does NOT apply here — CSV export reflects the period, not the
+     * current search box contents.
      */
     suspend fun buildCsvForCurrentPeriod(): String {
         val rows = transactions.first()
         return CsvExporter.toCsv(rows)
+    }
+
+    private fun applySearch(
+        rows: List<TransactionWithCategory>,
+        rawQuery: String,
+    ): List<TransactionWithCategory> {
+        val needle = rawQuery.trim().lowercase()
+        if (needle.isEmpty()) return rows
+        return rows.filter { row ->
+            row.transaction.title.lowercase().contains(needle) ||
+                row.transaction.note?.lowercase()?.contains(needle) == true ||
+                row.category.name.lowercase().contains(needle)
+        }
     }
 }

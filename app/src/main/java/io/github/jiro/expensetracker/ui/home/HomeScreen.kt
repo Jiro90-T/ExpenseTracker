@@ -13,7 +13,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -22,6 +24,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -42,6 +45,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -68,6 +72,8 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val transactions by viewModel.transactions.collectAsStateWithLifecycle()
+    val visibleTransactions by viewModel.visibleTransactions.collectAsStateWithLifecycle()
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val period by viewModel.period.collectAsStateWithLifecycle()
     val summary by viewModel.summary.collectAsStateWithLifecycle()
     val monthlyTotals by viewModel.monthlyTotals.collectAsStateWithLifecycle()
@@ -125,6 +131,11 @@ fun HomeScreen(
         },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            SearchField(
+                query = searchQuery,
+                onQueryChange = viewModel::setSearchQuery,
+                onClear = viewModel::clearSearch,
+            )
             PeriodSelector(
                 period = period,
                 onPeriodChange = viewModel::setPeriod,
@@ -132,38 +143,82 @@ fun HomeScreen(
             )
             DashboardSummaryCard(summary = summary)
             MonthlyTrendCard(data = monthlyTotals)
-            if (transactions.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = stringResource(R.string.home_empty),
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
+            when {
+                transactions.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.home_empty),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    }
                 }
-            } else {
-                val grouped = remember(transactions) { groupByDay(transactions) }
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    grouped.forEach { group ->
-                        item(key = "day_${group.dayStartMs}") {
-                            DayHeader(group.dayStartMs)
-                        }
-                        items(group.items, key = { it.transaction.id }) { row ->
-                            SwipeableTransactionRow(
-                                row = row,
-                                onEdit = { onEditClick(row.transaction.id) },
-                                onDelete = { viewModel.delete(row) },
-                            )
+                visibleTransactions.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.search_no_matches, searchQuery),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    }
+                }
+                else -> {
+                    val grouped = remember(visibleTransactions) { groupByDay(visibleTransactions) }
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        grouped.forEach { group ->
+                            item(key = "day_${group.dayStartMs}") {
+                                DayHeader(group.dayStartMs)
+                            }
+                            items(group.items, key = { it.transaction.id }) { row ->
+                                SwipeableTransactionRow(
+                                    row = row,
+                                    onEdit = { onEditClick(row.transaction.id) },
+                                    onDelete = { viewModel.delete(row) },
+                                )
+                            }
                         }
                     }
                 }
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SearchField(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onClear: () -> Unit,
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        singleLine = true,
+        placeholder = { Text(stringResource(R.string.search_placeholder)) },
+        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+        trailingIcon = {
+            if (query.isNotEmpty()) {
+                IconButton(onClick = onClear) {
+                    Icon(
+                        Icons.Filled.Close,
+                        contentDescription = stringResource(R.string.action_clear_search),
+                    )
+                }
+            }
+        },
+        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = ImeAction.Search),
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

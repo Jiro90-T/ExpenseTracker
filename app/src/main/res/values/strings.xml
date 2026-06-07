@@ -51,4 +51,9 @@
     <!-- Charts -->
     <string name="charts_no_data">No data for this view</string>
     <string name="dashboard_monthly_trend">Income vs expense, last 6 months</string>
+
+    <!-- Search -->
+    <string name="search_placeholder">Search transactions</string>
+    <string name="action_clear_search">Clear search</string>
+    <string name="search_no_matches">No transactions match \"%1$s\"</string>
 </resources>
