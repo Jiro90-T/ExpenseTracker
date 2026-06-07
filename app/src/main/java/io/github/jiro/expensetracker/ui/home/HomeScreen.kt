@@ -5,12 +5,17 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Close
@@ -292,27 +297,51 @@ private fun TransactionRow(row: TransactionWithCategory, onClick: () -> Unit) {
     } else {
         Color(0xFF1B5E20) // dark green for income
     }
-    Column(
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
             .clickable(onClick = onClick)
             .padding(vertical = 8.dp),
     ) {
-        Text(txn.title, style = MaterialTheme.typography.titleMedium)
-        Text(
-            text = "${category.name} · ${txn.currencyCode} " +
-                "$sign${txn.amountMinor / 100}.${"%02d".format(txn.amountMinor % 100)}",
-            style = MaterialTheme.typography.bodySmall,
-            color = amountColor,
-        )
-        if (!txn.note.isNullOrBlank()) {
+        CategoryIconBadge(name = category.name, size = 40)
+        Spacer(Modifier.padding(start = 12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(txn.title, style = MaterialTheme.typography.titleMedium)
             Text(
-                text = txn.note,
+                text = "${category.name} · ${txn.currencyCode} " +
+                    "$sign${txn.amountMinor / 100}.${"%02d".format(txn.amountMinor % 100)}",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = amountColor,
             )
+            if (!txn.note.isNullOrBlank()) {
+                Text(
+                    text = txn.note,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun CategoryIconBadge(name: String, size: Int) {
+    val color = categoryColor(name)
+    Box(
+        modifier = Modifier
+            .size(size.dp)
+            .clip(CircleShape)
+            .background(color),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = categoryIcon(name),
+            contentDescription = name,
+            tint = Color.White,
+            modifier = Modifier.size((size * 0.55f).dp),
+        )
     }
 }
 
