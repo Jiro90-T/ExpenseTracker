@@ -155,11 +155,15 @@ private fun NavBarLabel(fullRes: Int, shortOverride: String?) {
 }
 
 private fun navigateToTab(navController: NavHostController, route: String) {
+    // Simplest reliable bottom-nav pattern: pop everything to the start
+    // destination, then push the new tab. No saveState / restoreState —
+    // each tab is a fresh instance on each visit. Scroll position is not
+    // preserved across tab switches; if you want that, the saved-state
+    // pattern can come back as a follow-up.
     navController.navigate(route) {
         popUpTo(navController.graph.findStartDestination().id) {
-            saveState = true
+            inclusive = true
         }
         launchSingleTop = true
-        restoreState = true
     }
 }
