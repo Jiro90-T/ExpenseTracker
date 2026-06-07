@@ -41,3 +41,54 @@ UI (Compose)  ──observes──▶  ViewModel (StateFlow)  ──reads/writes
 ```
 
 Offline-first means the read path never touches the network. When a future sync / backup layer is added, it plugs in at the Repository boundary — ViewModels stay unchanged.
+
+## Roadmap
+
+Items are ordered roughly by what a real user would want first. Effort is S (≤ ½ day), M (1–3 days), L (a week+). The two MVP items that have been deliberately deferred to a later phase are flagged with ⚠️.
+
+### Phase 1 — Daily-use essentials *(ship these first)*
+
+- [ ] **Search** &nbsp;`S` &nbsp;·&nbsp; *Value: H* — A search bar in the home screen that filters the existing transactions `Flow` by title / note / category name.
+- [ ] **Manual category CRUD UI** &nbsp;`S-M` &nbsp;·&nbsp; *Value: H* — Add / rename / delete user-created categories. Built-ins stay read-only (they're marked `isBuiltIn` in the schema).
+- [ ] **Settings screen** &nbsp;`S` &nbsp;·&nbsp; *Value: M* — App-wide preferences: theme override (light / dark / system), default currency, "about", and the data-management entries below.
+- [ ] **Branded app icon** &nbsp;`S` &nbsp;·&nbsp; *Value: M* — Replace the placeholder dollar-glyph with a proper icon (adaptive layers, monochrome variant, multiple densities). Today's icon looks unfinished.
+- [ ] **JSON backup & restore** &nbsp;`M` &nbsp;·&nbsp; *Value: H* — Export the full DB to a `backup-YYYY-MM-DD.json` file the user can keep; counterpart restore. ⚠️ Without this, **uninstalling the app loses all data** — this is the highest-risk gap.
+
+### Phase 2 — Power features
+
+- [ ] **Recurring transactions** &nbsp;`M` &nbsp;·&nbsp; *Value: H* — Auto-create monthly / weekly entries (rent, salary). Needs a `RecurrenceRule` column on `TransactionEntity` and a `WorkManager` job to materialise the next occurrence.
+- [ ] **Multi-currency** &nbsp;`M` &nbsp;·&nbsp; *Value: H* — Currency picker on the form; per-transaction `currencyCode` is already in the schema. The dashboard needs a user-set base currency and FX rates (manual or via a free API) to normalise totals.
+- [ ] **Budgets per category per month** &nbsp;`M` &nbsp;·&nbsp; *Value: H* — Set a monthly budget; the dashboard shows progress (bar fills as you spend) and an overspend warning at 100 %.
+- [ ] **Receipts / attachments** &nbsp;`M` &nbsp;·&nbsp; *Value: M* — Attach a photo to a transaction. Storage: app-internal (private) or `MediaStore` (visible in gallery). Decision needed; see Open Questions.
+- [ ] **Trend line chart** &nbsp;`S` &nbsp;·&nbsp; *Value: M* — Daily cumulative balance over the selected period. Complements the existing pie + bar charts.
+
+### Phase 3 — Quality & infrastructure
+
+- [ ] **Unit tests** &nbsp;`M` &nbsp;·&nbsp; *Value: H* — `HomeViewModel`, `AddEditTransactionViewModel`, `TransactionRepository`, `CategoryRepository`, `CsvExporter`, `computeDashboardSummary`, `computeMonthlyTotals`. No tests exist today.
+- [ ] **Compose UI tests** &nbsp;`M` &nbsp;·&nbsp; *Value: H* — `HomeScreen` (empty + populated), `AddEditTransactionScreen` (each validation error path), `DashboardSummaryCard`, `PieChartWithLegend`.
+- [ ] **Replace destructive migration** &nbsp;`S` &nbsp;·&nbsp; *Value: H* — Today: `fallbackToDestructiveMigration()` wipes the DB on any schema bump. As soon as the app has real users, write a real `Migration(1, 2)` so existing data survives. The v2 schema JSON in `app/schemas/` is the source of truth for what to migrate.
+- [ ] **GitHub Actions CI** &nbsp;`S` &nbsp;·&nbsp; *Value: M* — Run `./gradlew test lint` on every PR and push to `master`. Catches regressions before merge.
+- [ ] **Detekt + ktlint** &nbsp;`S` &nbsp;·&nbsp; *Value: M* — Style enforcement in CI. Lock in conventions now, before the codebase grows.
+- [ ] **Accessibility pass** &nbsp;`M` &nbsp;·&nbsp; *Value: M* — TalkBack labels on the FAB, swipe targets, chart slices; large-font support; minimum 4.5:1 contrast for the amount colours.
+- [ ] **Crash reporting** &nbsp;`S` &nbsp;·&nbsp; *Value: M* — Firebase Crashlytics or Sentry. The current build has no way to learn about crashes from the field.
+
+### Phase 4 — Sync & sharing
+
+- [ ] **Cloud backup** &nbsp;`L` &nbsp;·&nbsp; *Value: H* — Google Drive or Dropbox via the official SDKs. Scheduled background sync. Real durability + restore on a new device.
+- [ ] **Multi-device** &nbsp;`L` &nbsp;·&nbsp; *Value: M* — Builds on the sync layer. Conflict resolution: last-write-wins with a manual-merge UI for ties.
+- [ ] **Share a single transaction** &nbsp;`S` &nbsp;·&nbsp; *Value: L* — Long-press a row → share as formatted text or a small image. Trivial once the CSV export exists.
+- [ ] **Export to PDF** &nbsp;`M` &nbsp;·&nbsp; *Value: M* — Formatted statement: dashboard summary on top, transactions grouped by day. Built on Android's `PrintedPdfDocument` (no extra library).
+
+### Phase 5 — Advanced (future exploration)
+
+- [ ] **Voice input** &nbsp;`M` &nbsp;·&nbsp; *Value: M* — "Add five dollars for coffee" via on-device speech recognition. Pre-fills the form.
+- [ ] **Receipt OCR** &nbsp;`L` &nbsp;·&nbsp; *Value: M* — Read a receipt photo, extract amount / merchant / date, prefill the form. ML Kit Text Recognition is the obvious base.
+- [ ] **Bank integration** &nbsp;`L` &nbsp;·&nbsp; *Value: H but complex* — Plaid or similar. Adds regulatory burden; probably out of scope for a personal app.
+- [ ] **Home-screen widget** &nbsp;`M` &nbsp;·&nbsp; *Value: M* — Quick-add from the launcher. Glance widget showing today's spend.
+
+### Open questions to decide before building
+
+- **Currency model:** single base + per-tx? Or true multi-currency with FX conversion? (Affects how every total is computed.)
+- **Receipt storage:** app-internal (private, lost on uninstall) or `MediaStore` (survives, visible in the system gallery)?
+- **Sync backend:** Firebase (fast, vendor lock-in), self-hosted (work, control), or just Drive/Dropbox JSON files (no schema, brittle)?
+- **Auth model:** does the app ever need a logged-in user, or stay single-user / device-local forever?
