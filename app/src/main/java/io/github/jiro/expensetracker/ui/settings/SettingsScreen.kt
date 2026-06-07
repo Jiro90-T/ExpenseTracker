@@ -16,7 +16,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -24,6 +25,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -40,10 +44,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.jiro.expensetracker.BuildConfig
 import io.github.jiro.expensetracker.R
+import io.github.jiro.expensetracker.backup.BackupFormat
+import io.github.jiro.expensetracker.preferences.ThemePreference
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,19 +61,18 @@ fun SettingsScreen(
 ) {
     val exportUri by viewModel.exportUri.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
+    val themePref by viewModel.theme.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     var pendingRestoreUri by remember { mutableStateOf<android.net.Uri?>(null) }
     val shareChooserTitle = stringResource(R.string.backup_share_chooser_title)
 
-    // File picker for restore.
     val restorePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri ->
         if (uri != null) pendingRestoreUri = uri
     }
 
-    // Confirmation dialog when the user picks a file.
     if (pendingRestoreUri != null) {
         AlertDialog(
             onDismissRequest = { pendingRestoreUri = null },
@@ -88,12 +95,11 @@ fun SettingsScreen(
         )
     }
 
-    // Surface the export file through the system share sheet.
     LaunchedEffect(exportUri) {
         val uri = exportUri ?: return@LaunchedEffect
         viewModel.consumeExportUri()
         val send = Intent(Intent.ACTION_SEND).apply {
-            type = io.github.jiro.expensetracker.backup.BackupFormat.MIME_TYPE
+            type = BackupFormat.MIME_TYPE
             putExtra(Intent.EXTRA_STREAM, uri)
             putExtra(Intent.EXTRA_SUBJECT, "Expense Tracker backup")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -101,7 +107,6 @@ fun SettingsScreen(
         context.startActivity(Intent.createChooser(send, shareChooserTitle))
     }
 
-    // Show success/failure toasts.
     LaunchedEffect(message) {
         val m = message ?: return@LaunchedEffect
         snackbarHostState.showSnackbar(m.text)
@@ -131,6 +136,15 @@ fun SettingsScreen(
                 .padding(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
+            // --- Appearance ---
+            SettingsSectionHeader(stringResource(R.string.settings_section_appearance))
+            ThemePickerRow(
+                selected = themePref,
+                onSelect = viewModel::setTheme,
+            )
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+            // --- Data ---
             SettingsSectionHeader(stringResource(R.string.settings_section_data))
             SettingsRow(
                 icon = Icons.Filled.CloudUpload,
@@ -147,6 +161,66 @@ fun SettingsScreen(
                     restorePicker.launch(arrayOf("application/json", "*/*"))
                 },
             )
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+            // --- Currency (Phase 2 placeholder) ---
+            SettingsSectionHeader(stringResource(R.string.settings_section_currency))
+            Text(
+                text = stringResource(R.string.settings_currency_placeholder),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+            // --- About ---
+            SettingsSectionHeader(stringResource(R.string.settings_section_about))
+            AboutBlock()
+        }
+    }
+}
+
+@Composable
+private fun ThemePickerRow(
+    selected: ThemePreference,
+    onSelect: (ThemePreference) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Surface(
+                modifier = Modifier.size(40.dp),
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.primaryContainer,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Filled.Palette,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
+            }
+            androidx.compose.foundation.layout.Spacer(Modifier.padding(horizontal = 8.dp))
+            Text(
+                text = stringResource(R.string.settings_theme_title),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        }
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            ThemePreference.entries.forEachIndexed { i, pref ->
+                SegmentedButton(
+                    selected = selected == pref,
+                    onClick = { onSelect(pref) },
+                    shape = SegmentedButtonDefaults.itemShape(index = i, count = ThemePreference.entries.size),
+                ) {
+                    Text(stringResource(pref.labelRes))
+                }
+            }
         }
     }
 }
@@ -199,3 +273,55 @@ private fun SettingsRow(
         }
     }
 }
+
+@Composable
+private fun AboutBlock() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Surface(
+                modifier = Modifier.size(40.dp),
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.primaryContainer,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Filled.Info,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
+            }
+            androidx.compose.foundation.layout.Spacer(Modifier.padding(horizontal = 8.dp))
+            Column {
+                Text(
+                    text = stringResource(R.string.app_name),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Text(
+                    text = "v${BuildConfig.VERSION_NAME}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
+        }
+        Text(
+            text = stringResource(R.string.settings_repo_link),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(start = 48.dp, top = 4.dp),
+        )
+    }
+}
+
+private val ThemePreference.labelRes: Int
+    get() = when (this) {
+        ThemePreference.SYSTEM -> R.string.settings_theme_system
+        ThemePreference.LIGHT -> R.string.settings_theme_light
+        ThemePreference.DARK -> R.string.settings_theme_dark
+    }

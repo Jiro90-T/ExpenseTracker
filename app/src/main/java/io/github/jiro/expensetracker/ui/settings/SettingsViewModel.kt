@@ -8,7 +8,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.jiro.expensetracker.BuildConfig
 import io.github.jiro.expensetracker.backup.BackupManager
-import io.github.jiro.expensetracker.backup.ImportSummary
+import io.github.jiro.expensetracker.preferences.SettingsRepository
+import io.github.jiro.expensetracker.preferences.ThemePreference
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,8 +20,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * State for the settings screen's one-shot toasts. Cleared after the
- * screen surfaces the message via Snackbar.
+ * One-shot message surfaced via Snackbar. Cleared after display.
  */
 data class SettingsMessage(
     val text: String,
@@ -31,7 +31,12 @@ data class SettingsMessage(
 class SettingsViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context,
     private val backupManager: BackupManager,
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
+
+    val theme: StateFlow<ThemePreference> = settingsRepository.theme
+
+    fun setTheme(value: ThemePreference) = settingsRepository.setTheme(value)
 
     private val _exportUri = MutableStateFlow<Uri?>(null)
     val exportUri: StateFlow<Uri?> = _exportUri.asStateFlow()
@@ -39,8 +44,6 @@ class SettingsViewModel @Inject constructor(
     private val _message = MutableStateFlow<SettingsMessage?>(null)
     val message: StateFlow<SettingsMessage?> = _message.asStateFlow()
 
-    /** Generates the export file in cache and stashes the content:// Uri
-     *  for the screen to hand to the system share sheet. */
     fun prepareExport() {
         viewModelScope.launch {
             try {
@@ -65,7 +68,6 @@ class SettingsViewModel @Inject constructor(
         _exportUri.value = null
     }
 
-    /** Reads the chosen Uri, parses, wipes, re-inserts. */
     fun restoreFromUri(uri: Uri) {
         viewModelScope.launch {
             try {

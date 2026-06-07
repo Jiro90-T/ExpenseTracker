@@ -100,7 +100,16 @@
     <string name="action_see_all_transactions">View all transactions</string>
 
     <!-- Settings -->
+    <string name="settings_section_appearance">Appearance</string>
     <string name="settings_section_data">Data</string>
+    <string name="settings_section_currency">Currency</string>
+    <string name="settings_section_about">About</string>
+    <string name="settings_theme_title">Theme</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_currency_placeholder">Default currency selection arrives in a later phase, alongside the per-tx currency model and FX rates.</string>
+    <string name="settings_repo_link">github.com/Jiro90-T/ExpenseTracker</string>
     <string name="backup_export_title">Backup to file</string>
     <string name="backup_export_subtitle">Save all transactions and categories as a JSON file</string>
     <string name="backup_restore_title">Restore from file</string>

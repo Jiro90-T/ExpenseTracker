@@ -50,9 +50,9 @@ Items are ordered roughly by what a real user would want first. Effort is S (≤
 
 - [x] **Search** &nbsp;`S` &nbsp;·&nbsp; *Value: H* — A search bar in the home screen that filters the existing transactions `Flow` by title / note / category name. *(Shipped: `b151b8f`.)*
 - [x] **Manual category CRUD UI** &nbsp;`S-M` &nbsp;·&nbsp; *Value: H* — Add / rename / delete user-created categories. Built-ins stay read-only (they're marked `isBuiltIn` in the schema). *(Shipped: `ecae9d6`.)*
-- [ ] **Settings screen** &nbsp;`S` &nbsp;·&nbsp; *Value: M* — App-wide preferences: theme override (light / dark / system), default currency, "about", and the data-management entries below.
+- [x] **Settings screen** &nbsp;`S` &nbsp;·&nbsp; *Value: M* — App-wide preferences: theme override (light / dark / system), default currency, "about", and the data-management entries below. *(Shipped: `ab5f1e7` + theme/about/cur­rency in a follow-up. Currency is a "coming later" placeholder until the FX subsystem lands in Phase 2.)*
 - [ ] **Branded app icon** &nbsp;`S` &nbsp;·&nbsp; *Value: M* — Replace the placeholder dollar-glyph with a proper icon (adaptive layers, monochrome variant, multiple densities). Today's icon looks unfinished.
-- [ ] **JSON backup & restore** &nbsp;`M` &nbsp;·&nbsp; *Value: H* — Export the full DB to a `backup-YYYY-MM-DD.json` file the user can keep; counterpart restore. ⚠️ Without this, **uninstalling the app loses all data** — this is the highest-risk gap.
+- [x] **JSON backup & restore** &nbsp;`M` &nbsp;·&nbsp; *Value: H* — Export the full DB to a `backup-YYYY-MM-DD.json` file the user can keep; counterpart restore. ⚠️ Without this, **uninstalling the app loses all data** — this is the highest-risk gap. *(Shipped: `ab5f1e7`.)*
 
 ### Phase 2 — Power features
 
