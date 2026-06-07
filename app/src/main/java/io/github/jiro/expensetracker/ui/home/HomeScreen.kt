@@ -138,59 +138,71 @@ fun HomeScreen(
             }
         },
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            SearchField(
-                query = searchQuery,
-                onQueryChange = viewModel::setSearchQuery,
-                onClear = viewModel::clearSearch,
-            )
-            PeriodSelector(
-                period = period,
-                onPeriodChange = viewModel::setPeriod,
-                onStepMonth = viewModel::stepMonth,
-            )
-            DashboardSummaryCard(summary = summary)
-            MonthlyTrendCard(data = monthlyTotals)
+        // Group outside the LazyColumn — `remember` is @Composable and
+        // LazyListScope.() -> Unit is not. Hoisting keeps the group computed
+        // only when the visible transactions change.
+        val groupedTransactions = remember(visibleTransactions) {
+            groupByDay(visibleTransactions)
+        }
+
+        // Single LazyColumn for the whole content. The charts are items at
+        // the top; the transaction list is a natural continuation. User
+        // scrolls to see more — the charts don't take fixed space and push
+        // the list off-screen.
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            item(key = "search") {
+                SearchField(
+                    query = searchQuery,
+                    onQueryChange = viewModel::setSearchQuery,
+                    onClear = viewModel::clearSearch,
+                )
+            }
+            item(key = "period") {
+                PeriodSelector(
+                    period = period,
+                    onPeriodChange = viewModel::setPeriod,
+                    onStepMonth = viewModel::stepMonth,
+                )
+            }
+            item(key = "dashboard") {
+                DashboardSummaryCard(summary = summary)
+            }
+            item(key = "monthly") {
+                MonthlyTrendCard(data = monthlyTotals)
+            }
             when {
-                transactions.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.home_empty),
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                    }
+                transactions.isEmpty() -> item(key = "empty") {
+                    Text(
+                        text = stringResource(R.string.home_empty),
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
+                    )
                 }
-                visibleTransactions.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.search_no_matches, searchQuery),
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                    }
+                visibleTransactions.isEmpty() -> item(key = "no_matches") {
+                    Text(
+                        text = stringResource(R.string.search_no_matches, searchQuery),
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
+                    )
                 }
                 else -> {
-                    val grouped = remember(visibleTransactions) { groupByDay(visibleTransactions) }
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        grouped.forEach { group ->
-                            item(key = "day_${group.dayStartMs}") {
-                                DayHeader(group.dayStartMs)
-                            }
-                            items(group.items, key = { it.transaction.id }) { row ->
-                                SwipeableTransactionRow(
-                                    row = row,
-                                    onEdit = { onEditClick(row.transaction.id) },
-                                    onDelete = { viewModel.delete(row) },
-                                )
-                            }
+                    groupedTransactions.forEach { group ->
+                        item(key = "day_${group.dayStartMs}") {
+                            DayHeader(group.dayStartMs)
+                        }
+                        items(group.items, key = { it.transaction.id }) { row ->
+                            SwipeableTransactionRow(
+                                row = row,
+                                onEdit = { onEditClick(row.transaction.id) },
+                                onDelete = { viewModel.delete(row) },
+                            )
                         }
                     }
                 }

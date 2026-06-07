@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -69,15 +69,19 @@ fun PieChartWithLegend(
         }
         return
     }
+    // Pin the chart row to a fixed, reasonable height so the dashboard card
+    // doesn't grow to fill the screen on tall displays. The pie still scales
+    // (it's drawn in Canvas from the available size), and the legend scrolls
+    // internally if it overflows.
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().height(180.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         PieChart(
             slices = slices,
             modifier = Modifier
                 .weight(1f)
-                .aspectRatio(1f)
+                .fillMaxHeight()
                 .padding(8.dp),
         )
         PieLegend(
@@ -85,6 +89,7 @@ fun PieChartWithLegend(
             totalMinor = total,
             modifier = Modifier
                 .weight(1f)
+                .fillMaxHeight()
                 .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
         )
     }
