@@ -48,8 +48,8 @@ Items are ordered roughly by what a real user would want first. Effort is S (≤
 
 ### Phase 1 — Daily-use essentials *(ship these first)*
 
-- [ ] **Search** &nbsp;`S` &nbsp;·&nbsp; *Value: H* — A search bar in the home screen that filters the existing transactions `Flow` by title / note / category name.
-- [ ] **Manual category CRUD UI** &nbsp;`S-M` &nbsp;·&nbsp; *Value: H* — Add / rename / delete user-created categories. Built-ins stay read-only (they're marked `isBuiltIn` in the schema).
+- [x] **Search** &nbsp;`S` &nbsp;·&nbsp; *Value: H* — A search bar in the home screen that filters the existing transactions `Flow` by title / note / category name. *(Shipped: `b151b8f`.)*
+- [x] **Manual category CRUD UI** &nbsp;`S-M` &nbsp;·&nbsp; *Value: H* — Add / rename / delete user-created categories. Built-ins stay read-only (they're marked `isBuiltIn` in the schema). *(Shipped: `ecae9d6`.)*
 - [ ] **Settings screen** &nbsp;`S` &nbsp;·&nbsp; *Value: M* — App-wide preferences: theme override (light / dark / system), default currency, "about", and the data-management entries below.
 - [ ] **Branded app icon** &nbsp;`S` &nbsp;·&nbsp; *Value: M* — Replace the placeholder dollar-glyph with a proper icon (adaptive layers, monochrome variant, multiple densities). Today's icon looks unfinished.
 - [ ] **JSON backup & restore** &nbsp;`M` &nbsp;·&nbsp; *Value: H* — Export the full DB to a `backup-YYYY-MM-DD.json` file the user can keep; counterpart restore. ⚠️ Without this, **uninstalling the app loses all data** — this is the highest-risk gap.
@@ -59,7 +59,7 @@ Items are ordered roughly by what a real user would want first. Effort is S (≤
 - [ ] **Recurring transactions** &nbsp;`M` &nbsp;·&nbsp; *Value: H* — Auto-create monthly / weekly entries (rent, salary). Needs a `RecurrenceRule` column on `TransactionEntity` and a `WorkManager` job to materialise the next occurrence.
 - [ ] **Multi-currency** &nbsp;`M` &nbsp;·&nbsp; *Value: H* — Currency picker on the form; per-transaction `currencyCode` is already in the schema. The dashboard needs a user-set base currency and FX rates (manual or via a free API) to normalise totals.
 - [ ] **Budgets per category per month** &nbsp;`M` &nbsp;·&nbsp; *Value: H* — Set a monthly budget; the dashboard shows progress (bar fills as you spend) and an overspend warning at 100 %.
-- [ ] **Receipts / attachments** &nbsp;`M` &nbsp;·&nbsp; *Value: M* — Attach a photo to a transaction. Storage: app-internal (private) or `MediaStore` (visible in gallery). Decision needed; see Open Questions.
+- [ ] **Receipts / attachments** &nbsp;`M` &nbsp;·&nbsp; *Value: M* — Attach a photo to a transaction. App-internal storage (`<filesDir>/receipts/`) per the design decision; the JSON backup widens to `.zip` to include the media.
 - [ ] **Trend line chart** &nbsp;`S` &nbsp;·&nbsp; *Value: M* — Daily cumulative balance over the selected period. Complements the existing pie + bar charts.
 
 ### Phase 3 — Quality & infrastructure

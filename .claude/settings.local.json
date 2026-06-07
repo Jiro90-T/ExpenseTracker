@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -c user.name=\"MiniMax-M3\" -c user.email=\"291324429+Jiro90-T@users.noreply.github.com\" add -A)",
+      "Bash(git -c user.name=MiniMax-M3 -c user.email=291324429+Jiro90-T@users.noreply.github.com commit -m ' *)",
+      "Bash(git push *)"
+    ]
+  }
+}
