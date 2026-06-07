@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
@@ -69,6 +70,7 @@ import kotlinx.coroutines.launch
 fun HomeScreen(
     onAddClick: () -> Unit = {},
     onEditClick: (Long) -> Unit = {},
+    onManageCategories: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val transactions by viewModel.transactions.collectAsStateWithLifecycle()
@@ -104,6 +106,12 @@ fun HomeScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.home_title)) },
                 actions = {
+                    IconButton(onClick = onManageCategories) {
+                        Icon(
+                            Icons.Filled.Category,
+                            contentDescription = stringResource(R.string.action_manage_categories),
+                        )
+                    }
                     IconButton(
                         onClick = {
                             coroutineScope.launch {

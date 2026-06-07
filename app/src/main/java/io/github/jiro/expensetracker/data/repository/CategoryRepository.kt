@@ -25,6 +25,8 @@ class CategoryRepository @Inject constructor(
     suspend fun add(name: String, type: TransactionType): Long =
         dao.insert(CategoryEntity(name = name, type = type.name))
 
+    suspend fun update(category: CategoryEntity) = dao.update(category)
+
     /** Hard-delete only succeeds for non-built-in categories. */
     suspend fun deleteById(id: Long): Boolean = dao.deleteById(id) > 0
 }

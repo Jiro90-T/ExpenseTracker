@@ -8,6 +8,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import io.github.jiro.expensetracker.ui.add_edit.AddEditTransactionScreen
+import io.github.jiro.expensetracker.ui.categories.CategoryManagementScreen
 import io.github.jiro.expensetracker.ui.home.HomeScreen
 
 object Routes {
@@ -15,6 +16,7 @@ object Routes {
     const val ADD_EDIT = "add_edit?id={id}"
     const val ADD_EDIT_ARG_ID = "id"
     const val ADD_EDIT_NO_ID = "add_edit" // convenience for the "new" case
+    const val CATEGORIES = "categories"
 }
 
 /** Builds the "add_edit" route for a given (optional) transaction id. */
@@ -30,6 +32,7 @@ fun AppNavHost(
             HomeScreen(
                 onAddClick = { navController.navigate(addEditRoute()) },
                 onEditClick = { id -> navController.navigate(addEditRoute(id)) },
+                onManageCategories = { navController.navigate(Routes.CATEGORIES) },
             )
         }
         composable(
@@ -42,6 +45,11 @@ fun AppNavHost(
             ),
         ) {
             AddEditTransactionScreen(
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(Routes.CATEGORIES) {
+            CategoryManagementScreen(
                 onBack = { navController.popBackStack() },
             )
         }

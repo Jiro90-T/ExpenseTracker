@@ -56,4 +56,18 @@
     <string name="search_placeholder">Search transactions</string>
     <string name="action_clear_search">Clear search</string>
     <string name="search_no_matches">No transactions match \"%1$s\"</string>
+
+    <!-- Categories management -->
+    <string name="action_manage_categories">Manage categories</string>
+    <string name="categories_title">Categories</string>
+    <string name="action_add_category">Add category</string>
+    <string name="category_add_title">New category</string>
+    <string name="category_edit_title">Edit category</string>
+    <string name="section_expense">Expense</string>
+    <string name="section_income">Income</string>
+    <string name="field_name">Name</string>
+    <string name="label_built_in">Built-in</string>
+    <string name="error_name_required">Name is required</string>
+    <string name="error_name_duplicate">A category with this name already exists</string>
+    <string name="help_built_in_read_only">Built-in categories can\'t be edited or deleted.</string>
 </resources>
