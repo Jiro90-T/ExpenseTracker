@@ -98,4 +98,15 @@
     <string name="home_recent_empty">No transactions yet. Tap + to add one.</string>
     <string name="action_see_all">See all</string>
     <string name="action_see_all_transactions">View all transactions</string>
+
+    <!-- Settings -->
+    <string name="settings_section_data">Data</string>
+    <string name="backup_export_title">Backup to file</string>
+    <string name="backup_export_subtitle">Save all transactions and categories as a JSON file</string>
+    <string name="backup_restore_title">Restore from file</string>
+    <string name="backup_restore_subtitle">Replace all current data with the contents of a backup file</string>
+    <string name="backup_share_chooser_title">Share backup file</string>
+    <string name="backup_restore_confirm_title">Replace all data?</string>
+    <string name="backup_restore_confirm_message">This will replace every transaction and user category on this device. This can\'t be undone — make sure you have a current backup before continuing.</string>
+    <string name="action_restore">Restore</string>
 </resources>

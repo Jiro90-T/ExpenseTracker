@@ -28,9 +28,18 @@ interface CategoryDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(category: CategoryEntity): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAllReplacing(categories: List<CategoryEntity>): List<Long>
+
     @Update
     suspend fun update(category: CategoryEntity): Int
 
     @Query("DELETE FROM categories WHERE id = :id AND isBuiltIn = 0")
     suspend fun deleteById(id: Long): Int
+
+    @Query("DELETE FROM categories WHERE isBuiltIn = 0")
+    suspend fun deleteAllNonBuiltIn(): Int
+
+    @Query("SELECT * FROM categories")
+    suspend fun observeAllOnce(): List<CategoryEntity>
 }

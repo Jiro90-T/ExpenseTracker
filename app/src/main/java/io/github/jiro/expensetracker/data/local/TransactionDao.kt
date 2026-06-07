@@ -41,4 +41,15 @@ interface TransactionDao {
 
     @Delete
     suspend fun delete(transaction: TransactionEntity)
+
+    // ---- Backup & restore helpers (Phase 1.5) ----
+
+    @Query("SELECT * FROM transactions")
+    suspend fun observeAllForExport(): List<TransactionEntity>
+
+    @Query("DELETE FROM transactions")
+    suspend fun deleteAll(): Int
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(transactions: List<TransactionEntity>): List<Long>
 }
