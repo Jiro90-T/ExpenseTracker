@@ -53,8 +53,7 @@ fun AppNavHost(
         ) {
             composable(Routes.HOME) {
                 HomeScreen(
-                    onTransactionClick = { id -> navController.navigate(addEditRoute(id)) },
-                    onSeeAllClick = { navController.navigate(Routes.TRANSACTIONS) },
+                    onSeeAllTransactions = { navController.navigate(Routes.TRANSACTIONS) },
                 )
             }
             composable(Routes.TRANSACTIONS) {

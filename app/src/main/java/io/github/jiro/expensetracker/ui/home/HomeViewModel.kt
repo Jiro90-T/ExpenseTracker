@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.jiro.expensetracker.data.local.TransactionWithCategory
 import io.github.jiro.expensetracker.data.repository.TransactionRepository
-import io.github.jiro.expensetracker.export.CsvExporter
+import io.github.jiro.expensetracker.domain.model.TransactionType
 import io.github.jiro.expensetracker.ui.charts.MonthlyTotals
 import io.github.jiro.expensetracker.ui.charts.computeMonthlyTotals
 import javax.inject.Inject
@@ -14,8 +14,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -28,6 +26,23 @@ import kotlinx.coroutines.launch
  */
 data class UndoState(val row: TransactionWithCategory)
 
+/** Summary of income/expense for the dashboard. */
+data class DashboardSummary(
+    val incomeMinor: Long = 0L,
+    val expenseMinor: Long = 0L,
+    val balanceMinor: Long = 0L,
+    /** Top expense categories by amount, descending. "Others" is the rolled-up remainder. */
+    val topExpenseCategories: List<CategoryBreakdown> = emptyList(),
+    val totalExpenseForBreakdownMinor: Long = 0L,
+    val transactionCount: Int = 0,
+)
+
+data class CategoryBreakdown(
+    val categoryId: Long,
+    val categoryName: String,
+    val amountMinor: Long,
+)
+
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -37,14 +52,12 @@ class HomeViewModel @Inject constructor(
     private val _period = MutableStateFlow<Period>(Period.currentMonth())
     val period: StateFlow<Period> = _period.asStateFlow()
 
-    private val _searchQuery = MutableStateFlow("")
-    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
-
     /**
-     * Period-filtered transactions. The summary, the bar chart, and the CSV
-     * export all read from this — the search filter only narrows the list.
+     * Period-filtered transactions, used to compute [summary]. The bar chart
+     * is intentionally period-independent (last 6 months, all-time) so the
+     * trend view stays stable as the user steps the period.
      */
-    val transactions: StateFlow<List<TransactionWithCategory>> = _period
+    private val periodTransactions: StateFlow<List<TransactionWithCategory>> = _period
         .flatMapLatest { p ->
             p.monthBounds()?.let { (start, end) -> repository.observeInRange(start, end) }
                 ?: repository.observeAll()
@@ -55,22 +68,15 @@ class HomeViewModel @Inject constructor(
             initialValue = emptyList(),
         )
 
-    /**
-     * The list the UI actually renders: period-filtered, then narrowed by
-     * [searchQuery]. Case-insensitive substring match against title, note,
-     * and category name. Empty query is a no-op (all rows pass through).
-     */
-    val visibleTransactions: StateFlow<List<TransactionWithCategory>> = combine(
-        transactions,
-        _searchQuery,
-    ) { rows, query -> applySearch(rows, query) }
+    /** All transactions, unfiltered. Used by the Transactions tab. */
+    val allTransactions: StateFlow<List<TransactionWithCategory>> = repository.observeAll()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = emptyList(),
         )
 
-    val summary: StateFlow<DashboardSummary> = transactions
+    val summary: StateFlow<DashboardSummary> = periodTransactions
         .map { computeDashboardSummary(it) }
         .stateIn(
             scope = viewModelScope,
@@ -78,28 +84,8 @@ class HomeViewModel @Inject constructor(
             initialValue = DashboardSummary(),
         )
 
-    /**
-     * Last 6 months of income/expense totals, derived from ALL transactions
-     * (not period-filtered) — the bar chart is a trend view, independent of
-     * the user's current period filter.
-     */
     val monthlyTotals: StateFlow<List<MonthlyTotals>> = repository.observeAll()
         .map { computeMonthlyTotals(it, monthsBack = 6) }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = emptyList(),
-        )
-
-    /**
-     * Top 5 most recent transactions, all-time. Used by the Home tab's
-     * "recent activity" glance; the Transactions tab uses [transactions]
-     * (period-filtered) instead.
-     */
-    val recentTransactions: StateFlow<List<TransactionWithCategory>> = repository.observeAll()
-        .map { rows ->
-            rows.sortedByDescending { it.transaction.occurredAtEpochMillis }.take(5)
-        }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -117,14 +103,6 @@ class HomeViewModel @Inject constructor(
         val current = _period.value
         if (current !is Period.Month) return
         _period.value = if (direction < 0) current.previous() else current.next()
-    }
-
-    fun setSearchQuery(value: String) {
-        _searchQuery.value = value
-    }
-
-    fun clearSearch() {
-        _searchQuery.value = ""
     }
 
     fun delete(row: TransactionWithCategory) {
@@ -145,28 +123,63 @@ class HomeViewModel @Inject constructor(
     fun dismissUndo() {
         _undo.value = null
     }
+}
 
-    /**
-     * Builds a CSV for the current period using the latest transactions snapshot.
-     * Returns the CSV string. Empty list -> CSV with header only. The search
-     * filter does NOT apply here — CSV export reflects the period, not the
-     * current search box contents.
-     */
-    suspend fun buildCsvForCurrentPeriod(): String {
-        val rows = transactions.first()
-        return CsvExporter.toCsv(rows)
-    }
+/**
+ * Pure function: aggregates a (period-filtered) list of joined rows into a summary.
+ * Top expense categories returns at most [topN] entries; if more exist, a synthetic
+ * "Others" bucket is appended with the rolled-up remainder.
+ */
+fun computeDashboardSummary(
+    rows: List<TransactionWithCategory>,
+    topN: Int = 5,
+): DashboardSummary {
+    var income = 0L
+    var expense = 0L
+    val byCategory = mutableMapOf<Long, CategoryBreakdown>()
 
-    private fun applySearch(
-        rows: List<TransactionWithCategory>,
-        rawQuery: String,
-    ): List<TransactionWithCategory> {
-        val needle = rawQuery.trim().lowercase()
-        if (needle.isEmpty()) return rows
-        return rows.filter { row ->
-            row.transaction.title.lowercase().contains(needle) ||
-                row.transaction.note?.lowercase()?.contains(needle) == true ||
-                row.category.name.lowercase().contains(needle)
+    for (row in rows) {
+        val t = row.transaction
+        when (TransactionType.fromStorage(t.type)) {
+            TransactionType.INCOME -> income += t.amountMinor
+            TransactionType.EXPENSE -> {
+                expense += t.amountMinor
+                val existing = byCategory[t.categoryId]
+                if (existing == null) {
+                    byCategory[t.categoryId] = CategoryBreakdown(
+                        categoryId = t.categoryId,
+                        categoryName = row.category.name,
+                        amountMinor = t.amountMinor,
+                    )
+                } else {
+                    byCategory[t.categoryId] = existing.copy(
+                        amountMinor = existing.amountMinor + t.amountMinor,
+                    )
+                }
+            }
         }
     }
+
+    val sorted = byCategory.values.sortedByDescending { it.amountMinor }
+    val (top, rest) = if (sorted.size > topN) {
+        sorted.take(topN) to sorted.drop(topN)
+    } else {
+        sorted to emptyList()
+    }
+    val topWithOthers = if (rest.isNotEmpty()) {
+        top + CategoryBreakdown(
+            categoryId = -1L,
+            categoryName = "Others",
+            amountMinor = rest.sumOf { it.amountMinor },
+        )
+    } else top
+
+    return DashboardSummary(
+        incomeMinor = income,
+        expenseMinor = expense,
+        balanceMinor = income - expense,
+        topExpenseCategories = topWithOthers,
+        totalExpenseForBreakdownMinor = expense,
+        transactionCount = rows.size,
+    )
 }
