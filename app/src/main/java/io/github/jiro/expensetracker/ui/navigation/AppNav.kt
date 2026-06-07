@@ -3,6 +3,10 @@ package io.github.jiro.expensetracker.ui.navigation
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -38,11 +42,27 @@ fun addEditRoute(transactionId: Long? = null): String =
 fun AppNavHost(
     navController: NavHostController = rememberNavController(),
 ) {
+    // Per-tab reselect counters. The bottom nav increments the matching
+    // counter when the user taps an already-active tab; the corresponding
+    // screen observes the counter and scrolls its LazyColumn to the top.
+    // This is what makes tapping "Home" while already on Home do something
+    // visible (jump-to-top), instead of being a silent no-op.
+    var homeReselectCount by remember { mutableIntStateOf(0) }
+    var transactionsReselectCount by remember { mutableIntStateOf(0) }
+
     Scaffold(
         bottomBar = {
             AppBottomBar(
                 navController = navController,
                 onAddClick = { navController.navigate(addEditRoute()) },
+                onTabReselected = { route ->
+                    when (route) {
+                        Routes.HOME -> homeReselectCount++
+                        Routes.TRANSACTIONS -> transactionsReselectCount++
+                        // Other tabs don't have lists to scroll, so the
+                        // reselect is a silent no-op for now.
+                    }
+                },
             )
         },
     ) { padding ->
@@ -54,11 +74,13 @@ fun AppNavHost(
             composable(Routes.HOME) {
                 HomeScreen(
                     onSeeAllTransactions = { navController.navigate(Routes.TRANSACTIONS) },
+                    reselectTrigger = homeReselectCount,
                 )
             }
             composable(Routes.TRANSACTIONS) {
                 TransactionsScreen(
                     onTransactionClick = { id -> navController.navigate(addEditRoute(id)) },
+                    reselectTrigger = transactionsReselectCount,
                 )
             }
             composable(

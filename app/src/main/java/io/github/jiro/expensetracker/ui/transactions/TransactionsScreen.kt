@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -35,6 +36,7 @@ import io.github.jiro.expensetracker.ui.home.groupByDay
 @Composable
 fun TransactionsScreen(
     onTransactionClick: (Long) -> Unit = {},
+    reselectTrigger: Int = 0,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val allTransactions by viewModel.allTransactions.collectAsStateWithLifecycle()
@@ -42,6 +44,11 @@ fun TransactionsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val undoLabel = stringResource(R.string.action_undo)
     val deletedLabel = stringResource(R.string.snackbar_transaction_deleted)
+
+    val listState = rememberLazyListState()
+    LaunchedEffect(reselectTrigger) {
+        if (reselectTrigger > 0) listState.animateScrollToItem(0)
+    }
 
     LaunchedEffect(undoState) {
         val pending = undoState ?: return@LaunchedEffect
@@ -73,6 +80,7 @@ fun TransactionsScreen(
         } else {
             val grouped = remember(allTransactions) { groupByDay(allTransactions) }
             LazyColumn(
+                state = listState,
                 modifier = Modifier.fillMaxSize().padding(padding),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {

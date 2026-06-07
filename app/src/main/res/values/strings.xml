@@ -76,6 +76,7 @@
     <!-- Bottom nav -->
     <string name="nav_home">Home</string>
     <string name="nav_transactions">Transactions</string>
+    <string name="nav_transactions_short">Txns</string>
     <string name="nav_budget">Budget</string>
     <string name="nav_reports">Reports</string>
     <string name="nav_more">More</string>

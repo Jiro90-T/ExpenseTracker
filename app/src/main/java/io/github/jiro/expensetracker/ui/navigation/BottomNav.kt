@@ -20,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -41,10 +42,18 @@ internal enum class BottomTab(
     More(Routes.MORE, R.string.nav_more, Icons.Filled.MoreHoriz),
 }
 
+/** Short label overrides for tabs whose full name doesn't fit in the bar. */
+private val BottomTab.shortLabel: String?
+    @Composable get() = when (this) {
+        BottomTab.Transactions -> stringResource(R.string.nav_transactions_short)
+        else -> null
+    }
+
 @Composable
 internal fun AppBottomBar(
     navController: NavHostController,
     onAddClick: () -> Unit,
+    onTabReselected: (route: String) -> Unit = {},
 ) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
@@ -52,11 +61,23 @@ internal fun AppBottomBar(
     NavigationBar {
         // Left side: Home, Transactions
         BottomTab.entries.take(2).forEach { tab ->
+            val isCurrent = currentDestination?.hierarchy?.any { it.route == tab.route } == true
             NavigationBarItem(
-                selected = currentDestination?.hierarchy?.any { it.route == tab.route } == true,
-                onClick = { navigateToTab(navController, tab.route) },
+                selected = isCurrent,
+                onClick = {
+                    if (isCurrent) {
+                        onTabReselected(tab.route)
+                    } else {
+                        navigateToTab(navController, tab.route)
+                    }
+                },
                 icon = { Icon(tab.icon, contentDescription = stringResource(tab.labelRes)) },
-                label = { Text(stringResource(tab.labelRes)) },
+                label = {
+                    NavBarLabel(
+                        fullRes = tab.labelRes,
+                        shortOverride = tab.shortLabel,
+                    )
+                },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -78,7 +99,7 @@ internal fun AppBottomBar(
                         .padding(2.dp),
                 )
             },
-            label = { Text(stringResource(R.string.nav_add)) },
+            label = { NavBarLabel(fullRes = R.string.nav_add, shortOverride = null) },
             alwaysShowLabel = true,
             colors = NavigationBarItemDefaults.colors(
                 selectedIconColor = MaterialTheme.colorScheme.onPrimary,
@@ -91,11 +112,23 @@ internal fun AppBottomBar(
 
         // Right side: Budget, Reports, More
         BottomTab.entries.drop(2).forEach { tab ->
+            val isCurrent = currentDestination?.hierarchy?.any { it.route == tab.route } == true
             NavigationBarItem(
-                selected = currentDestination?.hierarchy?.any { it.route == tab.route } == true,
-                onClick = { navigateToTab(navController, tab.route) },
+                selected = isCurrent,
+                onClick = {
+                    if (isCurrent) {
+                        onTabReselected(tab.route)
+                    } else {
+                        navigateToTab(navController, tab.route)
+                    }
+                },
                 icon = { Icon(tab.icon, contentDescription = stringResource(tab.labelRes)) },
-                label = { Text(stringResource(tab.labelRes)) },
+                label = {
+                    NavBarLabel(
+                        fullRes = tab.labelRes,
+                        shortOverride = tab.shortLabel,
+                    )
+                },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -104,6 +137,21 @@ internal fun AppBottomBar(
             )
         }
     }
+}
+
+/**
+ * Nav-bar label that uses a shortened override when one is provided (the
+ * full name is kept in the icon's contentDescription for accessibility), and
+ * constrains to a single line so a long label can't wrap and break the
+ * icon alignment above it.
+ */
+@Composable
+private fun NavBarLabel(fullRes: Int, shortOverride: String?) {
+    Text(
+        text = shortOverride ?: stringResource(fullRes),
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
 }
 
 private fun navigateToTab(navController: NavHostController, route: String) {

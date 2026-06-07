@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,8 +39,14 @@ import io.github.jiro.expensetracker.ui.theme.ExpenseTrackerTheme
 @Composable
 fun HomeScreen(
     onSeeAllTransactions: () -> Unit = {},
+    reselectTrigger: Int = 0,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
+    val listState = rememberLazyListState()
+    LaunchedEffect(reselectTrigger) {
+        if (reselectTrigger > 0) listState.animateScrollToItem(0)
+    }
+
     val summary by viewModel.summary.collectAsStateWithLifecycle()
     val monthlyTotals by viewModel.monthlyTotals.collectAsStateWithLifecycle()
     val period by viewModel.period.collectAsStateWithLifecycle()
@@ -84,6 +91,7 @@ fun HomeScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize().padding(padding),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
