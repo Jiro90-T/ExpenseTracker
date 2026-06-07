@@ -86,9 +86,3 @@ Items are ordered roughly by what a real user would want first. Effort is S (≤
 - [ ] **Bank integration** &nbsp;`L` &nbsp;·&nbsp; *Value: H but complex* — Plaid or similar. Adds regulatory burden; probably out of scope for a personal app.
 - [ ] **Home-screen widget** &nbsp;`M` &nbsp;·&nbsp; *Value: M* — Quick-add from the launcher. Glance widget showing today's spend.
 
-### Open questions to decide before building
-
-- **Currency model:** single base + per-tx? Or true multi-currency with FX conversion? (Affects how every total is computed.)
-- **Receipt storage:** app-internal (private, lost on uninstall) or `MediaStore` (survives, visible in the system gallery)?
-- **Sync backend:** Firebase (fast, vendor lock-in), self-hosted (work, control), or just Drive/Dropbox JSON files (no schema, brittle)?
-- **Auth model:** does the app ever need a logged-in user, or stay single-user / device-local forever?
