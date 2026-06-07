@@ -66,3 +66,12 @@ The "offline-first" requirement is the load-bearing constraint — it implies:
 - Package layout: `io.github.jiro.expensetracker.{data.{local,repository}, di, domain.model, ui.{theme,<feature>}}`.
 - All new dependencies go through `gradle/libs.versions.toml` — no inline version strings in `build.gradle.kts`.
 - Add an `.editorconfig` and code-style config (ktlint or Detekt) before the first feature lands.
+
+## Design Decisions (resolved 2026-06-07)
+
+Cross-cutting choices for Phase 2+ work. Don't re-litigate these without a strong reason — they shape every feature in the roadmap.
+
+- **Currency:** per-tx currency + FX to a home base. `TransactionEntity.currencyCode` is preserved per-row (already in the v2 schema). The dashboard converts to the user's home currency for totals; the list view shows each transaction in its native currency. FX source is TBD (a free API like `open.er-api.com` or manual monthly entry are both fine).
+- **Receipts:** app-internal + bundled in JSON backup. Files live in `<filesDir>/receipts/`, referenced by a new `receiptPath` column on `TransactionEntity`. The JSON backup is a `.zip` containing the manifest + the media files; the restore flow extracts both. Per-receipt "save to Photos" via the share sheet is a separate affordance.
+- **Sync (Phase 4):** Drive/Dropbox JSON snapshots, no backend server. Push/pull on app start and on data mutation (debounced). Conflict resolution: last-write-wins, with a manual-merge UI for ties.
+- **Auth:** optional, only gates sync. No sign-in on first launch; the app works fully locally. A "Sign in" entry in Settings is the only place login happens, and it exists solely to enable cloud sync. One cloud account at a time in v1.
