@@ -72,4 +72,18 @@
     <string name="error_name_required">Name is required</string>
     <string name="error_name_duplicate">A category with this name already exists</string>
     <string name="help_built_in_read_only">Built-in categories can\'t be edited or deleted.</string>
+
+    <!-- Bottom nav -->
+    <string name="nav_home">Home</string>
+    <string name="nav_categories">Categories</string>
+    <string name="nav_reports">Reports</string>
+    <string name="nav_settings">Settings</string>
+    <string name="nav_add">Add</string>
+
+    <!-- Stubs -->
+    <string name="reports_title">Reports</string>
+    <string name="settings_title">Settings</string>
+    <string name="coming_soon">Coming soon</string>
+    <string name="reports_coming_soon_detail">Charts, trends, and budget tracking will live here.</string>
+    <string name="settings_coming_soon_detail">Theme, default currency, and data export will live here.</string>
 </resources>
