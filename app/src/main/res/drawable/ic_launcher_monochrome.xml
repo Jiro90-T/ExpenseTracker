@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Adaptive-icon foreground for the Expense Tracker launcher icon.
-  Drawn inside a 108x108dp viewport; the visible content is centered
-  in the central 72x72dp safe area. Two simple paths: a vertical bar
-  + a stylised S-curve for the $ glyph.
+  Monochrome variant for Android 13+ themed icons. Tinted by the system
+  to match the user's wallpaper palette. Same shape as the foreground
+  but on a transparent background.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -16,7 +15,7 @@
         android:fillColor="#FFFFFF"
         android:pathData="M51,30 L57,30 L57,80 L51,80 Z" />
 
-    <!-- S-curve of the $: top hook, middle bar, bottom hook -->
+    <!-- S-curve of the $ -->
     <path
         android:fillColor="#FFFFFF"
         android:pathData="M62,44 L62,40 C62,36 58,34 54,34 L46,34 C40,34 38,38 38,42 C38,46 42,48 46,48 L58,48 C62,48 66,50 66,54 C66,58 62,60 58,60 L46,60 C42,60 38,62 38,66 C38,70 42,74 46,74 L54,74 C58,74 62,72 62,68 L62,64" />
