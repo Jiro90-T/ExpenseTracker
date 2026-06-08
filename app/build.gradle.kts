@@ -21,12 +21,26 @@ android {
         vectorDrawables { useSupportLibrary = true }
     }
 
+    signingConfigs {
+        // Contest-submission signing: use the auto-generated debug
+        // keystore so the release APK installs without further setup.
+        // NOT suitable for Play Store. Replace with a real keystore
+        // before any production release.
+        create("releaseDebugSigned") {
+            storeFile = file(System.getProperty("user.home") + "/.android/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
             isDebuggable = true
         }
         release {
+            signingConfig = signingConfigs.getByName("releaseDebugSigned")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
