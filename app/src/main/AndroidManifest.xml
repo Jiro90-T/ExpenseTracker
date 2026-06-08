@@ -34,6 +34,23 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!--
+            Disable WorkManager's default androidx.startup initializer. We
+            configure WorkManager ourselves in ExpenseTrackerApp
+            (Configuration.Provider) so the @HiltWorker-annotated
+            RecurringTransactionWorker gets its @AssistedInject dependencies.
+        -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
     </application>
 
 </manifest>

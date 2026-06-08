@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
@@ -68,7 +69,21 @@ internal fun TransactionRow(row: TransactionWithCategory, onClick: () -> Unit) {
         CategoryIconBadge(name = category.name, size = 40)
         Spacer(Modifier.padding(start = 12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(txn.title, style = MaterialTheme.typography.titleMedium)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = txn.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                if (txn.recurringGroupId != null) {
+                    Icon(
+                        imageVector = Icons.Filled.Autorenew,
+                        contentDescription = stringResource(R.string.recurring_indicator),
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
             Text(
                 text = "${category.name} · ${txn.currencyCode} " +
                     "$sign${txn.amountMinor / 100}.${"%02d".format(txn.amountMinor % 100)}",

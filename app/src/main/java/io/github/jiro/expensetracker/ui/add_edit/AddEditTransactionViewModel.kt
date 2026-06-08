@@ -4,11 +4,14 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.jiro.expensetracker.data.RecurrenceKind
 import io.github.jiro.expensetracker.data.local.CategoryEntity
 import io.github.jiro.expensetracker.data.local.TransactionEntity
+import io.github.jiro.expensetracker.data.nextOccurrence
 import io.github.jiro.expensetracker.data.repository.CategoryRepository
 import io.github.jiro.expensetracker.data.repository.TransactionRepository
 import io.github.jiro.expensetracker.domain.model.TransactionType
+import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,6 +39,16 @@ data class AddEditTransactionUiState(
     val isSaving: Boolean = false,
     val saveComplete: Boolean = false,
     val error: FormError? = null,
+
+    // ---- Recurring (Phase 2.1) ----
+    val isRecurring: Boolean = false,
+    val recurrenceKind: RecurrenceKind = RecurrenceKind.MONTHLY,
+    val recurrenceInterval: Int = 1,
+    /**
+     * Stable id for the series. Generated when the user first flips the
+     * "make recurring" toggle on; preserved across edits.
+     */
+    val recurringGroupId: String? = null,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -55,7 +68,6 @@ class AddEditTransactionViewModel @Inject constructor(
     )
     val state: StateFlow<AddEditTransactionUiState> = _state.asStateFlow()
 
-    /** Stable currency code for the MVP — single-currency only for now. */
     private val currencyCode: String = "USD"
 
     init {
@@ -90,6 +102,11 @@ class AddEditTransactionViewModel @Inject constructor(
                         selectedCategoryId = existing.categoryId,
                         occurredAtEpochMillis = existing.occurredAtEpochMillis,
                         note = existing.note.orEmpty(),
+                        isRecurring = existing.recurringGroupId != null,
+                        recurrenceKind = RecurrenceKind.fromStorage(existing.recurrenceKind)
+                            ?: RecurrenceKind.MONTHLY,
+                        recurrenceInterval = existing.recurrenceInterval.coerceAtLeast(1),
+                        recurringGroupId = existing.recurringGroupId,
                     )
                 }
             }
@@ -106,6 +123,19 @@ class AddEditTransactionViewModel @Inject constructor(
         it.copy(selectedCategoryId = value, error = null)
     }
     fun onDateChange(epochMillis: Long) = _state.update { it.copy(occurredAtEpochMillis = epochMillis) }
+
+    fun onRecurringToggle(enabled: Boolean) = _state.update {
+        if (enabled && it.recurringGroupId == null) {
+            // First time the user enables recurring — mint a stable group id.
+            it.copy(isRecurring = true, recurringGroupId = UUID.randomUUID().toString())
+        } else {
+            it.copy(isRecurring = enabled)
+        }
+    }
+    fun onRecurrenceKindChange(kind: RecurrenceKind) = _state.update { it.copy(recurrenceKind = kind) }
+    fun onRecurrenceIntervalChange(interval: Int) = _state.update {
+        it.copy(recurrenceInterval = interval.coerceAtLeast(1))
+    }
 
     fun save() {
         val s = _state.value
@@ -128,6 +158,16 @@ class AddEditTransactionViewModel @Inject constructor(
         _state.update { it.copy(isSaving = true, error = null) }
         viewModelScope.launch {
             val now = System.currentTimeMillis()
+            val (groupId, kind, interval, nextAt) = if (s.isRecurring) {
+                Quadruple(
+                    s.recurringGroupId ?: UUID.randomUUID().toString(),
+                    s.recurrenceKind,
+                    s.recurrenceInterval,
+                    nextOccurrence(s.recurrenceKind, s.recurrenceInterval, s.occurredAtEpochMillis),
+                )
+            } else {
+                Quadruple(null, null, 1, null)
+            }
             val entity = TransactionEntity(
                 id = s.id ?: 0L,
                 title = title,
@@ -137,7 +177,11 @@ class AddEditTransactionViewModel @Inject constructor(
                 categoryId = categoryId,
                 occurredAtEpochMillis = s.occurredAtEpochMillis,
                 note = s.note.trim().ifEmpty { null },
-                createdAtEpochMillis = if (s.id == null) now else now, // updatedAt could differ — out of scope
+                createdAtEpochMillis = if (s.id == null) now else now,
+                recurringGroupId = groupId,
+                recurrenceKind = kind?.name,
+                recurrenceInterval = interval,
+                recurrenceNextAt = nextAt,
             )
             if (s.id == null) transactionRepository.add(entity) else transactionRepository.update(entity)
             _state.update { it.copy(isSaving = false, saveComplete = true) }
@@ -169,3 +213,6 @@ class AddEditTransactionViewModel @Inject constructor(
         private const val MAX_AMOUNT_WHOLE = 9_999_999_999L
     }
 }
+
+/** Small holder to keep the save() call site readable. */
+private data class Quadruple<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)

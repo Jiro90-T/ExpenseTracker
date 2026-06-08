@@ -3,8 +3,11 @@ package io.github.jiro.expensetracker.ui.add_edit
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -12,6 +15,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -22,11 +27,13 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -44,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.jiro.expensetracker.R
+import io.github.jiro.expensetracker.data.RecurrenceKind
 import io.github.jiro.expensetracker.domain.model.TransactionType
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -180,6 +188,34 @@ private fun AddEditForm(
             modifier = Modifier.fillMaxWidth(),
         )
 
+        // Recurring (Phase 2.1) — a simple toggle + a couple of fields.
+        // End-condition UI is out of scope for the MVP; series run
+        // indefinitely until the user deletes them.
+        Spacer(Modifier.height(8.dp))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Switch(
+                checked = state.isRecurring,
+                onCheckedChange = viewModel::onRecurringToggle,
+            )
+            Spacer(Modifier.padding(start = 8.dp))
+            Text(
+                text = stringResource(R.string.field_recurring),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        }
+        if (state.isRecurring) {
+            Spacer(Modifier.height(8.dp))
+            RecurrenceOptions(
+                kind = state.recurrenceKind,
+                interval = state.recurrenceInterval,
+                onKindChange = viewModel::onRecurrenceKindChange,
+                onIntervalChange = viewModel::onRecurrenceIntervalChange,
+            )
+        }
+
         Spacer(Modifier.height(8.dp))
 
         Button(
@@ -264,6 +300,74 @@ private fun CategoryDropdown(
             }
         }
     }
+}
+
+/**
+ * Recurring-transaction options: kind (DAILY / WEEKLY / MONTHLY / YEARLY)
+ * and interval (every N). End-condition UI is out of scope for the MVP —
+ * the series runs indefinitely until the user deletes the parent row.
+ */
+@Composable
+private fun RecurrenceOptions(
+    kind: RecurrenceKind,
+    interval: Int,
+    onKindChange: (RecurrenceKind) -> Unit,
+    onIntervalChange: (Int) -> Unit,
+) {
+    Column {
+        Text(
+            text = stringResource(R.string.field_recurrence_kind),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(4.dp))
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            RecurrenceKind.entries.forEachIndexed { index, k ->
+                SegmentedButton(
+                    selected = kind == k,
+                    onClick = { onKindChange(k) },
+                    shape = SegmentedButtonDefaults.itemShape(index = index, count = RecurrenceKind.entries.size),
+                ) {
+                    Text(stringResource(kindLabelRes(k)))
+                }
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = stringResource(R.string.field_recurrence_interval, interval),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(4.dp))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            OutlinedIconButton(
+                onClick = { onIntervalChange((interval - 1).coerceAtLeast(1)) },
+                enabled = interval > 1,
+            ) {
+                Icon(Icons.Filled.Remove, contentDescription = "Decrease interval")
+            }
+            Text(
+                text = interval.toString(),
+                style = MaterialTheme.typography.titleLarge,
+            )
+            OutlinedIconButton(
+                onClick = { onIntervalChange((interval + 1).coerceAtMost(30)) },
+                enabled = interval < 30,
+            ) {
+                Icon(Icons.Filled.Add, contentDescription = "Increase interval")
+            }
+        }
+    }
+}
+
+private fun kindLabelRes(kind: RecurrenceKind): Int = when (kind) {
+    RecurrenceKind.DAILY -> R.string.recurrence_daily
+    RecurrenceKind.WEEKLY -> R.string.recurrence_weekly
+    RecurrenceKind.MONTHLY -> R.string.recurrence_monthly
+    RecurrenceKind.YEARLY -> R.string.recurrence_yearly
 }
 
 private fun formatDate(epochMillis: Long): String =

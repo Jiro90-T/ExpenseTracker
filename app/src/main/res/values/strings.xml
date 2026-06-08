@@ -59,6 +59,16 @@
     <string name="action_clear_search">Clear search</string>
     <string name="search_no_matches">No transactions match \"%1$s\"</string>
 
+    <!-- Recurring (Phase 2.1) -->
+    <string name="field_recurring">Make this recurring</string>
+    <string name="field_recurrence_kind">Repeat</string>
+    <string name="field_recurrence_interval">Every %1$d</string>
+    <string name="recurrence_daily">Daily</string>
+    <string name="recurrence_weekly">Weekly</string>
+    <string name="recurrence_monthly">Monthly</string>
+    <string name="recurrence_yearly">Yearly</string>
+    <string name="recurring_indicator">Recurring</string>
+
     <!-- Categories management -->
     <string name="action_manage_categories">Manage categories</string>
     <string name="categories_title">Categories</string>
