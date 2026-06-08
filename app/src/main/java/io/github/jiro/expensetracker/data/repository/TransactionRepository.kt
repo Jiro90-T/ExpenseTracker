@@ -33,4 +33,8 @@ class TransactionRepository @Inject constructor(
      * Used by the swipe-to-delete undo flow.
      */
     suspend fun restore(transaction: TransactionEntity): Long = dao.restore(transaction)
+
+    /** All rows in a recurring series (parent + materialised instances). */
+    fun observeGroup(groupId: String): Flow<List<TransactionWithCategory>> =
+        dao.observeByRecurringGroup(groupId)
 }
