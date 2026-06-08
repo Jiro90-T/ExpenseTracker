@@ -18,6 +18,7 @@ import io.github.jiro.expensetracker.ui.budget.BudgetScreen
 import io.github.jiro.expensetracker.ui.categories.CategoryManagementScreen
 import io.github.jiro.expensetracker.ui.home.HomeScreen
 import io.github.jiro.expensetracker.ui.more.MoreScreen
+import io.github.jiro.expensetracker.ui.recurring.ManageSeriesScreen
 import io.github.jiro.expensetracker.ui.reports.ReportsScreen
 import io.github.jiro.expensetracker.ui.settings.SettingsScreen
 import io.github.jiro.expensetracker.ui.transactions.TransactionsScreen
@@ -33,6 +34,8 @@ object Routes {
     const val MORE = "more"
     const val CATEGORIES = "categories"
     const val SETTINGS = "settings"
+    const val MANAGE_SERIES = "manage_series/{groupId}"
+    const val MANAGE_SERIES_ARG_GROUP_ID = "groupId"
 }
 
 fun addEditRoute(transactionId: Long? = null): String =
@@ -93,6 +96,16 @@ fun AppNavHost(
                 ),
             ) {
                 AddEditTransactionScreen(
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable(
+                route = Routes.MANAGE_SERIES,
+                arguments = listOf(
+                    navArgument(Routes.MANAGE_SERIES_ARG_GROUP_ID) { type = NavType.StringType },
+                ),
+            ) {
+                ManageSeriesScreen(
                     onBack = { navController.popBackStack() },
                 )
             }

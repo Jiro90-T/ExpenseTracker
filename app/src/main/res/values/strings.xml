@@ -63,11 +63,19 @@
     <string name="field_recurring">Make this recurring</string>
     <string name="field_recurrence_kind">Repeat</string>
     <string name="field_recurrence_interval">Every %1$d</string>
+    <string name="field_recurrence_end">End</string>
+    <string name="field_end_date">End date</string>
+    <string name="end_mode_never">Never</string>
+    <string name="end_mode_on_date">On date</string>
+    <string name="end_mode_after_n">After N</string>
     <string name="recurrence_daily">Daily</string>
     <string name="recurrence_weekly">Weekly</string>
     <string name="recurrence_monthly">Monthly</string>
     <string name="recurrence_yearly">Yearly</string>
     <string name="recurring_indicator">Recurring</string>
+    <string name="manage_series_title">Manage series</string>
+    <string name="manage_series_subtitle">Changes apply to future instances of this series only.</string>
+    <string name="action_manage_series">Manage series</string>
 
     <!-- Categories management -->
     <string name="action_manage_categories">Manage categories</string>
