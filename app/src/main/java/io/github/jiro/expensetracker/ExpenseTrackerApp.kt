@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import dagger.hilt.android.HiltAndroidApp
@@ -34,6 +36,7 @@ class ExpenseTrackerApp : Application(), Configuration.Provider {
         val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         appScope.launch { categorySeeder.seedIfEmpty() }
         scheduleRecurringTransactionJob()
+        triggerRecurringTransactionCheckOnLaunch()
     }
 
     /**
@@ -53,7 +56,25 @@ class ExpenseTrackerApp : Application(), Configuration.Provider {
         )
     }
 
+    /**
+     * Fire the worker once on every app launch in addition to the daily
+     * cadence. Without this, a user who creates a recurring transaction
+     * and reopens the app wouldn't see the next instance materialise until
+     * the daily timer next ticks (up to 24h later). REPLACE policy: any
+     * in-flight one-time job is cancelled and a fresh one is enqueued, so
+     * the worker always runs at launch.
+     */
+    private fun triggerRecurringTransactionCheckOnLaunch() {
+        val request = OneTimeWorkRequestBuilder<RecurringTransactionWorker>().build()
+        WorkManager.getInstance(this).enqueueUniqueWork(
+            RecurringTransactionCheckOnLaunchJobName,
+            ExistingWorkPolicy.REPLACE,
+            request,
+        )
+    }
+
     companion object {
         const val RecurringTransactionJobName = "recurring-transaction-worker"
+        const val RecurringTransactionCheckOnLaunchJobName = "recurring-transaction-check-on-launch"
     }
 }
