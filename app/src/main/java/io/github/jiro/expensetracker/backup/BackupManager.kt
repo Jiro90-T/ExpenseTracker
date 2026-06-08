@@ -66,6 +66,12 @@ class BackupManager @Inject constructor(
                             occurredAtEpochMillis = t.occurredAtEpochMillis,
                             note = t.note,
                             createdAtEpochMillis = t.createdAtEpochMillis,
+                            recurringGroupId = t.recurringGroupId,
+                            recurrenceKind = t.recurrenceKind,
+                            recurrenceInterval = t.recurrenceInterval,
+                            recurrenceEndAt = t.recurrenceEndAt,
+                            recurrenceMaxOccurrences = t.recurrenceMaxOccurrences,
+                            recurrenceNextAt = t.recurrenceNextAt,
                         ),
                     )
                 }
@@ -142,6 +148,12 @@ class BackupManager @Inject constructor(
                             occurredAtEpochMillis = t.occurredAtEpochMillis,
                             note = t.note,
                             createdAtEpochMillis = t.createdAtEpochMillis,
+                            recurringGroupId = t.recurringGroupId,
+                            recurrenceKind = t.recurrenceKind,
+                            recurrenceInterval = t.recurrenceInterval,
+                            recurrenceEndAt = t.recurrenceEndAt,
+                            recurrenceMaxOccurrences = t.recurrenceMaxOccurrences,
+                            recurrenceNextAt = t.recurrenceNextAt,
                         )
                     }
                 )

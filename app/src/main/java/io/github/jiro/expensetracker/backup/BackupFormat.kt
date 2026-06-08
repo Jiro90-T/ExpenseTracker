@@ -9,7 +9,13 @@ import org.json.JSONObject
  * renamed so older builds can refuse the import.
  */
 internal object BackupFormat {
-    const val FORMAT_VERSION = 1
+    /**
+     * v2: adds recurring-transaction fields (recurringGroupId, recurrenceKind,
+     * recurrenceInterval, recurrenceEndAt, recurrenceMaxOccurrences,
+     * recurrenceNextAt). Older backups (v1) restore fine — the new
+     * columns default to null/1 and the new rows are just one-off transactions.
+     */
+    const val FORMAT_VERSION = 2
     const val MIME_TYPE = "application/json"
     const val FILE_PREFIX = "expense-tracker-backup-"
 
@@ -23,8 +29,10 @@ internal object BackupFormat {
     fun parseEnvelope(json: String): JSONObject =
         JSONObject(json).also { obj ->
             val v = obj.optInt("formatVersion", -1)
-            require(v == FORMAT_VERSION) {
-                "Unsupported backup format version: $v (expected $FORMAT_VERSION)"
+            // Accept v1 too — older backups restore fine; recurring fields
+            // are simply absent and the new rows are one-off transactions.
+            require(v == 1 || v == FORMAT_VERSION) {
+                "Unsupported backup format version: $v (expected 1 or $FORMAT_VERSION)"
             }
         }
 
@@ -67,6 +75,12 @@ internal fun transactionEntityToJson(
     occurredAtEpochMillis: Long,
     note: String?,
     createdAtEpochMillis: Long,
+    recurringGroupId: String?,
+    recurrenceKind: String?,
+    recurrenceInterval: Int,
+    recurrenceEndAt: Long?,
+    recurrenceMaxOccurrences: Int?,
+    recurrenceNextAt: Long?,
 ): JSONObject = JSONObject().apply {
     put("id", id)
     put("title", title)
@@ -77,6 +91,12 @@ internal fun transactionEntityToJson(
     put("occurredAtEpochMillis", occurredAtEpochMillis)
     put("note", note ?: JSONObject.NULL)
     put("createdAtEpochMillis", createdAtEpochMillis)
+    put("recurringGroupId", recurringGroupId ?: JSONObject.NULL)
+    put("recurrenceKind", recurrenceKind ?: JSONObject.NULL)
+    put("recurrenceInterval", recurrenceInterval)
+    put("recurrenceEndAt", recurrenceEndAt ?: JSONObject.NULL)
+    put("recurrenceMaxOccurrences", recurrenceMaxOccurrences ?: JSONObject.NULL)
+    put("recurrenceNextAt", recurrenceNextAt ?: JSONObject.NULL)
 }
 
 internal fun categoryFromJson(obj: JSONObject): CategoryRow = CategoryRow(
@@ -97,6 +117,14 @@ internal fun transactionFromJson(obj: JSONObject): TransactionRow = TransactionR
     occurredAtEpochMillis = obj.getLong("occurredAtEpochMillis"),
     note = if (obj.isNull("note")) null else obj.optString("note").ifEmpty { null },
     createdAtEpochMillis = obj.getLong("createdAtEpochMillis"),
+    // Recurring fields are absent in v1 backups — opt...() returns the
+    // supplied default (null / 1) in that case.
+    recurringGroupId = if (obj.has("recurringGroupId") && !obj.isNull("recurringGroupId")) obj.getString("recurringGroupId") else null,
+    recurrenceKind = if (obj.has("recurrenceKind") && !obj.isNull("recurrenceKind")) obj.getString("recurrenceKind") else null,
+    recurrenceInterval = obj.optInt("recurrenceInterval", 1),
+    recurrenceEndAt = if (obj.has("recurrenceEndAt") && !obj.isNull("recurrenceEndAt")) obj.getLong("recurrenceEndAt") else null,
+    recurrenceMaxOccurrences = if (obj.has("recurrenceMaxOccurrences") && !obj.isNull("recurrenceMaxOccurrences")) obj.getInt("recurrenceMaxOccurrences") else null,
+    recurrenceNextAt = if (obj.has("recurrenceNextAt") && !obj.isNull("recurrenceNextAt")) obj.getLong("recurrenceNextAt") else null,
 )
 
 internal data class CategoryRow(
@@ -117,4 +145,10 @@ internal data class TransactionRow(
     val occurredAtEpochMillis: Long,
     val note: String?,
     val createdAtEpochMillis: Long,
+    val recurringGroupId: String?,
+    val recurrenceKind: String?,
+    val recurrenceInterval: Int,
+    val recurrenceEndAt: Long?,
+    val recurrenceMaxOccurrences: Int?,
+    val recurrenceNextAt: Long?,
 )

@@ -20,7 +20,10 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME)
-            // Pre-1.0 schema: destructive migration is acceptable; we have no user data yet.
+            // v2 → v3: real migration (adds the recurring-transaction columns).
+            // Pre-1.0 fallback kept for safety in case a future version is bumped
+            // before a migration is written.
+            .addMigrations(AppDatabase.MIGRATION_2_3)
             .fallbackToDestructiveMigration()
             .build()
 

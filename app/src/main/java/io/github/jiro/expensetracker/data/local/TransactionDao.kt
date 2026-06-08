@@ -52,4 +52,33 @@ interface TransactionDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(transactions: List<TransactionEntity>): List<Long>
+
+    // ---- Recurring transactions (Phase 2.1) ----
+
+    /**
+     * Returns every row that is a "parent" of a recurring series and whose
+     * next occurrence is at or before [nowMs]. These are the rows the
+     * [io.github.jiro.expensetracker.work.RecurringTransactionWorker] should
+     * materialise. A parent is identified by having a non-null
+     * [TransactionEntity.recurrenceNextAt]; materialised instances leave
+     * that column null.
+     */
+    @Query(
+        "SELECT * FROM transactions " +
+            "WHERE recurrenceNextAt IS NOT NULL " +
+            "AND recurrenceNextAt <= :nowMs " +
+            "ORDER BY recurrenceNextAt ASC"
+    )
+    suspend fun dueRecurringParents(nowMs: Long): List<TransactionEntity>
+
+    /**
+     * Materialised instances + the parent (one SELECT per id, so the
+     * materialisation worker can re-render the list after each cycle).
+     */
+    @Transaction
+    @Query("SELECT * FROM transactions WHERE recurringGroupId = :groupId")
+    fun observeByRecurringGroup(groupId: String): Flow<List<TransactionWithCategory>>
+
+    @Query("SELECT COUNT(*) FROM transactions WHERE recurringGroupId = :groupId")
+    suspend fun countByRecurringGroup(groupId: String): Int
 }
