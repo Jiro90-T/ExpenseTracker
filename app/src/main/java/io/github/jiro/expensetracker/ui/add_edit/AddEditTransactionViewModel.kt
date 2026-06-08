@@ -49,7 +49,13 @@ data class AddEditTransactionUiState(
      * "make recurring" toggle on; preserved across edits.
      */
     val recurringGroupId: String? = null,
+    val recurrenceEndMode: RecurrenceEndMode = RecurrenceEndMode.NEVER,
+    val recurrenceEndAt: Long? = null,
+    val recurrenceMaxOccurrences: Int? = null,
 )
+
+/** Phase 2.1: the "end" picker on the recurring section. */
+enum class RecurrenceEndMode { NEVER, ON_DATE, AFTER_N_OCCURRENCES }
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -107,6 +113,13 @@ class AddEditTransactionViewModel @Inject constructor(
                             ?: RecurrenceKind.MONTHLY,
                         recurrenceInterval = existing.recurrenceInterval.coerceAtLeast(1),
                         recurringGroupId = existing.recurringGroupId,
+                        recurrenceEndMode = when {
+                            existing.recurrenceEndAt != null -> RecurrenceEndMode.ON_DATE
+                            existing.recurrenceMaxOccurrences != null -> RecurrenceEndMode.AFTER_N_OCCURRENCES
+                            else -> RecurrenceEndMode.NEVER
+                        },
+                        recurrenceEndAt = existing.recurrenceEndAt,
+                        recurrenceMaxOccurrences = existing.recurrenceMaxOccurrences,
                     )
                 }
             }
@@ -136,6 +149,15 @@ class AddEditTransactionViewModel @Inject constructor(
     fun onRecurrenceIntervalChange(interval: Int) = _state.update {
         it.copy(recurrenceInterval = interval.coerceAtLeast(1))
     }
+    fun onRecurrenceEndModeChange(mode: RecurrenceEndMode) = _state.update {
+        it.copy(recurrenceEndMode = mode)
+    }
+    fun onRecurrenceEndDateChange(epochMillis: Long) = _state.update {
+        it.copy(recurrenceEndAt = epochMillis)
+    }
+    fun onRecurrenceMaxOccurrencesChange(n: Int) = _state.update {
+        it.copy(recurrenceMaxOccurrences = n.coerceAtLeast(1))
+    }
 
     fun save() {
         val s = _state.value
@@ -158,15 +180,25 @@ class AddEditTransactionViewModel @Inject constructor(
         _state.update { it.copy(isSaving = true, error = null) }
         viewModelScope.launch {
             val now = System.currentTimeMillis()
-            val (groupId, kind, interval, nextAt) = if (s.isRecurring) {
-                Quadruple(
+            val (groupId, kind, interval, nextAt, endAt, maxOcc) = if (s.isRecurring) {
+                Sextuple(
                     s.recurringGroupId ?: UUID.randomUUID().toString(),
                     s.recurrenceKind,
                     s.recurrenceInterval,
                     nextOccurrence(s.recurrenceKind, s.recurrenceInterval, s.occurredAtEpochMillis),
+                    when (s.recurrenceEndMode) {
+                        RecurrenceEndMode.NEVER -> null
+                        RecurrenceEndMode.ON_DATE -> s.recurrenceEndAt
+                        RecurrenceEndMode.AFTER_N_OCCURRENCES -> null
+                    },
+                    when (s.recurrenceEndMode) {
+                        RecurrenceEndMode.NEVER -> null
+                        RecurrenceEndMode.ON_DATE -> null
+                        RecurrenceEndMode.AFTER_N_OCCURRENCES -> s.recurrenceMaxOccurrences
+                    },
                 )
             } else {
-                Quadruple(null, null, 1, null)
+                Sextuple(null, null, 1, null, null, null)
             }
             val entity = TransactionEntity(
                 id = s.id ?: 0L,
@@ -182,6 +214,8 @@ class AddEditTransactionViewModel @Inject constructor(
                 recurrenceKind = kind?.name,
                 recurrenceInterval = interval,
                 recurrenceNextAt = nextAt,
+                recurrenceEndAt = endAt,
+                recurrenceMaxOccurrences = maxOcc,
             )
             if (s.id == null) transactionRepository.add(entity) else transactionRepository.update(entity)
             _state.update { it.copy(isSaving = false, saveComplete = true) }
@@ -215,4 +249,4 @@ class AddEditTransactionViewModel @Inject constructor(
 }
 
 /** Small holder to keep the save() call site readable. */
-private data class Quadruple<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
+private data class Sextuple<A, B, C, D, E, F>(val a: A, val b: B, val c: C, val d: D, val e: E, val f: F)
