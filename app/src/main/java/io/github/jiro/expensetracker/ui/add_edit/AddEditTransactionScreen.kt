@@ -61,6 +61,7 @@ import java.util.Locale
 @Composable
 fun AddEditTransactionScreen(
     onBack: () -> Unit,
+    onManageSeries: (String) -> Unit = {},
     viewModel: AddEditTransactionViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -92,6 +93,7 @@ fun AddEditTransactionScreen(
         AddEditForm(
             state = state,
             viewModel = viewModel,
+            onManageSeries = onManageSeries,
             modifier = Modifier.fillMaxSize().padding(padding),
         )
     }
@@ -102,9 +104,11 @@ fun AddEditTransactionScreen(
 private fun AddEditForm(
     state: AddEditTransactionUiState,
     viewModel: AddEditTransactionViewModel,
+    onManageSeries: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
+    var showEndDatePicker by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
 
     Column(
@@ -214,6 +218,69 @@ private fun AddEditForm(
                 onKindChange = viewModel::onRecurrenceKindChange,
                 onIntervalChange = viewModel::onRecurrenceIntervalChange,
             )
+
+            // End-condition picker. Limit 1 of the recurring work — the
+            // schema was already there (recurrenceEndAt / recurrenceMaxOccurrences);
+            // this just surfaces the controls.
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = stringResource(R.string.field_recurrence_end),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(4.dp))
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                RecurrenceEndMode.entries.forEachIndexed { index, mode ->
+                    SegmentedButton(
+                        selected = state.recurrenceEndMode == mode,
+                        onClick = { viewModel.onRecurrenceEndModeChange(mode) },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = RecurrenceEndMode.entries.size),
+                    ) { Text(stringResource(endModeLabelRes(mode))) }
+                }
+            }
+            when (state.recurrenceEndMode) {
+                RecurrenceEndMode.NEVER -> Unit
+                RecurrenceEndMode.ON_DATE -> {
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = state.recurrenceEndAt?.let {
+                            SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(it))
+                        } ?: "—",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(stringResource(R.string.field_end_date)) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                // Trigger the existing date picker
+                                onDateClick()
+                            },
+                        trailingIcon = {
+                            TextButton(onClick = onDateClick) { Text(stringResource(R.string.action_pick)) }
+                        },
+                    )
+                }
+                RecurrenceEndMode.AFTER_N_OCCURRENCES -> {
+                    Spacer(Modifier.height(8.dp))
+                    MaxOccurrencesStepper(
+                        value = state.recurrenceMaxOccurrences,
+                        onChange = viewModel::onRecurrenceMaxOccurrencesChange,
+                    )
+                }
+            }
+
+            // Manage-series entry point. Visible only for EXISTING recurring
+            // transactions (where recurringGroupId is set). For new
+            // recurring transactions, the form fields above are enough.
+            if (state.recurringGroupId != null) {
+                Spacer(Modifier.height(12.dp))
+                TextButton(
+                    onClick = { onManageSeries(state.recurringGroupId) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.action_manage_series))
+                }
+            }
         }
 
         Spacer(Modifier.height(8.dp))
@@ -245,6 +312,29 @@ private fun AddEditForm(
             },
         ) {
             DatePicker(state = datePickerState)
+        }
+    }
+
+    if (showEndDatePicker) {
+        val endDatePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = state.recurrenceEndAt ?: System.currentTimeMillis(),
+        )
+        DatePickerDialog(
+            onDismissRequest = { showEndDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    val millis = endDatePickerState.selectedDateMillis
+                    if (millis != null) viewModel.onRecurrenceEndDateChange(millis)
+                    showEndDatePicker = false
+                }) { Text(stringResource(R.string.action_ok)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEndDatePicker = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
+        ) {
+            DatePicker(state = endDatePickerState)
         }
     }
 }

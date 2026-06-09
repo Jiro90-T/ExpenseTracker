@@ -97,6 +97,9 @@ fun AppNavHost(
             ) {
                 AddEditTransactionScreen(
                     onBack = { navController.popBackStack() },
+                    onManageSeries = { groupId ->
+                        navController.navigate("manage_series/$groupId")
+                    },
                 )
             }
             composable(

@@ -5,7 +5,9 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.jiro.expensetracker.data.local.TransactionWithCategory
 import io.github.jiro.expensetracker.data.repository.TransactionRepository
+import io.github.jiro.expensetracker.domain.FxConverter
 import io.github.jiro.expensetracker.domain.model.TransactionType
+import io.github.jiro.expensetracker.preferences.SettingsRepository
 import io.github.jiro.expensetracker.ui.charts.MonthlyTotals
 import io.github.jiro.expensetracker.ui.charts.computeMonthlyTotals
 import javax.inject.Inject
@@ -16,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -35,6 +38,10 @@ data class DashboardSummary(
     val topExpenseCategories: List<CategoryBreakdown> = emptyList(),
     val totalExpenseForBreakdownMinor: Long = 0L,
     val transactionCount: Int = 0,
+    /** Currency all amounts are denominated in (i.e. the home currency). */
+    val homeCurrency: String = "USD",
+    /** Number of transactions whose currency had no rate to [homeCurrency]. */
+    val missingRateCount: Int = 0,
 )
 
 data class CategoryBreakdown(
@@ -47,6 +54,7 @@ data class CategoryBreakdown(
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val repository: TransactionRepository,
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     private val _period = MutableStateFlow<Period>(Period.currentMonth())
@@ -76,13 +84,17 @@ class HomeViewModel @Inject constructor(
             initialValue = emptyList(),
         )
 
-    val summary: StateFlow<DashboardSummary> = periodTransactions
-        .map { computeDashboardSummary(it) }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = DashboardSummary(),
-        )
+    val summary: StateFlow<DashboardSummary> = combine(
+        periodTransactions,
+        settingsRepository.homeCurrency,
+        settingsRepository.fxRates,
+    ) { rows, home, rates ->
+        computeDashboardSummary(rows, home, rates)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = DashboardSummary(),
+    )
 
     val monthlyTotals: StateFlow<List<MonthlyTotals>> = repository.observeAll()
         .map { computeMonthlyTotals(it, monthsBack = 6) }
@@ -129,31 +141,44 @@ class HomeViewModel @Inject constructor(
  * Pure function: aggregates a (period-filtered) list of joined rows into a summary.
  * Top expense categories returns at most [topN] entries; if more exist, a synthetic
  * "Others" bucket is appended with the rolled-up remainder.
+ *
+ * All amounts are normalised to [homeCurrency] using [fxRates] before
+ * aggregation. Transactions whose currency has no rate to [homeCurrency]
+ * are converted 1:1 and counted in [missingRateCount] so the UI can
+ * show a warning.
  */
 fun computeDashboardSummary(
     rows: List<TransactionWithCategory>,
+    homeCurrency: String,
+    fxRates: Map<String, Double>,
     topN: Int = 5,
 ): DashboardSummary {
     var income = 0L
     var expense = 0L
+    var missingRateCount = 0
     val byCategory = mutableMapOf<Long, CategoryBreakdown>()
 
     for (row in rows) {
         val t = row.transaction
+        val converted = FxConverter.convertMinor(t.amountMinor, t.currencyCode, homeCurrency, fxRates)
+            ?: run {
+                missingRateCount += 1
+                t.amountMinor
+            }
         when (TransactionType.fromStorage(t.type)) {
-            TransactionType.INCOME -> income += t.amountMinor
+            TransactionType.INCOME -> income += converted
             TransactionType.EXPENSE -> {
-                expense += t.amountMinor
+                expense += converted
                 val existing = byCategory[t.categoryId]
                 if (existing == null) {
                     byCategory[t.categoryId] = CategoryBreakdown(
                         categoryId = t.categoryId,
                         categoryName = row.category.name,
-                        amountMinor = t.amountMinor,
+                        amountMinor = converted,
                     )
                 } else {
                     byCategory[t.categoryId] = existing.copy(
-                        amountMinor = existing.amountMinor + t.amountMinor,
+                        amountMinor = existing.amountMinor + converted,
                     )
                 }
             }
@@ -181,5 +206,7 @@ fun computeDashboardSummary(
         topExpenseCategories = topWithOthers,
         totalExpenseForBreakdownMinor = expense,
         transactionCount = rows.size,
+        homeCurrency = homeCurrency,
+        missingRateCount = missingRateCount,
     )
 }
