@@ -76,6 +76,10 @@
     <string name="manage_series_title">Manage series</string>
     <string name="manage_series_subtitle">Changes apply to future instances of this series only.</string>
     <string name="action_manage_series">Manage series</string>
+    <string name="recurrence_max_occurrences_label">Stop after %1$d occurrences</string>
+
+    <!-- Currency (Phase 2.2) -->
+    <string name="field_currency">Currency</string>
 
     <!-- Categories management -->
     <string name="action_manage_categories">Manage categories</string>

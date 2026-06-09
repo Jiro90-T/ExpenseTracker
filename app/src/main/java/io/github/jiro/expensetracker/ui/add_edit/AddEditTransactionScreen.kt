@@ -1,13 +1,12 @@
 package io.github.jiro.expensetracker.ui.add_edit
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -45,6 +44,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -168,6 +168,12 @@ private fun AddEditForm(
             onCategoryChange = viewModel::onCategoryChange,
         )
 
+        // Currency (Phase 2.2)
+        CurrencyDropdown(
+            selected = state.currency,
+            onChange = viewModel::onCurrencyChange,
+        )
+
         // Date
         OutlinedTextField(
             value = formatDate(state.occurredAtEpochMillis),
@@ -251,12 +257,9 @@ private fun AddEditForm(
                         label = { Text(stringResource(R.string.field_end_date)) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable {
-                                // Trigger the existing date picker
-                                onDateClick()
-                            },
+                            .clickable { showEndDatePicker = true },
                         trailingIcon = {
-                            TextButton(onClick = onDateClick) { Text(stringResource(R.string.action_pick)) }
+                            TextButton(onClick = { showEndDatePicker = true }) { Text(stringResource(R.string.action_pick)) }
                         },
                     )
                 }
@@ -458,6 +461,94 @@ private fun kindLabelRes(kind: RecurrenceKind): Int = when (kind) {
     RecurrenceKind.WEEKLY -> R.string.recurrence_weekly
     RecurrenceKind.MONTHLY -> R.string.recurrence_monthly
     RecurrenceKind.YEARLY -> R.string.recurrence_yearly
+}
+
+private fun endModeLabelRes(mode: RecurrenceEndMode): Int = when (mode) {
+    RecurrenceEndMode.NEVER -> R.string.end_mode_never
+    RecurrenceEndMode.ON_DATE -> R.string.end_mode_on_date
+    RecurrenceEndMode.AFTER_N_OCCURRENCES -> R.string.end_mode_after_n
+}
+
+/**
+ * Common currencies offered in the form dropdown. Hardcoded MVP list —
+ * future iteration can swap for an API-driven list or a user-curated
+ * set in Settings.
+ */
+private val CommonCurrencies = listOf(
+    "USD", "EUR", "GBP", "JPY", "MYR", "CNY", "INR", "SGD", "AUD", "CAD",
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CurrencyDropdown(
+    selected: String,
+    onChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = modifier,
+    ) {
+        OutlinedTextField(
+            value = selected,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.field_currency)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth(),
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            CommonCurrencies.forEach { code ->
+                DropdownMenuItem(
+                    text = { Text(code) },
+                    onClick = {
+                        onChange(code)
+                        expanded = false
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MaxOccurrencesStepper(
+    value: Int?,
+    onChange: (Int?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        OutlinedIconButton(
+            onClick = {
+                val current = value ?: 1
+                if (current <= 1) onChange(null) else onChange(current - 1)
+            },
+        ) {
+            Icon(Icons.Filled.Remove, contentDescription = "Decrease")
+        }
+        Text(
+            text = value?.toString() ?: "—",
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.weight(1f),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
+        OutlinedIconButton(
+            onClick = { onChange((value ?: 0) + 1) },
+        ) {
+            Icon(Icons.Filled.Add, contentDescription = "Increase")
+        }
+    }
 }
 
 private fun formatDate(epochMillis: Long): String =

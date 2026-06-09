@@ -52,6 +52,9 @@ data class AddEditTransactionUiState(
     val recurrenceEndMode: RecurrenceEndMode = RecurrenceEndMode.NEVER,
     val recurrenceEndAt: Long? = null,
     val recurrenceMaxOccurrences: Int? = null,
+
+    // ---- Phase 2.2: per-tx currency ----
+    val currency: String = "USD",
 )
 
 /** Phase 2.1: the "end" picker on the recurring section. */
@@ -74,7 +77,7 @@ class AddEditTransactionViewModel @Inject constructor(
     )
     val state: StateFlow<AddEditTransactionUiState> = _state.asStateFlow()
 
-    private val currencyCode: String = "USD"
+    // currencyCode comes from state.currency (set via the dropdown).
 
     init {
         // Categories follow the currently selected type. Re-fetches on every type change.
@@ -109,6 +112,7 @@ class AddEditTransactionViewModel @Inject constructor(
                         occurredAtEpochMillis = existing.occurredAtEpochMillis,
                         note = existing.note.orEmpty(),
                         isRecurring = existing.recurringGroupId != null,
+                        currency = existing.currencyCode,
                         recurrenceKind = RecurrenceKind.fromStorage(existing.recurrenceKind)
                             ?: RecurrenceKind.MONTHLY,
                         recurrenceInterval = existing.recurrenceInterval.coerceAtLeast(1),
@@ -135,6 +139,9 @@ class AddEditTransactionViewModel @Inject constructor(
     fun onCategoryChange(value: Long) = _state.update {
         it.copy(selectedCategoryId = value, error = null)
     }
+    fun onCurrencyChange(value: String) = _state.update {
+        it.copy(currency = value)
+    }
     fun onDateChange(epochMillis: Long) = _state.update { it.copy(occurredAtEpochMillis = epochMillis) }
 
     fun onRecurringToggle(enabled: Boolean) = _state.update {
@@ -155,8 +162,8 @@ class AddEditTransactionViewModel @Inject constructor(
     fun onRecurrenceEndDateChange(epochMillis: Long) = _state.update {
         it.copy(recurrenceEndAt = epochMillis)
     }
-    fun onRecurrenceMaxOccurrencesChange(n: Int) = _state.update {
-        it.copy(recurrenceMaxOccurrences = n.coerceAtLeast(1))
+    fun onRecurrenceMaxOccurrencesChange(n: Int?) = _state.update {
+        it.copy(recurrenceMaxOccurrences = n?.coerceAtLeast(1))
     }
 
     fun save() {
@@ -204,7 +211,7 @@ class AddEditTransactionViewModel @Inject constructor(
                 id = s.id ?: 0L,
                 title = title,
                 amountMinor = amountMinor,
-                currencyCode = currencyCode,
+                currencyCode = s.currency,
                 type = s.type.name,
                 categoryId = categoryId,
                 occurredAtEpochMillis = s.occurredAtEpochMillis,

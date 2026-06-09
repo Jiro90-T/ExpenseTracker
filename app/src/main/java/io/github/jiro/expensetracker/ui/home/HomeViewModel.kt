@@ -149,8 +149,8 @@ class HomeViewModel @Inject constructor(
  */
 fun computeDashboardSummary(
     rows: List<TransactionWithCategory>,
-    homeCurrency: String,
-    fxRates: Map<String, Double>,
+    homeCurrency: String = "USD",
+    fxRates: Map<String, Double> = emptyMap(),
     topN: Int = 5,
 ): DashboardSummary {
     var income = 0L
