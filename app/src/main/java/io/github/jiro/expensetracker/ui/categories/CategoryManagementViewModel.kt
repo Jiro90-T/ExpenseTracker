@@ -124,7 +124,7 @@ class CategoryManagementViewModel @Inject constructor(
                     toastFlow.value = "Cannot delete this category"
                 }
             } catch (e: android.database.sqlite.SQLiteConstraintException) {
-                // FK on TransactionEntity.categoryId fires RESTRICT.
+                // FK on TransactionEntity.categoryId (or BudgetEntity.categoryId) fires RESTRICT.
                 toastFlow.value = "Cannot delete: category is in use by transactions or budgets"
             }
         }
