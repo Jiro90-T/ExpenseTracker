@@ -87,8 +87,8 @@
     <string name="budgets_progress_format">%1$s / %2$s</string>
     <string name="budgets_percent_format">%1$d%% used</string>
     <string name="budgets_overspent_format">Over by %1$s</string>
-    <string name="budgets_set">Set budget</string>
-    <string name="budgets_edit">Edit budget</string>
+    <string name="budgets_set">Set budget for %1$s</string>
+    <string name="budgets_edit">Edit budget for %1$s</string>
     <string name="budgets_clear">Clear</string>
     <string name="budgets_amount_label">Amount (%1$s)</string>
     <string name="budgets_amount_helper">e.g. 200 or 200.50</string>
