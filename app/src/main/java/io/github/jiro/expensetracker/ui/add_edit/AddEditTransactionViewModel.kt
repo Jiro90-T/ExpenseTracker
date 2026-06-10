@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.jiro.expensetracker.data.RecurrenceKind
 import io.github.jiro.expensetracker.data.local.CategoryEntity
+import io.github.jiro.expensetracker.data.local.MoneyFormat
 import io.github.jiro.expensetracker.data.local.TransactionEntity
 import io.github.jiro.expensetracker.data.nextOccurrence
 import io.github.jiro.expensetracker.data.repository.CategoryRepository
@@ -106,7 +107,7 @@ class AddEditTransactionViewModel @Inject constructor(
                 _state.update {
                     it.copy(
                         title = existing.title,
-                        amountInput = formatAmountForEdit(existing.amountMinor),
+                        amountInput = MoneyFormat.formatAmountForEdit(existing.amountMinor),
                         type = TransactionType.fromStorage(existing.type),
                         selectedCategoryId = existing.categoryId,
                         occurredAtEpochMillis = existing.occurredAtEpochMillis,
@@ -173,7 +174,7 @@ class AddEditTransactionViewModel @Inject constructor(
             _state.update { it.copy(error = FormError.TITLE_REQUIRED) }
             return
         }
-        val amountMinor = parseAmountToMinor(s.amountInput)
+        val amountMinor = MoneyFormat.parseAmountToMinor(s.amountInput)
         if (amountMinor == null || amountMinor <= 0) {
             _state.update { it.copy(error = FormError.AMOUNT_INVALID) }
             return
@@ -229,30 +230,6 @@ class AddEditTransactionViewModel @Inject constructor(
         }
     }
 
-    private fun parseAmountToMinor(input: String): Long? {
-        val cleaned = input.trim()
-        if (cleaned.isEmpty()) return null
-        val parts = cleaned.split('.')
-        if (parts.size > 2) return null
-        val whole = parts[0].toLongOrNull() ?: return null
-        if (whole < 0) return null
-        val fractionStr = if (parts.size == 2) parts[1].padEnd(2, '0').take(2) else "00"
-        if (fractionStr.length > 2) return null
-        val fraction = fractionStr.toLongOrNull() ?: return null
-        if (whole > MAX_AMOUNT_WHOLE) return null
-        return whole * 100 + fraction
-    }
-
-    private fun formatAmountForEdit(minor: Long): String {
-        val whole = minor / 100
-        val fraction = minor % 100
-        return "%d.%02d".format(whole, fraction)
-    }
-
-    companion object {
-        /** Cap whole units at 9_999_999_999 to stay well clear of Long overflow when * 100. */
-        private const val MAX_AMOUNT_WHOLE = 9_999_999_999L
-    }
 }
 
 /** Small holder to keep the save() call site readable. */
