@@ -6,13 +6,14 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [TransactionEntity::class, CategoryEntity::class],
-    version = 3,
+    entities = [TransactionEntity::class, CategoryEntity::class, BudgetEntity::class],
+    version = 4,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao
     abstract fun categoryDao(): CategoryDao
+    abstract fun budgetDao(): BudgetDao
 
     companion object {
         const val NAME = "expense_tracker.db"
@@ -32,6 +33,25 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE transactions ADD COLUMN recurrenceNextAt INTEGER")
                 // Index for the worker's "due recurrences" query.
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_transactions_recurringGroupId ON transactions (recurringGroupId)")
+            }
+        }
+
+        /**
+         * v3 → v4: add the `budgets` table. Non-destructive — the new table
+         * starts empty; existing transactions/categories are untouched.
+         */
+        val MIGRATION_3_4: Migration = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS budgets (
+                        categoryId INTEGER NOT NULL,
+                        monthStartEpochMs INTEGER NOT NULL,
+                        amountMinor INTEGER NOT NULL,
+                        PRIMARY KEY (categoryId, monthStartEpochMs),
+                        FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE RESTRICT
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_budgets_monthStartEpochMs ON budgets (monthStartEpochMs)")
             }
         }
     }
