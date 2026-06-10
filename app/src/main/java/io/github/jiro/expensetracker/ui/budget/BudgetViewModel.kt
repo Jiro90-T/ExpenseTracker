@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.jiro.expensetracker.data.local.BudgetEntity
-import io.github.jiro.expensetracker.data.local.CategoryEntity
+import io.github.jiro.expensetracker.data.local.MoneyFormat
 import io.github.jiro.expensetracker.data.repository.BudgetRepository
 import io.github.jiro.expensetracker.data.repository.CategoryRepository
 import io.github.jiro.expensetracker.data.repository.TransactionRepository
@@ -15,7 +15,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -53,7 +52,6 @@ data class BudgetEditDialogState(
     val isInvalid: Boolean = false,
 )
 
-@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class BudgetViewModel @Inject constructor(
     private val budgetRepository: BudgetRepository,
@@ -118,13 +116,17 @@ class BudgetViewModel @Inject constructor(
     val editDialog: StateFlow<BudgetEditDialogState?> = _editDialog.asStateFlow()
 
     fun openEdit(categoryId: Long) {
+        // The screen only renders rows when state.isLoaded is true, so a
+        // first-emission race is unreachable in practice. If a future caller
+        // triggers this before load, `firstOrNull` returns null and the click
+        // is a silent no-op.
         val row = uiState.value.rows.firstOrNull { it.categoryId == categoryId } ?: return
         _editDialog.value = BudgetEditDialogState(
             categoryId = categoryId,
             categoryName = row.categoryName,
             currentLimitMinor = row.limitMinor,
             homeCurrency = uiState.value.homeCurrency,
-            amountInput = row.limitMinor?.let { io.github.jiro.expensetracker.data.local.MoneyFormat.formatAmountForEdit(it) }.orEmpty(),
+            amountInput = row.limitMinor?.let { MoneyFormat.formatAmountForEdit(it) }.orEmpty(),
         )
     }
 
@@ -139,7 +141,7 @@ class BudgetViewModel @Inject constructor(
     /** Parses the current dialog input. If valid, persists and closes; if invalid, marks the dialog invalid. */
     fun submitEdit() {
         val dialog = _editDialog.value ?: return
-        val minor = io.github.jiro.expensetracker.data.local.MoneyFormat.parseAmountToMinor(dialog.amountInput)
+        val minor = MoneyFormat.parseAmountToMinor(dialog.amountInput)
         if (minor == null || minor <= 0) {
             _editDialog.update { it?.copy(isInvalid = true) }
             return
@@ -149,6 +151,7 @@ class BudgetViewModel @Inject constructor(
     }
 
     fun setLimit(categoryId: Long, amountMinor: Long) {
+        // Defensive: also guards callers that bypass submitEdit (e.g. swipe-to-set in a future iteration).
         if (amountMinor <= 0) return
         viewModelScope.launch {
             budgetRepository.upsert(
@@ -174,6 +177,3 @@ class BudgetViewModel @Inject constructor(
             SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(Date(monthStart))
     }
 }
-
-/** Re-export the category entity so callers don't have to import it just to render rows. */
-typealias BudgetCategory = CategoryEntity
