@@ -81,6 +81,21 @@
     <!-- Currency (Phase 2.2) -->
     <string name="field_currency">Currency</string>
 
+    <!-- Budgets (Phase 2.3) -->
+    <string name="budgets_title">Budgets</string>
+    <string name="budgets_no_budget">No budget set</string>
+    <string name="budgets_progress_format">%1$s / %2$s</string>
+    <string name="budgets_percent_format">%1$d%% used</string>
+    <string name="budgets_overspent_format">Over by %1$s</string>
+    <string name="budgets_set">Set budget</string>
+    <string name="budgets_edit">Edit budget</string>
+    <string name="budgets_clear">Clear</string>
+    <string name="budgets_amount_label">Amount (%1$s)</string>
+    <string name="budgets_amount_helper">e.g. 200 or 200.50</string>
+    <string name="budgets_amount_invalid">Enter an amount greater than 0</string>
+    <string name="budgets_fx_missing_warning">Some transactions are missing FX rates — totals may be inaccurate.</string>
+    <string name="budgets_category_delete_blocked">Cannot delete: category is in use by transactions or budgets</string>
+
     <!-- Categories management -->
     <string name="action_manage_categories">Manage categories</string>
     <string name="categories_title">Categories</string>
