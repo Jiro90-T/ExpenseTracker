@@ -2,7 +2,6 @@ package io.github.jiro.expensetracker.ui.budget
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -50,20 +49,17 @@ fun BudgetScreen(viewModel: BudgetViewModel = hiltViewModel()) {
     Scaffold(
         topBar = { TopAppBar(title = { Text(stringResource(R.string.budgets_title)) }) },
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-            Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-                Text(
-                    text = state.monthLabel,
-                    style = MaterialTheme.typography.titleMedium,
-                )
+        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
+            Text(
+                text = state.monthLabel,
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Spacer(Modifier.height(8.dp))
+            if (state.missingRateCount > 0) {
+                FxWarningRow()
                 Spacer(Modifier.height(8.dp))
-                if (state.missingRateCount > 0) {
-                    FxWarningRow()
-                    Spacer(Modifier.height(8.dp))
-                }
-                if (!state.isLoaded) {
-                    return@Column  // nothing to show yet
-                }
+            }
+            if (state.isLoaded) {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(state.rows, key = { it.categoryId }) { row ->
                         BudgetRow(row = row, onClick = { viewModel.openEdit(row.categoryId) })
@@ -73,12 +69,12 @@ fun BudgetScreen(viewModel: BudgetViewModel = hiltViewModel()) {
         }
     }
 
-    if (dialog != null) {
+    dialog?.let { d ->
         BudgetEditDialog(
-            dialog = dialog!!,
+            dialog = d,
             onAmountChange = viewModel::onAmountInputChange,
             onSubmit = viewModel::submitEdit,
-            onClear = { viewModel.clearLimit(dialog!!.categoryId) },
+            onClear = { viewModel.clearLimit(d.categoryId) },
             onDismiss = viewModel::closeEdit,
         )
     }
@@ -113,8 +109,6 @@ private fun FxWarningRow() {
 @Composable
 private fun BudgetRow(row: BudgetRowUiState, onClick: () -> Unit) {
     val limit = row.limitMinor
-    val percent = if (limit != null && limit > 0) ((row.spentMinor * 100L) / limit).toInt() else null
-    val overByMinor = if (row.isOverspent) row.spentMinor - (limit ?: 0L) else 0L
     val trackColor = if (row.isOverspent) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
 
     Column(
@@ -139,9 +133,12 @@ private fun BudgetRow(row: BudgetRowUiState, onClick: () -> Unit) {
             }
         }
         if (limit != null) {
+            // Inside this branch `limit` smart-casts to `Long` (non-nullable),
+            // so `percent` is also non-nullable here — no `!!` needed.
+            val percent = ((row.spentMinor * 100L) / limit).toInt()
             Spacer(Modifier.height(6.dp))
             LinearProgressIndicator(
-                progress = { (percent!! / 100f).coerceIn(0f, 1f) },
+                progress = { (percent / 100f).coerceIn(0f, 1f) },
                 color = trackColor,
                 trackColor = MaterialTheme.colorScheme.surfaceVariant,
                 modifier = Modifier.fillMaxWidth().height(6.dp),
@@ -158,12 +155,13 @@ private fun BudgetRow(row: BudgetRowUiState, onClick: () -> Unit) {
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    text = stringResource(R.string.budgets_percent_format, percent!!),
+                    text = stringResource(R.string.budgets_percent_format, percent),
                     style = MaterialTheme.typography.bodySmall,
                     color = if (row.isOverspent) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             if (row.isOverspent) {
+                val overByMinor = row.spentMinor - limit
                 Text(
                     text = stringResource(R.string.budgets_overspent_format, formatMoney(overByMinor)),
                     style = MaterialTheme.typography.labelSmall,
