@@ -7,6 +7,7 @@ import androidx.room.withTransaction
 import io.github.jiro.expensetracker.data.local.AppDatabase
 import io.github.jiro.expensetracker.data.local.CategoryEntity
 import io.github.jiro.expensetracker.data.local.TransactionEntity
+import io.github.jiro.expensetracker.data.repository.ReceiptRepository
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -16,16 +17,16 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Owns the JSON backup format and the export/import round-trip.
- *
- * Receipts are out of scope for this iteration — when the receipt
- * feature lands, the backup widens from a `.json` to a `.zip`
- * containing the manifest + media. The format version is bumped
- * at that point.
+ * Owns the v3 ZIP backup format (manifest + media) and the v1/v2 JSON
+ * fallback format. The export is a `.zip` containing `manifest.json`
+ * (the v3 envelope) and a `receipts/` folder with the receipt media.
+ * Restore accepts both the new `.zip` and the legacy `.json` (v1, v2)
+ * for backward compatibility — v2 backups restore with `receiptPath = null`.
  */
 @Singleton
 class BackupManager @Inject constructor(
     private val database: AppDatabase,
+    private val receiptRepository: ReceiptRepository,
 ) {
     /** Export the entire database to a JSON string. */
     suspend fun exportToJson(
@@ -72,6 +73,7 @@ class BackupManager @Inject constructor(
                             recurrenceEndAt = t.recurrenceEndAt,
                             recurrenceMaxOccurrences = t.recurrenceMaxOccurrences,
                             recurrenceNextAt = t.recurrenceNextAt,
+                            receiptPath = t.receiptPath,
                         ),
                     )
                 }
@@ -79,6 +81,51 @@ class BackupManager @Inject constructor(
         )
 
         envelope.toString(2) // pretty-print so the file is human-readable
+    }
+
+    /**
+     * Export the entire database to a `.zip` containing the manifest JSON
+     * (v3 envelope) and the receipt media files. Returns the file path
+     * the caller can hand to a FileProvider for sharing.
+     */
+    suspend fun exportToZip(
+        appVersionName: String,
+        nowEpochMillis: Long = System.currentTimeMillis(),
+    ): String = withContext(Dispatchers.IO) {
+        // 1. Build the manifest (reuses the JSON path; v3 just adds receiptPath).
+        val json = exportToJson(appVersionName, nowEpochMillis)
+
+        // 2. Collect distinct receipt paths.
+        val receiptPaths: Set<String> = withContext(Dispatchers.IO) {
+            database.withTransaction {
+                database.transactionDao().observeAllForExport()
+                    .mapNotNull { it.receiptPath }
+                    .toSet()
+            }
+        }
+
+        // 3. Create the zip in cache.
+        val dir = File(System.getProperty("java.io.tmpdir") ?: "/data/local/tmp", "exports").apply { mkdirs() }
+        val stamp = java.text.SimpleDateFormat("yyyyMMdd-HHmmss", java.util.Locale.US)
+            .format(java.util.Date(nowEpochMillis))
+        val zipFile = File(dir, "${BackupFormat.FILE_PREFIX}$stamp.${BackupFormat.BACKUP_FILE_EXT}")
+
+        java.util.zip.ZipOutputStream(java.io.FileOutputStream(zipFile)).use { zos ->
+            // 3a. Write manifest.json as the first entry.
+            zos.putNextEntry(java.util.zip.ZipEntry("manifest.json"))
+            zos.write(json.toByteArray(Charsets.UTF_8))
+            zos.closeEntry()
+
+            // 3b. Write each receipt under receipts/<relativePath>.
+            for (relativePath in receiptPaths) {
+                val src = receiptRepository.absolutePath(relativePath)
+                if (!src.isFile) continue
+                zos.putNextEntry(java.util.zip.ZipEntry("receipts/$relativePath"))
+                src.inputStream().use { it.copyTo(zos) }
+                zos.closeEntry()
+            }
+        }
+        return@withContext zipFile.absolutePath
     }
 
     /**
@@ -154,6 +201,7 @@ class BackupManager @Inject constructor(
                             recurrenceEndAt = t.recurrenceEndAt,
                             recurrenceMaxOccurrences = t.recurrenceMaxOccurrences,
                             recurrenceNextAt = t.recurrenceNextAt,
+                            receiptPath = t.receiptPath,
                         )
                     }
                 )
@@ -165,9 +213,139 @@ class BackupManager @Inject constructor(
             )
         }
     }
+
+    /**
+     * Restore a v3 `.zip` backup. Replaces all current data (categories +
+     * transactions + receipts) with the backup's contents. Caller is
+     * responsible for user confirmation — this is destructive.
+     */
+    suspend fun importFromZipUri(context: Context, uri: Uri): Result<ImportSummary> = withContext(Dispatchers.IO) {
+        runCatching {
+            var missingReceiptCount = 0
+            // 1. Open the zip and read manifest.json.
+            val json: String = context.contentResolver.openInputStream(uri)?.use { input ->
+                java.util.zip.ZipInputStream(input).use { zis ->
+                    var entry = zis.nextEntry
+                    var found: String? = null
+                    while (entry != null) {
+                        if (entry.name == "manifest.json") {
+                            found = zis.readBytes().toString(Charsets.UTF_8)
+                            break
+                        }
+                        entry = zis.nextEntry
+                    }
+                    found ?: error("manifest.json not found in zip")
+                }
+            } ?: error("Could not open input stream for $uri")
+
+            val envelope = BackupFormat.parseEnvelope(json)
+            val catArr: JSONArray = BackupFormat.categoriesArrayOf(envelope)
+            val txnArr: JSONArray = BackupFormat.transactionsArrayOf(envelope)
+
+            val categories = (0 until catArr.length()).map { categoryFromJson(catArr.getJSONObject(it)) }
+            val transactions = (0 until txnArr.length()).map { transactionFromJson(txnArr.getJSONObject(it)) }
+            val referencedReceipts = transactions.mapNotNull { it.receiptPath }.toSet()
+
+            // 2. Wipe + restore (receipts dir + DB).
+            val receiptsDir = receiptRepository.receiptsDir
+            receiptsDir.deleteRecursively()
+            receiptsDir.mkdirs()
+
+            database.withTransaction {
+                database.transactionDao().deleteAll()
+                database.categoryDao().deleteAllNonBuiltIn()
+                database.categoryDao().insertAllReplacing(
+                    categories.map { c ->
+                        CategoryEntity(
+                            id = c.id,
+                            name = c.name,
+                            type = c.type,
+                            sortOrder = c.sortOrder,
+                            isBuiltIn = c.isBuiltIn,
+                        )
+                    }
+                )
+                database.transactionDao().insertAll(
+                    transactions.map { t ->
+                        TransactionEntity(
+                            id = t.id,
+                            title = t.title,
+                            amountMinor = t.amountMinor,
+                            currencyCode = t.currencyCode,
+                            type = t.type,
+                            categoryId = t.categoryId,
+                            occurredAtEpochMillis = t.occurredAtEpochMillis,
+                            note = t.note,
+                            createdAtEpochMillis = t.createdAtEpochMillis,
+                            recurringGroupId = t.recurringGroupId,
+                            recurrenceKind = t.recurrenceKind,
+                            recurrenceInterval = t.recurrenceInterval,
+                            recurrenceEndAt = t.recurrenceEndAt,
+                            recurrenceMaxOccurrences = t.recurrenceMaxOccurrences,
+                            recurrenceNextAt = t.recurrenceNextAt,
+                            receiptPath = t.receiptPath,
+                        )
+                    }
+                )
+            }
+
+            // 3. Extract receipts. For each referenced path, look for the zip
+            //    entry `receipts/<relativePath>`; if found, write to
+            //    `<filesDir>/receipts/<relativePath>`. If missing, count it.
+            val byName = mutableMapOf<String, java.util.zip.ZipEntry>()
+            context.contentResolver.openInputStream(uri)?.use { raw ->
+                java.util.zip.ZipInputStream(raw).use { zis ->
+                    var entry = zis.nextEntry
+                    while (entry != null) {
+                        byName[entry.name] = entry
+                        entry = zis.nextEntry
+                    }
+                }
+            }
+            for (relativePath in referencedReceipts) {
+                if (byName["receipts/$relativePath"] == null) {
+                    missingReceiptCount += 1
+                }
+            }
+
+            // Second pass: actually copy the bytes. (We needed the first pass
+            // to enumerate entry names without consuming them; ZipInputStream
+            // is single-pass.)
+            context.contentResolver.openInputStream(uri)?.use { raw ->
+                java.util.zip.ZipInputStream(raw).use { zis ->
+                    var entry = zis.nextEntry
+                    while (entry != null) {
+                        if (entry.name.startsWith("receipts/")) {
+                            val rel = entry.name.removePrefix("receipts/")
+                            if (rel in referencedReceipts) {
+                                val dest = File(receiptsDir, rel)
+                                dest.parentFile?.mkdirs()
+                                java.io.FileOutputStream(dest).use { out -> zis.copyTo(out) }
+                            }
+                        }
+                        entry = zis.nextEntry
+                    }
+                }
+            }
+
+            // 4. Wipe receiptPath for transactions whose files we couldn't restore.
+            if (missingReceiptCount > 0) {
+                database.withTransaction {
+                    database.transactionDao().clearReceiptPathsForMissing()
+                }
+            }
+
+            ImportSummary(
+                categoriesRestored = categories.size,
+                transactionsRestored = transactions.size,
+                missingReceiptCount = missingReceiptCount,
+            )
+        }
+    }
 }
 
 data class ImportSummary(
     val categoriesRestored: Int,
     val transactionsRestored: Int,
+    val missingReceiptCount: Int = 0,
 )

@@ -53,6 +53,9 @@ interface TransactionDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(transactions: List<TransactionEntity>): List<Long>
 
+    @Query("UPDATE transactions SET receiptPath = NULL WHERE receiptPath IS NOT NULL")
+    suspend fun clearReceiptPathsForMissing()
+
     // ---- Recurring transactions (Phase 2.1) ----
 
     /**
