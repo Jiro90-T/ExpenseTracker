@@ -7,7 +7,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [TransactionEntity::class, CategoryEntity::class, BudgetEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -52,6 +52,17 @@ abstract class AppDatabase : RoomDatabase() {
                     )
                 """.trimIndent())
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_budgets_monthStartEpochMs ON budgets (monthStartEpochMs)")
+            }
+        }
+
+        /**
+         * v4 → v5: add the `receiptPath` column to `transactions`. Nullable
+         * (default null), non-destructive. Pre-existing transactions simply
+         * have no receipt attached after the migration.
+         */
+        val MIGRATION_4_5: Migration = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE transactions ADD COLUMN receiptPath TEXT")
             }
         }
     }

@@ -66,4 +66,10 @@ data class TransactionEntity(
      * nulled if the series has ended).
      */
     val recurrenceNextAt: Long? = null,
+    /**
+     * Relative path under `<filesDir>/receipts/` (e.g. `abc123.jpg`), or null
+     * if no receipt is attached. Relative paths survive backup-restore across
+     * devices. The file is deleted by the application, not the DB.
+     */
+    val receiptPath: String? = null,
 )
