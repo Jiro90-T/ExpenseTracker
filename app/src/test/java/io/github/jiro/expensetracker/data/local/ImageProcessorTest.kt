@@ -29,7 +29,7 @@ class ImageProcessorTest {
     }
 
     @Test
-    fun computeDownscaleDims_squareImage_preserved() {
+    fun computeDownscaleDims_squareImage_scalesToMax() {
         assertEquals(2048 to 2048, ImageProcessor.computeDownscaleDims(5000, 5000, 2048))
         // Long edge = 5000 > 2048, scale = 2048/5000 ≈ 0.4096, new edge ≈ 2048.
         // (5000 * 0.4096).toInt() = 2048.

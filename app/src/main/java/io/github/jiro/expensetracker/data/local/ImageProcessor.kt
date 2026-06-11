@@ -17,7 +17,7 @@ object ImageProcessor {
      * Compute the target (width, height) of a downscale. Returns the
      * original dimensions if already at or below [maxEdge], otherwise
      * scales the long edge to exactly [maxEdge] and the short edge
-     * proportionally (rounded to int, minimum 1).
+     * proportionally (truncated to int, minimum 1).
      *
      * Pure: no Android types, fully JVM-testable.
      */
