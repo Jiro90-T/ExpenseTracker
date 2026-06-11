@@ -99,7 +99,7 @@ fun SettingsScreen(
         val uri = exportUri ?: return@LaunchedEffect
         viewModel.consumeExportUri()
         val send = Intent(Intent.ACTION_SEND).apply {
-            type = BackupFormat.MIME_TYPE
+            type = BackupFormat.MIME_TYPE_ZIP
             putExtra(Intent.EXTRA_STREAM, uri)
             putExtra(Intent.EXTRA_SUBJECT, "Expense Tracker backup")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -158,7 +158,7 @@ fun SettingsScreen(
                 title = stringResource(R.string.backup_restore_title),
                 subtitle = stringResource(R.string.backup_restore_subtitle),
                 onClick = {
-                    restorePicker.launch(arrayOf("application/json", "*/*"))
+                    restorePicker.launch(arrayOf("application/json", "application/zip", "*/*"))
                 },
             )
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
