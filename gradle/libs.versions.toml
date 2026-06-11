@@ -25,6 +25,7 @@ mlkit-text-recognition = "16.0.1"
 junit = "4.13.2"
 junitExt = "1.2.1"
 espresso = "3.6.1"
+orgJson = "20240303"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -67,6 +68,12 @@ mlkit-text-recognition = { group = "com.google.mlkit", name = "text-recognition"
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitExt" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
+
+# Real implementation of org.json for unit tests. The one in android.jar is
+# a stub that throws "Method not mocked" on every call; this artifact is
+# a tiny drop-in replacement that Gradle's classpath picks up before the
+# stub.
+org-json = { group = "org.json", name = "json", version.ref = "orgJson" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

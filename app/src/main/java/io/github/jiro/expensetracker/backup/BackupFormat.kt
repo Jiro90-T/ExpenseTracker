@@ -10,14 +10,16 @@ import org.json.JSONObject
  */
 internal object BackupFormat {
     /**
-     * v2: adds recurring-transaction fields (recurringGroupId, recurrenceKind,
-     * recurrenceInterval, recurrenceEndAt, recurrenceMaxOccurrences,
-     * recurrenceNextAt). Older backups (v1) restore fine — the new
-     * columns default to null/1 and the new rows are just one-off transactions.
+     * v3: adds receiptPath. Older backups (v1, v2) restore fine — the new
+     * column is nullable and defaults to null.
      */
-    const val FORMAT_VERSION = 2
+    const val FORMAT_VERSION = 3
     const val MIME_TYPE = "application/json"
+    const val MIME_TYPE_ZIP = "application/zip"
     const val FILE_PREFIX = "expense-tracker-backup-"
+
+    const val BACKUP_FILE_EXT = "zip"
+    const val BACKUP_FILE_EXT_LEGACY = "json"
 
     fun envelope(exportedAtEpochMillis: Long, appVersionName: String): JSONObject =
         JSONObject().apply {
@@ -29,10 +31,11 @@ internal object BackupFormat {
     fun parseEnvelope(json: String): JSONObject =
         JSONObject(json).also { obj ->
             val v = obj.optInt("formatVersion", -1)
-            // Accept v1 too — older backups restore fine; recurring fields
-            // are simply absent and the new rows are one-off transactions.
-            require(v == 1 || v == FORMAT_VERSION) {
-                "Unsupported backup format version: $v (expected 1 or $FORMAT_VERSION)"
+            // Accept v1 and v2 too — older backups restore fine; newer
+            // fields are simply absent and the new rows get the column
+            // default (null / 1).
+            require(v in 1..FORMAT_VERSION) {
+                "Unsupported backup format version: $v (expected 1, 2, or $FORMAT_VERSION)"
             }
         }
 
@@ -81,6 +84,7 @@ internal fun transactionEntityToJson(
     recurrenceEndAt: Long?,
     recurrenceMaxOccurrences: Int?,
     recurrenceNextAt: Long?,
+    receiptPath: String? = null,
 ): JSONObject = JSONObject().apply {
     put("id", id)
     put("title", title)
@@ -97,6 +101,7 @@ internal fun transactionEntityToJson(
     put("recurrenceEndAt", recurrenceEndAt ?: JSONObject.NULL)
     put("recurrenceMaxOccurrences", recurrenceMaxOccurrences ?: JSONObject.NULL)
     put("recurrenceNextAt", recurrenceNextAt ?: JSONObject.NULL)
+    put("receiptPath", receiptPath ?: JSONObject.NULL)
 }
 
 internal fun categoryFromJson(obj: JSONObject): CategoryRow = CategoryRow(
@@ -125,6 +130,7 @@ internal fun transactionFromJson(obj: JSONObject): TransactionRow = TransactionR
     recurrenceEndAt = if (obj.has("recurrenceEndAt") && !obj.isNull("recurrenceEndAt")) obj.getLong("recurrenceEndAt") else null,
     recurrenceMaxOccurrences = if (obj.has("recurrenceMaxOccurrences") && !obj.isNull("recurrenceMaxOccurrences")) obj.getInt("recurrenceMaxOccurrences") else null,
     recurrenceNextAt = if (obj.has("recurrenceNextAt") && !obj.isNull("recurrenceNextAt")) obj.getLong("recurrenceNextAt") else null,
+    receiptPath = if (obj.has("receiptPath") && !obj.isNull("receiptPath")) obj.getString("receiptPath") else null,
 )
 
 internal data class CategoryRow(
@@ -151,4 +157,5 @@ internal data class TransactionRow(
     val recurrenceEndAt: Long?,
     val recurrenceMaxOccurrences: Int?,
     val recurrenceNextAt: Long?,
+    val receiptPath: String?,
 )
