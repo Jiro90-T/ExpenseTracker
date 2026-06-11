@@ -26,6 +26,10 @@ object ReceiptOcrParser {
     private val TOTAL_KEYWORDS = listOf("total", "amount due", "balance due", "grand total")
     private val SKIP_HEADERS = setOf("receipt", "invoice", "bill", "order", "tax invoice")
 
+    /**
+     * Parse raw OCR text into structured fields. Returns an [OcrFields] with
+     * any field nullable when no confident match was found. Never throws.
+     */
     fun parse(text: String): OcrFields {
         val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
         val amountMinor = parseAmount(lines)
