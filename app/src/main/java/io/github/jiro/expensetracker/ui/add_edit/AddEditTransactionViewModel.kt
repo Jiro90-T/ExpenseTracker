@@ -244,7 +244,7 @@ class AddEditTransactionViewModel @Inject constructor(
             } else current.occurredAtEpochMillis,
             lastOcrFields = ocr,
         )
-        _state.value = s
+        _state.update { s }
     }
 
     fun onRecurringToggle(enabled: Boolean) = _state.update {
