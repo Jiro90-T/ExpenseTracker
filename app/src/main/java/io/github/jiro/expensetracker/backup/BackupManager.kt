@@ -222,6 +222,7 @@ class BackupManager @Inject constructor(
     suspend fun importFromZipUri(context: Context, uri: Uri): Result<ImportSummary> = withContext(Dispatchers.IO) {
         runCatching {
             var missingReceiptCount = 0
+            val missingPaths = mutableListOf<String>()
             // 1. Open the zip and read manifest.json.
             val json: String = context.contentResolver.openInputStream(uri)?.use { input ->
                 java.util.zip.ZipInputStream(input).use { zis ->
@@ -304,6 +305,7 @@ class BackupManager @Inject constructor(
             }
             for (relativePath in referencedReceipts) {
                 if (byName["receipts/$relativePath"] == null) {
+                    missingPaths.add(relativePath)
                     missingReceiptCount += 1
                 }
             }
@@ -329,9 +331,10 @@ class BackupManager @Inject constructor(
             }
 
             // 4. Wipe receiptPath for transactions whose files we couldn't restore.
-            if (missingReceiptCount > 0) {
+            //    Only the missing ones — leave the successfully-restored paths intact.
+            if (missingPaths.isNotEmpty()) {
                 database.withTransaction {
-                    database.transactionDao().clearReceiptPathsForMissing()
+                    database.transactionDao().clearReceiptPathsFor(missingPaths)
                 }
             }
 
