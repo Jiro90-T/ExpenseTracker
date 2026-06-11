@@ -1,5 +1,6 @@
 package io.github.jiro.expensetracker.ui.add_edit
 
+import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -35,7 +36,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,11 +46,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import io.github.jiro.expensetracker.R
+import io.github.jiro.expensetracker.data.local.ImageProcessor
 import io.github.jiro.expensetracker.data.repository.ReceiptRepository
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.UUID
@@ -71,7 +72,6 @@ fun ReceiptSection(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState()
     var showPicker by remember { mutableStateOf(false) }
     var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
@@ -91,8 +91,22 @@ fun ReceiptSection(
         if (uri != null) onAttached(uri)
     }
 
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) {
+            // Re-create the camera URI now that we have permission.
+            pendingCameraUri = createCameraCaptureUri(context)
+        } else {
+            // Show the denial string via the existing onOcrSnackbar (or a TODO).
+            // For MVP: just log. The user can still pick from gallery.
+            android.util.Log.w("ReceiptSection", "Camera permission denied")
+        }
+    }
+
     LaunchedEffect(pendingCameraUri) {
-        if (pendingCameraUri != null) cameraLauncher.launch(pendingCameraUri!!)
+        val uri = pendingCameraUri ?: return@LaunchedEffect
+        cameraLauncher.launch(uri)
     }
 
     Column(modifier = modifier) {
@@ -123,16 +137,13 @@ fun ReceiptSection(
             Column {
                 TextButton(
                     onClick = {
-                        scope.launch {
-                            showPicker = false
-                            val captureDir = File(context.filesDir, "receipts/.capture").apply { mkdirs() }
-                            val captureFile = File(captureDir, "${UUID.randomUUID()}.jpg")
-                            val uri = FileProvider.getUriForFile(
-                                context,
-                                "${context.packageName}.fileprovider",
-                                captureFile,
-                            )
-                            pendingCameraUri = uri
+                        showPicker = false
+                        if (ContextCompat.checkSelfPermission(
+                                context, android.Manifest.permission.CAMERA,
+                            ) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                            pendingCameraUri = createCameraCaptureUri(context)
+                        } else {
+                            cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
                         }
                     },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
@@ -188,7 +199,7 @@ private fun ReceiptThumbnail(
     onReplace: () -> Unit,
     onRemove: () -> Unit,
 ) {
-    var bitmap by remember(receiptPath) { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var bitmap by remember(receiptPath) { mutableStateOf<Bitmap?>(null) }
     val isPdf = remember(receiptPath) { receiptPath.endsWith(".pdf", ignoreCase = true) }
     var missing by remember(receiptPath) { mutableStateOf(false) }
 
@@ -203,7 +214,7 @@ private fun ReceiptThumbnail(
                 runCatching { repository.renderPdfPage(receiptPath, 0) }.getOrNull()
             } else {
                 runCatching {
-                    io.github.jiro.expensetracker.data.local.ImageProcessor
+                    ImageProcessor
                         .decodeSampledBitmap(repository.absolutePath(receiptPath), maxEdge = 512)
                 }.getOrNull()
             }
@@ -227,8 +238,9 @@ private fun ReceiptThumbnail(
                     textAlign = TextAlign.Center,
                 )
                 bitmap != null -> {
+                    val bmp = bitmap!!
                     Image(
-                        bitmap = bitmap!!.asImageBitmap(),
+                        bitmap = bmp.asImageBitmap(),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.size(96.dp).clip(RoundedCornerShape(12.dp)),
@@ -269,4 +281,17 @@ private fun ReceiptThumbnail(
             }
         }
     }
+}
+
+// Helper extracted for clarity. Create the camera output URI under
+// <filesDir>/receipts/.capture/. Caller is responsible for moving the file
+// into the live receipts dir on success.
+private fun createCameraCaptureUri(context: android.content.Context): Uri {
+    val captureDir = File(context.filesDir, "receipts/.capture").apply { mkdirs() }
+    val captureFile = File(captureDir, "${UUID.randomUUID()}.jpg")
+    return FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        captureFile,
+    )
 }

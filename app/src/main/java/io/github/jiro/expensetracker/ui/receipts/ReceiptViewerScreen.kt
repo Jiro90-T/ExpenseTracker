@@ -1,5 +1,6 @@
 package io.github.jiro.expensetracker.ui.receipts
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -29,6 +30,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.jiro.expensetracker.R
+import io.github.jiro.expensetracker.data.local.ImageProcessor
 import io.github.jiro.expensetracker.data.repository.ReceiptRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -41,7 +43,7 @@ fun ReceiptViewerScreen(
     onBack: () -> Unit,
 ) {
     val isPdf = remember(receiptPath) { receiptPath.endsWith(".pdf", ignoreCase = true) }
-    var pages by remember(receiptPath) { mutableStateOf<List<android.graphics.Bitmap>>(emptyList()) }
+    var pages by remember(receiptPath) { mutableStateOf<List<Bitmap>>(emptyList()) }
     var missing by remember(receiptPath) { mutableStateOf(false) }
 
     LaunchedEffect(receiptPath) {
@@ -49,6 +51,10 @@ fun ReceiptViewerScreen(
             missing = true
             return@LaunchedEffect
         }
+        // TODO Phase 2.4 MVP: eagerly decode all pages. For multi-page PDFs
+        // (50+ pages) this can OOM. Follow-up: switch to per-page decoding
+        // using `produceState` keyed on the current pager page. Most receipts
+        // are 1-2 pages so this isn't blocking.
         pages = withContext(Dispatchers.IO) {
             if (isPdf) {
                 val count = runCatching { receiptRepository.openPdfPageCount(receiptPath) }.getOrDefault(0)
@@ -58,7 +64,7 @@ fun ReceiptViewerScreen(
                 }.filterNotNull()
             } else {
                 val bmp = runCatching {
-                    io.github.jiro.expensetracker.data.local.ImageProcessor
+                    ImageProcessor
                         .decodeSampledBitmap(receiptRepository.absolutePath(receiptPath), maxEdge = 4096)
                 }.getOrNull()
                 if (bmp != null) listOf(bmp) else emptyList()
