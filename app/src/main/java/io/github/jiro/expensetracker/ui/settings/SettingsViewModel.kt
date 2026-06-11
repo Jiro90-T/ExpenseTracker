@@ -54,6 +54,7 @@ class SettingsViewModel @Inject constructor(
                 val now = System.currentTimeMillis()
                 val zipPath = withContext(Dispatchers.IO) {
                     backupManager.exportToZip(
+                        appContext,
                         appVersionName = BuildConfig.VERSION_NAME,
                         nowEpochMillis = now,
                     )

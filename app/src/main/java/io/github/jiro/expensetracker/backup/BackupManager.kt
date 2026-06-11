@@ -89,6 +89,7 @@ class BackupManager @Inject constructor(
      * the caller can hand to a FileProvider for sharing.
      */
     suspend fun exportToZip(
+        context: Context,
         appVersionName: String,
         nowEpochMillis: Long = System.currentTimeMillis(),
     ): String = withContext(Dispatchers.IO) {
@@ -105,7 +106,7 @@ class BackupManager @Inject constructor(
         }
 
         // 3. Create the zip in cache.
-        val dir = File(System.getProperty("java.io.tmpdir") ?: "/data/local/tmp", "exports").apply { mkdirs() }
+        val dir = File(context.cacheDir, "exports").apply { mkdirs() }
         val stamp = java.text.SimpleDateFormat("yyyyMMdd-HHmmss", java.util.Locale.US)
             .format(java.util.Date(nowEpochMillis))
         val zipFile = File(dir, "${BackupFormat.FILE_PREFIX}$stamp.${BackupFormat.BACKUP_FILE_EXT}")
