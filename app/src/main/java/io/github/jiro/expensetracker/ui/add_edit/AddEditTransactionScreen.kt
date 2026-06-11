@@ -62,12 +62,22 @@ import java.util.Locale
 fun AddEditTransactionScreen(
     onBack: () -> Unit,
     onManageSeries: (String) -> Unit = {},
+    onOpenReceipt: (String) -> Unit = {},
+    onOcrSnackbar: () -> Unit = {},
     viewModel: AddEditTransactionViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val receiptSectionVm: ReceiptSectionViewModel = hiltViewModel()
 
     LaunchedEffect(state.saveComplete) {
         if (state.saveComplete) onBack()
+    }
+
+    LaunchedEffect(state.lastOcrFields) {
+        if (state.lastOcrFields != null) {
+            onOcrSnackbar()
+            viewModel.consumeOcrSnackbar()
+        }
     }
 
     val isEdit = state.id != null
@@ -94,6 +104,8 @@ fun AddEditTransactionScreen(
             state = state,
             viewModel = viewModel,
             onManageSeries = onManageSeries,
+            onOpenReceipt = onOpenReceipt,
+            receiptRepository = receiptSectionVm.receiptRepository,
             modifier = Modifier.fillMaxSize().padding(padding),
         )
     }
@@ -105,6 +117,8 @@ private fun AddEditForm(
     state: AddEditTransactionUiState,
     viewModel: AddEditTransactionViewModel,
     onManageSeries: (String) -> Unit,
+    onOpenReceipt: (String) -> Unit,
+    receiptRepository: io.github.jiro.expensetracker.data.repository.ReceiptRepository,
     modifier: Modifier = Modifier,
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
@@ -196,6 +210,15 @@ private fun AddEditForm(
             label = { Text(stringResource(R.string.field_note)) },
             minLines = 2,
             modifier = Modifier.fillMaxWidth(),
+        )
+
+        // Receipt (Phase 2.4)
+        ReceiptSection(
+            receiptPath = state.receiptPath,
+            onAttached = viewModel::onReceiptAttached,
+            onRemoved = viewModel::onReceiptRemoved,
+            onOpen = { state.receiptPath?.let(onOpenReceipt) },
+            receiptRepository = receiptRepository,
         )
 
         // Recurring (Phase 2.1) — a simple toggle + a couple of fields.
