@@ -95,8 +95,9 @@ class ReceiptRepository @Inject constructor(
     fun openPdfPageCount(relativePath: String): Int {
         val f = absolutePath(relativePath)
         if (!f.isFile) return 0
-        val pfd = ParcelFileDescriptor.open(f, ParcelFileDescriptor.MODE_READ_ONLY)
-        return android.graphics.pdf.PdfRenderer(pfd).use { it.pageCount }
+        return ParcelFileDescriptor.open(f, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            android.graphics.pdf.PdfRenderer(pfd).use { it.pageCount }
+        }
     }
 
     /** Render the [pageIndex]-th page of the PDF at [relativePath] as a Bitmap. */
@@ -104,18 +105,19 @@ class ReceiptRepository @Inject constructor(
     fun renderPdfPage(relativePath: String, pageIndex: Int): Bitmap {
         val f = absolutePath(relativePath)
         if (!f.isFile) error("Receipt file missing: $relativePath")
-        val pfd = ParcelFileDescriptor.open(f, ParcelFileDescriptor.MODE_READ_ONLY)
-        return android.graphics.pdf.PdfRenderer(pfd).use { renderer ->
-            if (pageIndex < 0 || pageIndex >= renderer.pageCount) {
-                error("Page $pageIndex out of bounds (count = ${renderer.pageCount})")
-            }
-            renderer.openPage(pageIndex).use { page ->
-                val width = page.width
-                val height = page.height
-                val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                bmp.eraseColor(Color.WHITE)
-                page.render(bmp, null, null, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-                bmp
+        return ParcelFileDescriptor.open(f, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            android.graphics.pdf.PdfRenderer(pfd).use { renderer ->
+                if (pageIndex < 0 || pageIndex >= renderer.pageCount) {
+                    error("Page $pageIndex out of bounds (count = ${renderer.pageCount})")
+                }
+                renderer.openPage(pageIndex).use { page ->
+                    val width = page.width
+                    val height = page.height
+                    val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                    bmp.eraseColor(Color.WHITE)
+                    page.render(bmp, null, null, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                    bmp
+                }
             }
         }
     }
@@ -142,11 +144,13 @@ class ReceiptRepository @Inject constructor(
                 FileOutputStream(tempRaw).use { output -> input.copyTo(output) }
             }
             val decoded = ImageProcessor.decodeSampledBitmap(tempRaw, maxEdge = 4096)
+            // downscaleToMaxEdge always returns a new bitmap (it copies even when the source
+            // is already small), so decoded and downscaled are always distinct.
             val downscaled = ImageProcessor.downscaleToMaxEdge(decoded, maxEdge = 2048)
             FileOutputStream(dest).use { out ->
                 downscaled.compress(Bitmap.CompressFormat.JPEG, 90, out)
             }
-            if (downscaled !== decoded) decoded.recycle()
+            decoded.recycle()
             downscaled.recycle()
         } finally {
             tempRaw.delete()
