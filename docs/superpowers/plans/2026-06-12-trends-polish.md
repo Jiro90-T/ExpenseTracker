@@ -976,7 +976,7 @@ Open `app/src/main/res/values/strings.xml` and add these lines just after the ex
     <string name="trends_legend_expense_prior">Expense (prior)</string>
     <string name="trends_legend_net_prior">Net (prior)</string>
     <string name="trends_compare_panel_title">vs prior %1$d months</string>
-    <string name="trends_compare_pct_zero">0%</string>
+    <string name="trends_compare_panel_title_ytd">vs prior year</string>
 ```
 
 - [ ] **Step 2: Replace the entire contents of `TrendsScreen.kt`**
@@ -1166,28 +1166,10 @@ private fun ComparisonCard(
     period: TrendsPeriod,
     delta: ComparisonDelta,
 ) {
-    val monthsBack = when (period) {
-        is TrendsPeriod.Ytd -> {
-            // For YTD the panel title uses the actual month count of the
-            // current window. We use the period's monthsBack via the data
-            // shape, but Ytd has monthsBack = null. Fall back to a friendly
-            // label: just use the number of months in the current window.
-            // In practice, TrendsViewModel always emits a valid period, so
-            // the caller is responsible for passing the right `period`.
-            // The card title is "%1$d months", so we need a count.
-            null
-        }
-        else -> period.monthsBack
-    }
-    // YTD title uses "vs prior YTD"; fixed-N uses "vs prior N months".
     val title = if (period is TrendsPeriod.Ytd) {
-        // No dedicated YTD title string — reuse the parameterized one with
-        // a representative month count or just describe it as YTD. For
-        // simplicity we pass 0 and the title string will say "vs prior 0
-        // months" which is wrong. Replace with a plain title:
         stringResource(R.string.trends_compare_panel_title_ytd)
     } else {
-        stringResource(R.string.trends_compare_panel_title, monthsBack ?: 0)
+        stringResource(R.string.trends_compare_panel_title, period.monthsBack ?: 0)
     }
 
     Surface(
@@ -1201,21 +1183,26 @@ private fun ComparisonCard(
                 style = MaterialTheme.typography.titleMedium,
             )
             Spacer(Modifier.size(8.dp))
-            DeltaRow(label = stringResource(R.string.trends_compare_label_income), pct = delta.incomePct)
-            DeltaRow(label = stringResource(R.string.trends_compare_label_expense), pct = delta.expensePct)
-            DeltaRow(label = stringResource(R.string.trends_compare_label_net), pct = delta.netPct)
+            DeltaRow(label = stringResource(R.string.trends_detail_income, formatPctForLabel(delta.incomePct)), pct = delta.incomePct)
+            DeltaRow(label = stringResource(R.string.trends_detail_expense, formatPctForLabel(delta.expensePct)), pct = delta.expensePct)
+            DeltaRow(label = stringResource(R.string.trends_detail_net, formatPctForLabel(delta.netPct)), pct = delta.netPct)
         }
     }
 }
 
 @Composable
 private fun DeltaRow(label: String, pct: Double?) {
-    val (text, color, showArrow) = when {
-        pct == null -> Triple("—", MaterialTheme.colorScheme.onSurfaceVariant, false)
-        abs(pct) < 0.05 -> Triple(stringResource(R.string.trends_compare_pct_zero), MaterialTheme.colorScheme.onSurfaceVariant, false)
-        pct > 0 -> Triple(formatPct(pct), MaterialTheme.colorScheme.primary, true)
-        else -> Triple(formatPct(pct), MaterialTheme.colorScheme.error, true)
+    // The label string already contains the formatted percent (or "—")
+    // because it was built with `stringResource(R.string.trends_detail_*,
+    // formatPctForLabel(pct))`. We only need this composable to attach the
+    // arrow icon and tint the text.
+    val color = when {
+        pct == null -> MaterialTheme.colorScheme.onSurfaceVariant
+        abs(pct) < 0.05 -> MaterialTheme.colorScheme.onSurfaceVariant
+        pct > 0 -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.error
     }
+    val showArrow = pct != null && abs(pct) >= 0.05
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -1223,22 +1210,17 @@ private fun DeltaRow(label: String, pct: Double?) {
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
+            color = color,
             modifier = Modifier.weight(1f),
         )
         if (showArrow) {
             Icon(
-                imageVector = if (text.startsWith("-")) Icons.Filled.ArrowDownward else Icons.Filled.ArrowUpward,
+                imageVector = if ((pct ?: 0.0) < 0) Icons.Filled.ArrowDownward else Icons.Filled.ArrowUpward,
                 contentDescription = null,
                 tint = color,
                 modifier = Modifier.size(16.dp),
             )
-            Spacer(Modifier.size(4.dp))
         }
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyMedium,
-            color = color,
-        )
     }
 }
 
@@ -1251,20 +1233,25 @@ private fun formatPct(pct: Double): String {
         "$sign${"%.1f".format(rounded)}%"
     }
 }
+
+/**
+ * Formats a percent for use as the placeholder of a parameterized label
+ * string (e.g. "Income: %1$s"). Returns "—" when the prior sum is zero
+ * (no meaningful percent) and "0%" when the percent rounds to zero
+ * (current and prior are equal).
+ */
+private fun formatPctForLabel(pct: Double?): String {
+    if (pct == null) return "—"
+    if (abs(pct) < 0.05) return "0%"
+    return formatPct(pct)
+}
 ```
 
-- [ ] **Step 3: Add the three new strings the card needs**
+- [ ] **Step 3: (No new strings needed in this step)**
 
-The card uses three row labels (`Income`, `Expense`, `Net`) and a YTD-specific title that weren't in the original 10. Add these to `strings.xml` right after the strings added in Step 1:
+The card's row labels reuse the existing `trends_detail_income` / `trends_detail_expense` / `trends_detail_net` strings (format `"%1$s: %2$s"` style — well, the existing format is `"Income: %1$s"`). The percent value (or "—") is the placeholder. Net new strings: **0**. The YTD-specific title was already added in Step 1.
 
-```xml
-    <string name="trends_compare_label_income">Income</string>
-    <string name="trends_compare_label_expense">Expense</string>
-    <string name="trends_compare_label_net">Net</string>
-    <string name="trends_compare_panel_title_ytd">vs prior year</string>
-```
-
-(13 new strings total across this task: 10 from Step 1 + 3 labels + 1 YTD title = 14. The "1 YTD title" replaces a parameterized count of 0 with a friendlier phrase.)
+Total new strings for Task 4: 10 from Step 1.
 
 - [ ] **Step 4: Compile to verify**
 
