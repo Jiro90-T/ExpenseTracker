@@ -132,6 +132,8 @@
     <string name="trends_legend_expense_prior">Expense (prior)</string>
     <string name="trends_legend_net_prior">Net (prior)</string>
     <string name="trends_clear">Clear</string>
+    <string name="trends_compare_panel_title">vs prior %1$d months</string>
+    <string name="trends_compare_panel_title_ytd">vs prior year</string>
 
     <!-- Trends (Phase 2.6 — period selector labels) -->
     <string name="trends_period_3m">3M</string>
