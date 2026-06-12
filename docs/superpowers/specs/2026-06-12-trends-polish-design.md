@@ -193,7 +193,7 @@ The `nowMs` is captured inside the `map` so the calculation is anchored to the m
 └─────────────────────────────────────┘
 ```
 
-The `SingleChoiceSegmentedButtonRow` (Material 3) is a horizontally-scrolling row of toggle buttons. Wrapping isn't needed because five short labels fit. The `*` indicates the selected option (rendered as a filled button vs outlined).
+The `SingleChoiceSegmentedButtonRow` (Material 3) is a row of five toggle buttons. Five short labels (3M, 6M, 12M, YTD, All) fit comfortably on a phone width — no horizontal scrolling, no wrapping. The `*` in the ASCII layout indicates the selected option (rendered as a filled button vs outlined).
 
 The comparison card uses `Card` with `CardDefaults.elevatedCard` so it visually separates from the detail panel. When `period == All` it doesn't render at all.
 
@@ -246,7 +246,7 @@ The VM test (if added later) would mock `TransactionRepository` and `SettingsRep
 
 | Test | File | What it asserts |
 | --- | --- | --- |
-| `computePeriodTrends_emptyRows_returnsEmpty` | `TrendsPeriodTest.kt` | `rows = []` → `current = []`, `prior = []` (or null for All), `currentMonthMs = ???`. |
+| `computePeriodTrends_emptyRows_returnsEmpty` | `TrendsPeriodTest.kt` | `rows = []` → `current = []`, `prior = []` for fixed-N periods and `null` for `All`, `currentMonthMs = null` (nothing to mark, no data). |
 | `computePeriodTrends_sixMonths_windowOnly` | same | Rows from various months (some inside 6M window, some outside) → only inside-window months appear in `current`. |
 | `computePeriodTrends_sixMonths_priorIsPrecedingSix` | same | The `prior` list contains the 6 months immediately before the `current` window, with correct totals. |
 | `computePeriodTrends_allPeriod_priorIsNull` | same | `period = All` → `prior = null`, `delta = null`. |
