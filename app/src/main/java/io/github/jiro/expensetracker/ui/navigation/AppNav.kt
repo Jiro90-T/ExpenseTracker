@@ -27,9 +27,9 @@ import io.github.jiro.expensetracker.ui.home.HomeScreen
 import io.github.jiro.expensetracker.ui.more.MoreScreen
 import io.github.jiro.expensetracker.ui.receipts.ReceiptViewerScreen
 import io.github.jiro.expensetracker.ui.recurring.ManageSeriesScreen
-import io.github.jiro.expensetracker.ui.reports.ReportsScreen
 import io.github.jiro.expensetracker.ui.settings.SettingsScreen
 import io.github.jiro.expensetracker.ui.transactions.TransactionsScreen
+import io.github.jiro.expensetracker.ui.trends.TrendsScreen
 import kotlinx.coroutines.launch
 
 object Routes {
@@ -39,7 +39,7 @@ object Routes {
     const val ADD_EDIT_ARG_ID = "id"
     const val ADD_EDIT_NO_ID = "add_edit"
     const val BUDGET = "budget"
-    const val REPORTS = "reports"
+    const val TRENDS = "trends"
     const val MORE = "more"
     const val CATEGORIES = "categories"
     const val SETTINGS = "settings"
@@ -150,9 +150,7 @@ fun AppNavHost(
                 )
             }
             composable(Routes.BUDGET) { BudgetScreen() }
-            composable(Routes.REPORTS) {
-                ReportsScreen(onBack = { navController.popBackStack() })
-            }
+            composable(Routes.TRENDS) { TrendsScreen() }
             composable(Routes.MORE) {
                 MoreScreen(
                     onManageCategories = { navController.navigate(Routes.CATEGORIES) },

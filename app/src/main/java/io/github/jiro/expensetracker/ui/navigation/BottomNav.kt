@@ -38,7 +38,7 @@ internal enum class BottomTab(
     // Add is a button, not a destination. Tapping it navigates to the
     // add-edit route via the onAddClick callback wired from AppNavHost.
     Budget(Routes.BUDGET, R.string.nav_budget, Icons.Filled.AccountBalanceWallet),
-    Reports(Routes.REPORTS, R.string.nav_reports, Icons.Filled.Assessment),
+    Reports(Routes.TRENDS, R.string.nav_trends, Icons.Filled.Assessment),
     More(Routes.MORE, R.string.nav_more, Icons.Filled.MoreHoriz),
 }
 

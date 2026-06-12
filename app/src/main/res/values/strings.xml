@@ -115,18 +115,27 @@
     <string name="nav_transactions">Transactions</string>
     <string name="nav_transactions_short">Txns</string>
     <string name="nav_budget">Budget</string>
-    <string name="nav_reports">Reports</string>
+    <string name="nav_trends">Trends</string>
     <string name="nav_more">More</string>
     <string name="nav_add">Add</string>
 
+    <!-- Trends (Phase 2.5) -->
+    <string name="trends_tap_hint">Tap a month to see details</string>
+    <string name="trends_detail_title">%1$s</string>
+    <string name="trends_detail_income">Income: %1$s</string>
+    <string name="trends_detail_expense">Expense: %1$s</string>
+    <string name="trends_detail_net">Net: %1$s</string>
+    <string name="trends_legend_income">Income</string>
+    <string name="trends_legend_expense">Expense</string>
+    <string name="trends_legend_net">Net</string>
+    <string name="trends_clear">Clear</string>
+
     <!-- Stubs -->
-    <string name="reports_title">Reports</string>
     <string name="settings_title">Settings</string>
     <string name="budget_title">Budget</string>
     <string name="transactions_title">Transactions</string>
     <string name="more_title">More</string>
     <string name="coming_soon">Coming soon</string>
-    <string name="reports_coming_soon_detail">Charts, trends, and budget tracking will live here.</string>
     <string name="settings_coming_soon_detail">Theme, default currency, and data export will live here.</string>
     <string name="budget_coming_soon_detail">Per-category monthly budgets and overspend warnings will live here.</string>
 
