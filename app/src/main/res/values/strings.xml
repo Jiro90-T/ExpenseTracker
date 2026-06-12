@@ -130,6 +130,13 @@
     <string name="trends_legend_net">Net</string>
     <string name="trends_clear">Clear</string>
 
+    <!-- Trends (Phase 2.6 — period selector labels) -->
+    <string name="trends_period_3m">3M</string>
+    <string name="trends_period_6m">6M</string>
+    <string name="trends_period_12m">12M</string>
+    <string name="trends_period_ytd">YTD</string>
+    <string name="trends_period_all">All</string>
+
     <!-- Stubs -->
     <string name="settings_title">Settings</string>
     <string name="budget_title">Budget</string>
