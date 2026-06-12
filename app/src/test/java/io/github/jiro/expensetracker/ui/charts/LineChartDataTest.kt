@@ -80,9 +80,8 @@ class LineChartDataTest {
             row(monthStart = utcMs(2026, 4, 5, 12, 0, 0), amountMinor = 300L, type = "INCOME"),
         )
         val out = computeMonthlyTrends(rows)
-        // The helper uses computeMonthlyTotals(rows) which iterates from "now"
-        // backward, so the order is "most recent first when iterating, but
-        // inserted at index 0, producing oldest-first". We don't pin a
+        // The helper groups transactions by month and emits one entry per
+        // month that has data, sorted chronologically. We don't pin a
         // specific order in this test — just verify each row maps to a
         // unique month.
         assertEquals(3, out.size)
