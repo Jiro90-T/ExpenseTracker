@@ -20,6 +20,7 @@ val IncomeGreen = Color(0xFF2E7D32)
 val OnIncomeGreen = Color(0xFFFFFFFF)
 val ExpenseRed = Color(0xFFC62828)
 val OnExpenseRed = Color(0xFFFFFFFF)
+val NetBlue = Color(0xFF1565C0)
 
 // ----- Dark scheme -----
 val DarkBrandPrimary = Color(0xFFD0BCFF)
