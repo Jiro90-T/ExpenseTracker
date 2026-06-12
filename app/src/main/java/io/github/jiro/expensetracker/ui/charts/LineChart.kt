@@ -36,14 +36,20 @@ import io.github.jiro.expensetracker.ui.theme.NetBlue
 import kotlin.math.abs
 
 /**
- * Three polylines (income, expense, net) over the last [MonthlyTrend.monthsBack]
- * months. Tap any data point to select it; the [selected] month's dots get a
- * ring indicator. Tap the same point again, or anywhere outside the chart, to
+ * Three polylines (income, expense, net) over the months in [data]. When
+ * [prior] is non-null, three ghost polylines are drawn underneath at 30%
+ * alpha for the same three series over the prior period. When
+ * [currentMonthMs] is non-null and the month is in [data], a thin vertical
+ * dashed line is drawn at that month's X position. Tap any data point on
+ * the current period to select it; the [selected] month's dots get a ring
+ * indicator. Tap the same point again, or anywhere outside the chart, to
  * clear the selection (caller passes `null` via [onSelect]).
  */
 @Composable
 fun LineChart(
     data: List<MonthlyTrend>,
+    prior: List<MonthlyTrend>?,
+    currentMonthMs: Long?,
     selected: MonthlyTrend?,
     onSelect: (MonthlyTrend?) -> Unit,
     modifier: Modifier = Modifier,
@@ -66,24 +72,51 @@ fun LineChart(
 
     val density = LocalDensity.current
     val strokePx = with(density) { 2.dp.toPx() }
+    val strokePxGhost = with(density) { 1.5.dp.toPx() }
     val dotPx = with(density) { 3.dp.toPx() }
     val ringPx = with(density) { 6.dp.toPx() }
     val ringStrokePx = with(density) { 1.dp.toPx() }
     val joinPx = with(density) { 8.dp.toPx() }
     val pathEffect = remember(joinPx) { PathEffect.cornerPathEffect(joinPx) }
+    val markerDashPx = with(density) { 6.dp.toPx() }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        // Legend (top-right). Row with End alignment for right-align.
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(end = 8.dp),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            LegendDot(color = IncomeGreen, label = stringResource(R.string.trends_legend_income))
-            Spacer(Modifier.size(12.dp))
-            LegendDot(color = ExpenseRed, label = stringResource(R.string.trends_legend_expense))
-            Spacer(Modifier.size(12.dp))
-            LegendDot(color = NetBlue, label = stringResource(R.string.trends_legend_net))
+        // Legend (two rows when prior is present, one row otherwise).
+        if (prior != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(end = 8.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                LegendDot(color = IncomeGreen, label = stringResource(R.string.trends_legend_income))
+                Spacer(Modifier.size(8.dp))
+                LegendDotGhost(color = IncomeGreen, label = stringResource(R.string.trends_legend_income_prior))
+                Spacer(Modifier.size(8.dp))
+                LegendDot(color = ExpenseRed, label = stringResource(R.string.trends_legend_expense))
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(end = 8.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                LegendDotGhost(color = ExpenseRed, label = stringResource(R.string.trends_legend_expense_prior))
+                Spacer(Modifier.size(8.dp))
+                LegendDot(color = NetBlue, label = stringResource(R.string.trends_legend_net))
+                Spacer(Modifier.size(8.dp))
+                LegendDotGhost(color = NetBlue, label = stringResource(R.string.trends_legend_net_prior))
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(end = 8.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                LegendDot(color = IncomeGreen, label = stringResource(R.string.trends_legend_income))
+                Spacer(Modifier.size(12.dp))
+                LegendDot(color = ExpenseRed, label = stringResource(R.string.trends_legend_expense))
+                Spacer(Modifier.size(12.dp))
+                LegendDot(color = NetBlue, label = stringResource(R.string.trends_legend_net))
+            }
         }
         Spacer(Modifier.size(4.dp))
         // Chart canvas.
@@ -112,9 +145,11 @@ fun LineChart(
             val n = data.size
             val w = size.width
             val h = size.height
-            // Y scale: max abs value of any line.
-            val maxAbs = data.flatMap { listOf(it.incomeMinor, it.expenseMinor, it.netMinor) }
-                .maxOfOrNull { abs(it) } ?: 0L
+
+            // Y scale: max abs value across current AND prior.
+            val currentAbs = data.flatMap { listOf(it.incomeMinor, it.expenseMinor, it.netMinor) }
+            val priorAbs = prior?.flatMap { listOf(it.incomeMinor, it.expenseMinor, it.netMinor) } ?: emptyList()
+            val maxAbs = (currentAbs + priorAbs).maxOfOrNull { abs(it) } ?: 0L
             if (maxAbs <= 0L) return@Canvas  // all zero — nothing to draw
             val midY = h / 2f
             val halfH = h / 2f
@@ -135,7 +170,45 @@ fun LineChart(
                 strokeWidth = 1f,
             )
 
-            // Three polylines.
+            // Prior ghost polylines (drawn first, underneath).
+            if (prior != null && prior.size == n) {
+                val ghostPaths = listOf(
+                    Pair(IncomeGreen, prior.mapIndexed { i, m -> pointFor(m.incomeMinor, i) }),
+                    Pair(ExpenseRed, prior.mapIndexed { i, m -> pointFor(m.expenseMinor, i) }),
+                    Pair(NetBlue, prior.mapIndexed { i, m -> pointFor(m.netMinor, i) }),
+                )
+                for ((color, points) in ghostPaths) {
+                    if (points.size < 2) continue
+                    val path = Path().apply {
+                        moveTo(points.first().x, points.first().y)
+                        for (i in 1 until points.size) {
+                            lineTo(points[i].x, points[i].y)
+                        }
+                    }
+                    drawPath(
+                        path = path,
+                        color = color.copy(alpha = 0.30f),
+                        style = Stroke(width = strokePxGhost, pathEffect = pathEffect),
+                    )
+                }
+            }
+
+            // Current month marker (vertical dashed line).
+            val markerIndex = currentMonthMs?.let { ms ->
+                data.indexOfFirst { it.monthStartMs == ms }.takeIf { it >= 0 }
+            }
+            if (markerIndex != null) {
+                val x = if (n == 1) w / 2f else markerIndex * w / (n - 1)
+                drawLine(
+                    color = Color.Gray.copy(alpha = 0.6f),
+                    start = Offset(x, 0f),
+                    end = Offset(x, h),
+                    strokeWidth = 1f,
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(markerDashPx, markerDashPx)),
+                )
+            }
+
+            // Current period polylines (drawn over ghosts, under dots).
             val paths = listOf(
                 Pair(IncomeGreen, data.mapIndexed { i, m -> pointFor(m.incomeMinor, i) }),
                 Pair(ExpenseRed, data.mapIndexed { i, m -> pointFor(m.expenseMinor, i) }),
@@ -190,10 +263,31 @@ fun LineChart(
     }
 }
 
+/**
+ * Small color swatch + label, used in the legend. Renders the swatch at the
+ * full color and at full size, matching the "current period" lines.
+ */
 @Composable
 private fun LegendDot(color: Color, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Surface(color = color, shape = CircleShape, modifier = Modifier.size(8.dp)) {}
+        Spacer(Modifier.size(4.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/**
+ * Like [LegendDot] but with a 30% alpha swatch at a smaller size, used for
+ * the "(prior)" legend entries that correspond to ghost lines.
+ */
+@Composable
+private fun LegendDotGhost(color: Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Surface(color = color.copy(alpha = 0.30f), shape = CircleShape, modifier = Modifier.size(6.dp)) {}
         Spacer(Modifier.size(4.dp))
         Text(
             text = label,

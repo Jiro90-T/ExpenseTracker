@@ -128,6 +128,9 @@
     <string name="trends_legend_income">Income</string>
     <string name="trends_legend_expense">Expense</string>
     <string name="trends_legend_net">Net</string>
+    <string name="trends_legend_income_prior">Income (prior)</string>
+    <string name="trends_legend_expense_prior">Expense (prior)</string>
+    <string name="trends_legend_net_prior">Net (prior)</string>
     <string name="trends_clear">Clear</string>
 
     <!-- Trends (Phase 2.6 — period selector labels) -->
