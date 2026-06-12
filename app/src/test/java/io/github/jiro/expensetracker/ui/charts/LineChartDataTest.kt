@@ -74,19 +74,23 @@ class LineChartDataTest {
 
     @Test
     fun computeMonthlyTrends_preservesSortOrder() {
+        // Rows intentionally out of input order. The helper must emit
+        // them chronologically (oldest first) regardless of input order.
+        // We assert the relative order (each month is strictly less than
+        // the next) rather than specific epoch values, because the
+        // grouped key is the timezone-dependent start-of-month instant.
+        val marStart = utcMs(2026, 3, 15, 12, 0, 0)
+        val aprStart = utcMs(2026, 4, 15, 12, 0, 0)
+        val mayStart = utcMs(2026, 5, 15, 12, 0, 0)
         val rows = listOf(
-            row(monthStart = utcMs(2026, 5, 5, 12, 0, 0), amountMinor = 100L, type = "INCOME"),
-            row(monthStart = utcMs(2026, 3, 5, 12, 0, 0), amountMinor = 200L, type = "INCOME"),
-            row(monthStart = utcMs(2026, 4, 5, 12, 0, 0), amountMinor = 300L, type = "INCOME"),
+            row(monthStart = mayStart, amountMinor = 100L, type = "INCOME"),
+            row(monthStart = marStart, amountMinor = 200L, type = "INCOME"),
+            row(monthStart = aprStart, amountMinor = 300L, type = "INCOME"),
         )
         val out = computeMonthlyTrends(rows)
-        // The helper groups transactions by month and emits one entry per
-        // month that has data, sorted chronologically. We don't pin a
-        // specific order in this test — just verify each row maps to a
-        // unique month.
         assertEquals(3, out.size)
-        val labels = out.map { it.monthStartMs }.toSet()
-        assertEquals(3, labels.size)
+        assertTrue("months must be sorted ascending", out[0].monthStartMs < out[1].monthStartMs)
+        assertTrue(out[1].monthStartMs < out[2].monthStartMs)
     }
 
     // ---- helpers ----
