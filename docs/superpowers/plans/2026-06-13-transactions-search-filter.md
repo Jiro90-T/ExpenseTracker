@@ -1177,7 +1177,6 @@ private fun FilterControls(
     onClear: () -> Unit,
 ) {
     var showDateDialog by remember { mutableStateOf(false) }
-    var pendingDateRange by remember { mutableStateOf<DateRangePreset>(DateRangePreset.Any) }
 
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
@@ -1260,11 +1259,10 @@ private fun FilterControls(
 
     if (showDateDialog) {
         DateRangePickerDialog(
-            initialRange = (filters.dateRange as? DateRangePreset.Custom) ?: pendingDateRange,
+            initialRange = filters.dateRange,
             onDismiss = { showDateDialog = false },
             onConfirm = { from, to ->
                 showDateDialog = false
-                pendingDateRange = DateRangePreset.Custom(from, to)
                 onDateRangeChange(DateRangePreset.Custom(from, to))
             },
         )
