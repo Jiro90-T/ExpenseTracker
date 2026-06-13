@@ -283,7 +283,7 @@ If the user cancels (no range selected), the dialog is dismissed without state c
 | `filterTransactions_isEmpty_dateRangeSet_false` | same | Setting `dateRange = Last7Days` → `isEmpty == false`. |
 | `filterTransactions_isEmpty_customDateSet_false` | same | Setting `dateRange = Custom(...)` → `isEmpty == false`. |
 
-(~33 tests, all JUnit 4, no Compose.)
+(~34 tests, all JUnit 4, no Compose.)
 
 No Compose UI test for the filter UI. The search/filter behavior is exercised on device in the manual smoke test (Phase 2.7 Task 6).
 
@@ -306,7 +306,7 @@ filter_no_matches_title         "No matches"
 filter_no_matches_body          "No transactions match your current filters."
 ```
 
-(15 new strings.)
+(14 new strings.)
 
 ## Files touched (summary)
 
