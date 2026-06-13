@@ -195,4 +195,20 @@
     <string name="receipt_unsupported_mime">Could not read the file. Try an image or PDF.</string>
     <string name="receipt_save_failed">Could not save the receipt.</string>
     <string name="receipt_backup_missing">Some receipts in the backup were missing and weren\'t restored.</string>
+
+    <!-- Filters (Phase 2.7) -->
+    <string name="filter_search_hint">Search title, note, category, or amount</string>
+    <string name="filter_type_all">All Types</string>
+    <string name="filter_type_income">Income</string>
+    <string name="filter_type_expense">Expense</string>
+    <string name="filter_category_all">All categories</string>
+    <string name="filter_date_any">Any</string>
+    <string name="filter_date_last_7_days">Last 7 days</string>
+    <string name="filter_date_last_30_days">Last 30 days</string>
+    <string name="filter_date_this_month">This month</string>
+    <string name="filter_date_this_year">This year</string>
+    <string name="filter_date_custom">Custom…</string>
+    <string name="filter_clear">Clear filters</string>
+    <string name="filter_no_matches_title">No matches</string>
+    <string name="filter_no_matches_body">No transactions match your current filters.</string>
 </resources>
