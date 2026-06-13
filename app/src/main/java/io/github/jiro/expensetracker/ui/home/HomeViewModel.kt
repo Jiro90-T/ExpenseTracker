@@ -3,13 +3,20 @@ package io.github.jiro.expensetracker.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.jiro.expensetracker.data.local.CategoryEntity
 import io.github.jiro.expensetracker.data.local.TransactionWithCategory
+import io.github.jiro.expensetracker.data.repository.CategoryRepository
 import io.github.jiro.expensetracker.data.repository.TransactionRepository
 import io.github.jiro.expensetracker.domain.FxConverter
 import io.github.jiro.expensetracker.domain.model.TransactionType
 import io.github.jiro.expensetracker.preferences.SettingsRepository
 import io.github.jiro.expensetracker.ui.charts.MonthlyTotals
 import io.github.jiro.expensetracker.ui.charts.computeMonthlyTotals
+import io.github.jiro.expensetracker.ui.transactions.DateRangePreset
+import io.github.jiro.expensetracker.ui.transactions.FiltersRepository
+import io.github.jiro.expensetracker.ui.transactions.TransactionFilters
+import io.github.jiro.expensetracker.ui.transactions.TypeFilter
+import io.github.jiro.expensetracker.ui.transactions.filterTransactions
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -55,6 +62,8 @@ data class CategoryBreakdown(
 class HomeViewModel @Inject constructor(
     private val repository: TransactionRepository,
     private val settingsRepository: SettingsRepository,
+    private val categoryRepository: CategoryRepository,
+    private val filtersRepository: FiltersRepository,
 ) : ViewModel() {
 
     private val _period = MutableStateFlow<Period>(Period.currentMonth())
@@ -104,6 +113,34 @@ class HomeViewModel @Inject constructor(
             initialValue = emptyList(),
         )
 
+    /** All categories, used by the Transactions tab's category dropdown and filter. */
+    val allCategories: StateFlow<List<CategoryEntity>> = categoryRepository
+        .observeAll()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList(),
+        )
+
+    /** The current filter state, sourced from FiltersRepository. */
+    val filters: StateFlow<TransactionFilters> = filtersRepository.filters
+
+    /** All transactions filtered by the current [filters]. */
+    val filteredTransactions: StateFlow<List<TransactionWithCategory>> =
+        combine(
+            repository.observeAll(),
+            filters,
+            allCategories,
+        ) { rows, f, cats -> Triple(rows, f, cats) }
+            .map { (rows, f, cats) ->
+                filterTransactions(rows, f, cats, nowMs = System.currentTimeMillis())
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = emptyList(),
+            )
+
     private val _undo = MutableStateFlow<UndoState?>(null)
     val undo: StateFlow<UndoState?> = _undo.asStateFlow()
 
@@ -135,6 +172,16 @@ class HomeViewModel @Inject constructor(
     fun dismissUndo() {
         _undo.value = null
     }
+
+    fun setFilters(filters: TransactionFilters) {
+        filtersRepository.setFilters(filters)
+    }
+
+    fun setSearchQuery(q: String) = setFilters(filters.value.copy(searchQuery = q))
+    fun setCategoryFilter(id: Long?) = setFilters(filters.value.copy(categoryId = id))
+    fun setTypeFilter(t: TypeFilter) = setFilters(filters.value.copy(typeFilter = t))
+    fun setDateRange(d: DateRangePreset) = setFilters(filters.value.copy(dateRange = d))
+    fun clearFilters() = filtersRepository.setFilters(TransactionFilters())
 }
 
 /**
