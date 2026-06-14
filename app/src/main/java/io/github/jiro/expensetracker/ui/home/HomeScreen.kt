@@ -1,14 +1,22 @@
 package io.github.jiro.expensetracker.ui.home
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,6 +47,7 @@ import io.github.jiro.expensetracker.ui.theme.ExpenseTrackerTheme
 @Composable
 fun HomeScreen(
     onSeeAllTransactions: () -> Unit = {},
+    onNavigateToBudget: () -> Unit = {},
     reselectTrigger: Int = 0,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
@@ -51,6 +60,7 @@ fun HomeScreen(
     val monthlyTotals by viewModel.monthlyTotals.collectAsStateWithLifecycle()
     val period by viewModel.period.collectAsStateWithLifecycle()
     val undoState by viewModel.undo.collectAsStateWithLifecycle()
+    val budgetAlerts by viewModel.budgetAlerts.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val undoLabel = stringResource(R.string.action_undo)
     val deletedLabel = stringResource(R.string.snackbar_transaction_deleted)
@@ -95,6 +105,11 @@ fun HomeScreen(
             modifier = Modifier.fillMaxSize().padding(padding),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
+            if (budgetAlerts.isNotEmpty()) {
+                item(key = "budget_alerts") {
+                    BudgetAlertsSection(alerts = budgetAlerts, onClick = onNavigateToBudget)
+                }
+            }
             item(key = "period") {
                 PeriodSelector(
                     period = period,
@@ -128,6 +143,49 @@ private fun HomeScreenPreview() {
     ExpenseTrackerTheme {
         Box(modifier = Modifier.fillMaxSize()) {
             Text("Home preview (ViewModel-dependent)")
+        }
+    }
+}
+
+@Composable
+private fun BudgetAlertsSection(
+    alerts: List<BudgetAlert>,
+    onClick: () -> Unit,
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        ),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = stringResource(R.string.home_budget_alerts_header),
+                style = MaterialTheme.typography.titleSmall,
+            )
+            Spacer(Modifier.size(8.dp))
+            alerts.forEach { alert ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = alert.categoryName,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Text(
+                            text = stringResource(R.string.home_budget_alert_over_by, alert.overageFormatted),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = stringResource(R.string.home_budget_navigate),
+                    )
+                }
+            }
         }
     }
 }

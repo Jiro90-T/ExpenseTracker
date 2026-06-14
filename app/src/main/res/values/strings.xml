@@ -193,7 +193,6 @@
     <string name="receipt_viewer_pdf_missing">Could not render PDF</string>
     <string name="receipt_camera_permission_denied">Camera permission is required to take a receipt photo.</string>
     <string name="receipt_unsupported_mime">Could not read the file. Try an image or PDF.</string>
-    <string name="receipt_save_failed">Could not save the receipt.</string>
     <string name="receipt_backup_missing">Some receipts in the backup were missing and weren\'t restored.</string>
 
     <!-- Filters (Phase 2.7) -->
@@ -211,4 +210,13 @@
     <string name="filter_clear">Clear filters</string>
     <string name="filter_no_matches_title">No matches</string>
     <string name="filter_no_matches_body">No transactions match your current filters.</string>
+
+    <!-- Phase 2.8 — Receipt Save & Budget Alerts -->
+    <string name="receipt_action_share">Share</string>
+    <string name="receipt_action_save_to_photos">Save to Photos</string>
+    <string name="receipt_save_success">Saved to Photos</string>
+    <string name="receipt_save_failed">Save failed: %1$s</string>
+    <string name="home_budget_alerts_header">Budget alerts</string>
+    <string name="home_budget_alert_over_by">Over by %1$s</string>
+    <string name="home_budget_navigate">Open Budgets</string>
 </resources>
