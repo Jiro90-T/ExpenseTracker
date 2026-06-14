@@ -149,17 +149,25 @@ class HomeViewModel @Inject constructor(
             budgetRepository.observeByMonth(BudgetRepository.currentMonthStart()),
             settingsRepository.homeCurrency,
             settingsRepository.fxRates,
-        ) { budgets, home, rates -> Triple(budgets, home, rates) }
-            .map { (budgets, home, rates) ->
-                val rows = periodTransactions.value
-                val spentByCategory = computeSpentByCategory(rows, home, rates)
-                computeBudgetAlerts(budgets, spentByCategory, home, rates, nowMs = System.currentTimeMillis())
-            }
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5_000),
-                initialValue = emptyList(),
+            allCategories,
+        ) { budgets, home, rates, categories ->
+            val nameById = categories.associate { it.id to it.name }
+            val rows = periodTransactions.value
+            val spentByCategory = computeSpentByCategory(rows, home, rates)
+            computeBudgetAlerts(
+                budgets = budgets,
+                spentByCategory = spentByCategory,
+                homeCurrency = home,
+                fxRates = rates,
+                nowMs = System.currentTimeMillis(),
+                categoryNameById = nameById,
             )
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList(),
+        )
 
     private val _undo = MutableStateFlow<UndoState?>(null)
     val undo: StateFlow<UndoState?> = _undo.asStateFlow()

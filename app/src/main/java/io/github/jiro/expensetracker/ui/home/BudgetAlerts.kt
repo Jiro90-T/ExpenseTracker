@@ -25,6 +25,11 @@ data class BudgetAlert(
  *
  * Only considers budgets whose [BudgetEntity.monthStartEpochMs] matches the
  * start of [nowMs]'s month. Budgets from other months are out of scope for v1.
+ *
+ * [categoryNameById] (optional) maps `categoryId` to its display name. When
+ * provided, alerts use the looked-up name; otherwise they fall back to the
+ * placeholder `"Category #${categoryId}"` so the function stays usable in
+ * isolation (e.g. JVM tests with no [CategoryRepository]).
  */
 fun computeBudgetAlerts(
     budgets: List<BudgetEntity>,
@@ -32,6 +37,7 @@ fun computeBudgetAlerts(
     homeCurrency: String,
     fxRates: Map<String, Double>,
     nowMs: Long,
+    categoryNameById: Map<Long, String> = emptyMap(),
 ): List<BudgetAlert> {
     val thisMonthStart = startOfMonth(nowMs)
     return budgets
@@ -42,7 +48,7 @@ fun computeBudgetAlerts(
             if (spent <= budget.amountMinor) return@mapNotNull null
             BudgetAlert(
                 categoryId = budget.categoryId,
-                categoryName = "Category #${budget.categoryId}",  // placeholder; VM provides real name
+                categoryName = categoryNameById[budget.categoryId] ?: "Category #${budget.categoryId}",
                 budgetMinor = budget.amountMinor,
                 spentMinor = spent,
                 overageMinor = spent - budget.amountMinor,

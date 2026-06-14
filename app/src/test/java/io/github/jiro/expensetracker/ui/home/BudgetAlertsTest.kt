@@ -155,6 +155,32 @@ class BudgetAlertsTest {
         assertEquals(a, b)
     }
 
+    @Test
+    fun computeBudgetAlerts_categoryNameFromMapUsed() {
+        val out = computeBudgetAlerts(
+            budgets = listOf(budget(categoryId = 1L, monthStart = monthStart(2026, 6), amount = 10_000L)),
+            spentByCategory = mapOf(1L to 12_000L),
+            homeCurrency = "USD",
+            fxRates = emptyMap(),
+            nowMs = monthStart(2026, 6),
+            categoryNameById = mapOf(1L to "Food"),
+        )
+        assertEquals("Food", out.first().categoryName)
+    }
+
+    @Test
+    fun computeBudgetAlerts_categoryNameMissingFromMap_fallsBackToPlaceholder() {
+        val out = computeBudgetAlerts(
+            budgets = listOf(budget(categoryId = 1L, monthStart = monthStart(2026, 6), amount = 10_000L)),
+            spentByCategory = mapOf(1L to 12_000L),
+            homeCurrency = "USD",
+            fxRates = emptyMap(),
+            nowMs = monthStart(2026, 6),
+            categoryNameById = mapOf(2L to "Restaurants"),  // different id
+        )
+        assertEquals("Category #1", out.first().categoryName)
+    }
+
     // ---- computeSpentByCategory tests ----
 
     @Test
