@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.jiro.expensetracker.data.local.CategoryEntity
 import io.github.jiro.expensetracker.data.local.TransactionWithCategory
+import io.github.jiro.expensetracker.data.repository.BudgetRepository
 import io.github.jiro.expensetracker.data.repository.CategoryRepository
 import io.github.jiro.expensetracker.data.repository.TransactionRepository
 import io.github.jiro.expensetracker.domain.FxConverter
@@ -64,6 +65,7 @@ class HomeViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val categoryRepository: CategoryRepository,
     private val filtersRepository: FiltersRepository,
+    private val budgetRepository: BudgetRepository,
 ) : ViewModel() {
 
     private val _period = MutableStateFlow<Period>(Period.currentMonth())
@@ -134,6 +136,24 @@ class HomeViewModel @Inject constructor(
         ) { rows, f, cats -> Triple(rows, f, cats) }
             .map { (rows, f, cats) ->
                 filterTransactions(rows, f, cats, nowMs = System.currentTimeMillis())
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = emptyList(),
+            )
+
+    /** Budgets that have been exceeded in the current month. Sorted by overage desc. */
+    val budgetAlerts: StateFlow<List<BudgetAlert>> =
+        combine(
+            budgetRepository.observeByMonth(BudgetRepository.currentMonthStart()),
+            settingsRepository.homeCurrency,
+            settingsRepository.fxRates,
+        ) { budgets, home, rates -> Triple(budgets, home, rates) }
+            .map { (budgets, home, rates) ->
+                val rows = periodTransactions.value
+                val spentByCategory = computeSpentByCategory(rows, home, rates)
+                computeBudgetAlerts(budgets, spentByCategory, home, rates, nowMs = System.currentTimeMillis())
             }
             .stateIn(
                 scope = viewModelScope,

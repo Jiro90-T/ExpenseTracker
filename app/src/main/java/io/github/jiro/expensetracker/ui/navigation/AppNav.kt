@@ -93,6 +93,7 @@ fun AppNavHost(
             composable(Routes.HOME) {
                 HomeScreen(
                     onSeeAllTransactions = { navController.navigate(Routes.TRANSACTIONS) },
+                    onNavigateToBudget = { navController.navigate(Routes.BUDGET) },
                     reselectTrigger = homeReselectCount,
                 )
             }
