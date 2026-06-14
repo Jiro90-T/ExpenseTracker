@@ -837,6 +837,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import io.github.jiro.expensetracker.R
@@ -860,6 +861,7 @@ fun ReceiptViewerScreen(
     val pagerState = rememberPagerState(pageCount = { pages.size })
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val shareSuccessMsg = stringResource(R.string.receipt_save_success)
     val saveFailedFmt = stringResource(R.string.receipt_save_failed)
 
@@ -904,12 +906,8 @@ fun ReceiptViewerScreen(
                                 val chooser = Intent.createChooser(intent, "Share receipt").apply {
                                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                 }
-                                runCatching { withContext(android.content.Context::class.java) { /* no-op to keep import */ } }
-                                try {
-                                    receiptRepository // dummy reference to silence linter
-                                    // Use the activity context via LocalContext; we can grab it implicitly.
-                                    // (The screen below reads LocalContext.current and calls startActivity.)
-                                } catch (_: Throwable) {}
+                                runCatching { context.startActivity(chooser) }
+                                    .onFailure { android.util.Log.w("ReceiptVM", "startActivity failed: ${it.message}") }
                             }
                         },
                     ) {
@@ -1125,7 +1123,7 @@ Report: build pass, test pass, commit count, and any smoke-test notes from the i
 - **Type consistency:** `BudgetAlert` (data class with 7 fields), `computeBudgetAlerts(rows, spentByCategory, homeCurrency, fxRates, nowMs)`, `computeSpentByCategory(rows, homeCurrency, fxRates)` — all consistent across Tasks 1, 3, 4. `ContentValuesRecipe` (data class with 4 fields), `ContentUri` enum, `buildContentValues(sdkInt, mimeType, displayName)`, `ReceiptSaver(context)`, `SaveResult` (sealed), `ReceiptViewerViewModel.buildShareIntent(receiptPath)` and `saveToPhotos(receiptPath, displayName)` — all consistent across Tasks 2, 3, 4.
 - **File organization:** Each task creates/modifies only the files it owns. Tasks 1 and 2 are pure-data layer; Task 3 is VMs; Task 4 is UI + resources. Clean separation.
 - **Cumulative string-resource warning:** All 7 new strings are added in Task 4 Step 1, before any UI code references them. No incremental `R.string.receipt_*` / `R.string.home_budget_*` surprises.
-- **Receipt Viewer Share action plan-vs-impl gap:** The plan's `ReceiptViewerScreen.kt` code uses a placeholder `onClick` for the Share button (the real `startActivity` call needs `LocalContext.current`, which the implementer should add as `val context = LocalContext.current` at the top of the composable and use `context.startActivity(chooser)` inside the `scope.launch`). The Save to Photos button is fully wired in the plan.
+- **Receipt Viewer Share action plan-vs-impl gap:** Resolved. The plan's `ReceiptViewerScreen.kt` now uses `LocalContext.current` cleanly via `val context = LocalContext.current` at the top of the composable, and `context.startActivity(chooser)` inside the `scope.launch { ... }`. The Save to Photos button is fully wired in the plan.
 
 ## Out of scope (intentional, deferred)
 
