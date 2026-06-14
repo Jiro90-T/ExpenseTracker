@@ -176,11 +176,11 @@ data class BudgetAlert(
 ```kotlin
 /**
  * Pure: returns the list of budget alerts (categories where spentMinor >
- * budgetMinor for the current period). Sorted by overage descending (worst
+ * budgetMinor for the current month). Sorted by overage descending (worst
  * first). All amounts are normalized to [homeCurrency] via [fxRates].
  *
- * Only considers budgets whose [BudgetEntity.periodAnchor] is the current
- * month. Budgets with other anchors (e.g. weekly) are out of scope for v1.
+ * Only considers budgets whose [BudgetEntity.monthStartEpochMs] matches the
+ * start of [nowMs]'s month. Budgets from other months are out of scope for v1.
  */
 fun computeBudgetAlerts(
     budgets: List<BudgetEntity>,
@@ -192,7 +192,7 @@ fun computeBudgetAlerts(
 ```
 
 The function:
-1. Filters `budgets` to those whose period anchor is the current month (using `BudgetEntity`'s `periodAnchor` field — confirm the exact field name in the code).
+1. Filters `budgets` to those whose `monthStartEpochMs` matches the start of `nowMs`'s month.
 2. For each, looks up `spentByCategory[budget.categoryId]`.
 3. If `spentMinor > budget.amountMinor`, creates a `BudgetAlert` with the overage.
 4. Sorts by `overageMinor` descending.
@@ -331,7 +331,7 @@ home_budget_navigate         "Open Budgets"
 | User taps a budget alert | Navigates to `Routes.BUDGET`. (No deep link to a specific category for v1.) |
 | 10+ overspent categories | The list shows all of them. No pagination in v1; a future polish pass could add "Show all" with collapse. |
 | `nowMs` shifts across a month boundary | Like Phase 2.6/2.7: the `budgetAlerts` doesn't re-tick. The user re-navigating or reopening Home re-evaluates. |
-| Period in `BudgetEntity` is not "this month" | Out of scope for v1 — these budgets are filtered out. (Future polish pass could surface weekly-budget overspend too.) |
+| Period in `BudgetEntity` is not the current month | Out of scope for v1 — these budgets (with a different `monthStartEpochMs`) are filtered out. |
 
 ## Out of scope (intentional, deferred)
 
