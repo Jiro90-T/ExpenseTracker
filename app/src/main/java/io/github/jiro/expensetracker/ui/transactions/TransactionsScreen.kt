@@ -267,6 +267,16 @@ private fun FilterControls(
                 placeholder = { Text(stringResource(R.string.filter_amount_min_hint)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                trailingIcon = if (minInput.isNotEmpty()) {
+                    {
+                        IconButton(onClick = { onMinInputChange("") }) {
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = stringResource(R.string.filter_clear),
+                            )
+                        }
+                    }
+                } else null,
             )
             OutlinedTextField(
                 value = maxInput,
@@ -276,6 +286,16 @@ private fun FilterControls(
                 placeholder = { Text(stringResource(R.string.filter_amount_max_hint)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                trailingIcon = if (maxInput.isNotEmpty()) {
+                    {
+                        IconButton(onClick = { onMaxInputChange("") }) {
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = stringResource(R.string.filter_clear),
+                            )
+                        }
+                    }
+                } else null,
             )
         }
 
