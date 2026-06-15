@@ -13,6 +13,9 @@ import io.github.jiro.expensetracker.R
 import io.github.jiro.expensetracker.backup.BackupManager
 import io.github.jiro.expensetracker.preferences.SettingsRepository
 import io.github.jiro.expensetracker.preferences.ThemePreference
+import io.github.jiro.expensetracker.preferences.addRate
+import io.github.jiro.expensetracker.preferences.parseRates
+import io.github.jiro.expensetracker.preferences.removeRate
 import java.io.File
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
@@ -41,6 +44,23 @@ class SettingsViewModel @Inject constructor(
     val theme: StateFlow<ThemePreference> = settingsRepository.theme
 
     fun setTheme(value: ThemePreference) = settingsRepository.setTheme(value)
+
+    fun setHomeCurrency(code: String) {
+        require(code.length == 3) { "Currency code must be 3 letters" }
+        settingsRepository.setHomeCurrency(code.uppercase())
+    }
+
+    fun addFxRate(from: String, to: String, rate: Double) {
+        require(from != to) { "From and To must differ" }
+        require(rate > 0.0) { "Rate must be positive" }
+        val updated = addRate(settingsRepository.fxRates.value, from, to, rate)
+        settingsRepository.setFxRates(updated)
+    }
+
+    fun removeFxRate(displayKey: String) {
+        val updated = removeRate(settingsRepository.fxRates.value, displayKey)
+        settingsRepository.setFxRates(updated)
+    }
 
     private val _exportUri = MutableStateFlow<Uri?>(null)
     val exportUri: StateFlow<Uri?> = _exportUri.asStateFlow()

@@ -74,6 +74,14 @@ class SettingsRepository @Inject constructor(
         _fxRates.value = updated.toMap()
     }
 
+    /** Atomically replaces the entire FX rate map. Used by the UI's "Add rate"
+     * (which writes both the direct and reverse rates in one go) and by the
+     * "Remove rate" (which removes both directions in one go). */
+    fun setFxRates(rates: Map<String, Double>) {
+        prefs.edit { putString(KEY_FX_RATES, FxConverter.encode(rates)) }
+        _fxRates.value = rates
+    }
+
     private fun loadFxRates(): Map<String, Double> =
         FxConverter.decode(prefs.getString(KEY_FX_RATES, null).orEmpty())
 
