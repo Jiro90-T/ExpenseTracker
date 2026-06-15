@@ -225,4 +225,18 @@
     <string name="filter_amount_max">Max</string>
     <string name="filter_amount_min_hint">Min amount</string>
     <string name="filter_amount_max_hint">Max amount</string>
+
+    <!-- Phase 2.10 — FX & Currency Settings UI -->
+    <string name="settings_currency_section">Currency</string>
+    <string name="settings_currency_edit">Edit</string>
+    <string name="settings_currency_custom">Custom…</string>
+    <string name="settings_currency_custom_hint">3-letter code (e.g. USD)</string>
+    <string name="settings_fx_section">FX rates</string>
+    <string name="settings_fx_add">Add rate</string>
+    <string name="settings_fx_from">From</string>
+    <string name="settings_fx_to">To</string>
+    <string name="settings_fx_rate_hint">Rate (1 from = ? to)</string>
+    <string name="settings_fx_empty">No FX rates yet. Add one to convert foreign transactions.</string>
+    <string name="settings_dialog_ok">OK</string>
+    <string name="settings_dialog_cancel">Cancel</string>
 </resources>

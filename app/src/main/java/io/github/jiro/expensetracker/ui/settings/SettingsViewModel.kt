@@ -45,6 +45,9 @@ class SettingsViewModel @Inject constructor(
 
     fun setTheme(value: ThemePreference) = settingsRepository.setTheme(value)
 
+    val homeCurrency: StateFlow<String> = settingsRepository.homeCurrency
+    val fxRates: StateFlow<Map<String, Double>> = settingsRepository.fxRates
+
     fun setHomeCurrency(code: String) {
         require(code.length == 3) { "Currency code must be 3 letters" }
         settingsRepository.setHomeCurrency(code.uppercase())
