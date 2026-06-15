@@ -29,6 +29,8 @@ class FiltersRepository @Inject constructor(
             .putLong(KEY_CATEGORY_ID, filters.categoryId ?: CATEGORY_ID_ALL)
             .putString(KEY_TYPE_FILTER, filters.typeFilter.name)
             .putString(KEY_DATE_RANGE, encodeDateRange(filters.dateRange))
+            .putLong(KEY_FILTER_MIN_AMOUNT, filters.minAmount ?: LONG_MIN_VALUE)
+            .putLong(KEY_FILTER_MAX_AMOUNT, filters.maxAmount ?: LONG_MIN_VALUE)
         _filters.value = filters
     }
 
@@ -40,6 +42,10 @@ class FiltersRepository @Inject constructor(
             TypeFilter.valueOf(prefs.getString(KEY_TYPE_FILTER, null) ?: TypeFilter.ALL.name)
         }.getOrDefault(TypeFilter.ALL),
         dateRange = decodeDateRange(prefs.getString(KEY_DATE_RANGE, null)),
+        minAmount = prefs.getLong(KEY_FILTER_MIN_AMOUNT, LONG_MIN_VALUE)
+            .takeIf { it != LONG_MIN_VALUE },
+        maxAmount = prefs.getLong(KEY_FILTER_MAX_AMOUNT, LONG_MIN_VALUE)
+            .takeIf { it != LONG_MIN_VALUE },
     )
 
     private fun encodeDateRange(preset: DateRangePreset): String = when (preset) {
@@ -77,6 +83,9 @@ class FiltersRepository @Inject constructor(
         const val KEY_CATEGORY_ID = "filters.categoryId"
         const val KEY_TYPE_FILTER = "filters.typeFilter"
         const val KEY_DATE_RANGE = "filters.dateRange"
+        const val KEY_FILTER_MIN_AMOUNT = "filters.minAmount"
+        const val KEY_FILTER_MAX_AMOUNT = "filters.maxAmount"
         const val CATEGORY_ID_ALL = -1L
+        const val LONG_MIN_VALUE = Long.MIN_VALUE
     }
 }
