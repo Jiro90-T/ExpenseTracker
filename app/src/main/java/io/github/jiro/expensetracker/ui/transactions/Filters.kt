@@ -3,6 +3,12 @@ package io.github.jiro.expensetracker.ui.transactions
 import io.github.jiro.expensetracker.data.local.CategoryEntity
 import io.github.jiro.expensetracker.data.local.TransactionWithCategory
 import io.github.jiro.expensetracker.data.local.MoneyFormat
+import io.github.jiro.expensetracker.domain.FxConverter
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import java.util.Calendar
 import java.util.TimeZone
 
@@ -25,7 +31,7 @@ sealed interface DateRangePreset {
 enum class TypeFilter { ALL, INCOME, EXPENSE }
 
 /**
- * The four filter dimensions for the Transactions list. Default is
+ * The six filter dimensions for the Transactions list. Default is
  * "all-empty" — [isEmpty] returns true. Any non-default value flips
  * [isEmpty] to false.
  */
@@ -34,14 +40,17 @@ data class TransactionFilters(
     val categoryId: Long? = null,
     val typeFilter: TypeFilter = TypeFilter.ALL,
     val dateRange: DateRangePreset = DateRangePreset.Any,
+    val minAmount: Long? = null,   // minor units, home currency; null = no min
+    val maxAmount: Long? = null,   // minor units, home currency; null = no max
 ) {
     val isEmpty: Boolean
         get() = searchQuery.isEmpty() && categoryId == null
             && typeFilter == TypeFilter.ALL && dateRange is DateRangePreset.Any
+            && minAmount == null && maxAmount == null
 }
 
 /**
- * Pure filter. Applies the four dimensions to [rows] and returns the
+ * Pure filter. Applies the six dimensions to [rows] and returns the
  * filtered list in the same order. [allCategories] is needed for the
  * "search by category name" match. [nowMs] anchors the date presets.
  *
@@ -52,17 +61,24 @@ data class TransactionFilters(
  *   - Date range: resolves the preset to `[from, toExclusive)` and filters
  *     by `transaction.occurredAtEpochMillis`. `Custom(from, to)` auto-swaps
  *     so the range is non-empty.
+ *   - Amount range: in [homeCurrency] minor units. Each row's `amountMinor`
+ *     is FX-converted to [homeCurrency] using [fxRates]; if the rate is
+ *     missing, the raw `amountMinor` is used (safe fallback). Auto-swaps
+ *     min/max if the user picks min > max.
  */
 fun filterTransactions(
     rows: List<TransactionWithCategory>,
     filters: TransactionFilters,
     allCategories: List<CategoryEntity>,
     nowMs: Long,
+    homeCurrency: String = "USD",
+    fxRates: Map<String, Double> = emptyMap(),
 ): List<TransactionWithCategory> {
     val trimmedQuery = filters.searchQuery.trim()
     val hasQuery = trimmedQuery.isNotEmpty()
     val categoryNameById = allCategories.associate { it.id to it.name }
     val (rangeFrom, rangeToExclusive) = resolveDateRange(filters.dateRange, nowMs)
+    val (minAmount, maxAmount) = resolveAmountRange(filters.minAmount, filters.maxAmount)
 
     return rows.filter { row ->
         val t = row.transaction
@@ -99,6 +115,14 @@ fun filterTransactions(
             t.occurredAtEpochMillis in rangeFrom until rangeToExclusive
         }
         if (!inRange) return@filter false
+
+        // Amount range (in home currency).
+        if (minAmount != null || maxAmount != null) {
+            val homeMinor = FxConverter.convertMinor(t.amountMinor, t.currencyCode, homeCurrency, fxRates)
+                ?: t.amountMinor
+            if (minAmount != null && homeMinor < minAmount) return@filter false
+            if (maxAmount != null && homeMinor > maxAmount) return@filter false
+        }
 
         true
     }
@@ -172,4 +196,44 @@ private fun startOfNextYear(epochMs: Long): Long {
         add(Calendar.YEAR, 1)
     }
     return cal.timeInMillis
+}
+
+private fun resolveAmountRange(
+    minAmount: Long?,
+    maxAmount: Long?,
+): Pair<Long?, Long?> = when {
+    minAmount == null && maxAmount == null -> null to null
+    minAmount == null -> null to maxAmount
+    maxAmount == null -> minAmount to null
+    minAmount <= maxAmount -> minAmount to maxAmount
+    else -> maxAmount to minAmount  // auto-swap
+}
+
+/**
+ * Pure: returns an [AnnotatedString] where every case-insensitive occurrence
+ * of [query] within [text] is wrapped in [highlightStyle]. Empty/blank query
+ * returns the unstyled text. Used by the Transactions list to bold the
+ * matching substring when a search query is active.
+ */
+fun highlightMatches(
+    text: String,
+    query: String,
+    highlightStyle: SpanStyle,
+): AnnotatedString {
+    if (query.isEmpty()) return AnnotatedString(text)
+    return buildAnnotatedString {
+        var cursor = 0
+        val lowerText = text.lowercase()
+        val lowerQuery = query.lowercase()
+        while (cursor < text.length) {
+            val hit = lowerText.indexOf(lowerQuery, cursor)
+            if (hit < 0) {
+                append(text.substring(cursor))
+                break
+            }
+            if (hit > cursor) append(text.substring(cursor, hit))
+            withStyle(highlightStyle) { append(text.substring(hit, hit + query.length)) }
+            cursor = hit + query.length
+        }
+    }
 }

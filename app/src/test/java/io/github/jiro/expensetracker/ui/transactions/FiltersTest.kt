@@ -3,6 +3,7 @@ package io.github.jiro.expensetracker.ui.transactions
 import io.github.jiro.expensetracker.data.local.CategoryEntity
 import io.github.jiro.expensetracker.data.local.TransactionEntity
 import io.github.jiro.expensetracker.data.local.TransactionWithCategory
+import androidx.compose.ui.text.SpanStyle
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -497,6 +498,164 @@ class FiltersTest {
             date(2026, 6, 15),
         )
         assertEquals(listOf(rows[0], rows[3]), out)
+    }
+
+    // ---- amount range ----
+
+    @Test
+    fun filterTransactions_amountRangeEmpty_isNoOp() {
+        val rows = listOf(
+            txn(1L, "A", 1_000L, "EXPENSE", 1L, date(2026, 6, 14), null),
+            txn(2L, "B", 5_000L, "EXPENSE", 1L, date(2026, 6, 14), null),
+        )
+        val out = filterTransactions(
+            rows,
+            TransactionFilters(),  // both minAmount and maxAmount are null
+            categories(),
+            date(2026, 6, 15),
+        )
+        assertEquals(rows, out)
+    }
+
+    @Test
+    fun filterTransactions_amountRangeOnlyMin_filtersHigher() {
+        val rows = listOf(
+            txn(1L, "Cheap", 500L, "EXPENSE", 1L, date(2026, 6, 14), null),    // $5
+            txn(2L, "Mid", 3_000L, "EXPENSE", 1L, date(2026, 6, 14), null),     // $30
+            txn(3L, "Pricey", 20_000L, "EXPENSE", 1L, date(2026, 6, 14), null),  // $200
+        )
+        val out = filterTransactions(
+            rows,
+            TransactionFilters(minAmount = 10_000L),  // min $100
+            categories(),
+            date(2026, 6, 15),
+        )
+        assertEquals(listOf(rows[2]), out)
+    }
+
+    @Test
+    fun filterTransactions_amountRangeOnlyMax_filtersLower() {
+        val rows = listOf(
+            txn(1L, "Cheap", 500L, "EXPENSE", 1L, date(2026, 6, 14), null),    // $5
+            txn(2L, "Mid", 3_000L, "EXPENSE", 1L, date(2026, 6, 14), null),     // $30
+            txn(3L, "Pricey", 20_000L, "EXPENSE", 1L, date(2026, 6, 14), null),  // $200
+        )
+        val out = filterTransactions(
+            rows,
+            TransactionFilters(maxAmount = 5_000L),  // max $50
+            categories(),
+            date(2026, 6, 15),
+        )
+        assertEquals(listOf(rows[0], rows[1]), out)
+    }
+
+    @Test
+    fun filterTransactions_amountRangeBoth_filtersBetween() {
+        val rows = listOf(
+            txn(1L, "Cheap", 500L, "EXPENSE", 1L, date(2026, 6, 14), null),    // $5
+            txn(2L, "Mid", 3_000L, "EXPENSE", 1L, date(2026, 6, 14), null),     // $30
+            txn(3L, "Pricey", 20_000L, "EXPENSE", 1L, date(2026, 6, 14), null),  // $200
+        )
+        val out = filterTransactions(
+            rows,
+            TransactionFilters(minAmount = 1_000L, maxAmount = 10_000L),  // $10 .. $100
+            categories(),
+            date(2026, 6, 15),
+        )
+        assertEquals(listOf(rows[1]), out)
+    }
+
+    @Test
+    fun filterTransactions_amountRangeInverted_swapped() {
+        val rows = listOf(
+            txn(1L, "Cheap", 500L, "EXPENSE", 1L, date(2026, 6, 14), null),
+            txn(2L, "Mid", 3_000L, "EXPENSE", 1L, date(2026, 6, 14), null),
+            txn(3L, "Pricey", 20_000L, "EXPENSE", 1L, date(2026, 6, 14), null),
+        )
+        // min > max → swap to (max, min) → range is $5 .. $100 (500..10000 cents).
+        // Cheap=500 and Mid=3000 both fall in the swapped window; Pricey=20000 is out.
+        val out = filterTransactions(
+            rows,
+            TransactionFilters(minAmount = 10_000L, maxAmount = 500L),
+            categories(),
+            date(2026, 6, 15),
+        )
+        assertEquals(listOf(rows[0], rows[1]), out)
+    }
+
+    @Test
+    fun filterTransactions_amountRangeEqual_singleValueWindow() {
+        val rows = listOf(
+            txn(1L, "Exact", 3_000L, "EXPENSE", 1L, date(2026, 6, 14), null),
+            txn(2L, "Other", 4_000L, "EXPENSE", 1L, date(2026, 6, 14), null),
+        )
+        // min == max == $30 → only the exact $30 amount passes.
+        val out = filterTransactions(
+            rows,
+            TransactionFilters(minAmount = 3_000L, maxAmount = 3_000L),
+            categories(),
+            date(2026, 6, 15),
+        )
+        assertEquals(listOf(rows[0]), out)
+    }
+
+    @Test
+    fun filterTransactions_amountRangeWithFxNormalized_usesHomeCurrency() {
+        // USD home, EUR transaction. Rate: 1 EUR = 1.5 USD.
+        // 100 EUR = €100.00 → in home (USD) = 100 * 0.6667 = $66.67.
+        // We use min = $50 (5000 cents) and max = $80 (8000 cents).
+        // So the EUR tx ($66.67 equivalent) should pass.
+        val eur = TransactionEntity(
+            id = 1L,
+            title = "EUR",
+            amountMinor = 10_000L,
+            currencyCode = "EUR",
+            type = "EXPENSE",
+            categoryId = 1L,
+            occurredAtEpochMillis = date(2026, 6, 14),
+            note = null,
+            createdAtEpochMillis = date(2026, 6, 14),
+        )
+        val cat = categories().first { it.id == 1L }
+        val rows = listOf(TransactionWithCategory(eur, cat))
+        val fxRates = mapOf("EUR_to_USD" to 0.6667)
+        val out = filterTransactions(
+            rows,
+            TransactionFilters(minAmount = 5_000L, maxAmount = 8_000L),  // $50 .. $80
+            categories(),
+            date(2026, 6, 15),
+            homeCurrency = "USD",
+            fxRates = fxRates,
+        )
+        assertEquals("EUR (~$66.67) should fall inside the 5000..8000 cents USD range", 1, out.size)
+    }
+
+    @Test
+    fun highlightMatches_emptyQuery_returnsUnstyledText() {
+        val out = highlightMatches("Hello world", "", SpanStyle())
+        assertEquals("Hello world", out.text)
+        assertEquals(0, out.spanStyles.size)
+    }
+
+    @Test
+    fun highlightMatches_queryMatches_substringWrappedInStyle() {
+        val style = SpanStyle(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+        val out = highlightMatches("foobar baz", "foo", style)
+        assertEquals("foobar baz", out.text)
+        assertEquals(1, out.spanStyles.size)
+        val range = out.spanStyles[0]
+        assertEquals(0, range.start)
+        assertEquals(3, range.end)
+    }
+
+    @Test
+    fun highlightMatches_queryCaseInsensitive() {
+        val style = SpanStyle(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+        val out = highlightMatches("Foobar", "FOO", style)
+        assertEquals(1, out.spanStyles.size)
+        val range = out.spanStyles[0]
+        assertEquals(0, range.start)
+        assertEquals(3, range.end)
     }
 
     // ---- helpers ----
