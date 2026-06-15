@@ -219,4 +219,10 @@
     <string name="home_budget_alerts_header">Budget alerts</string>
     <string name="home_budget_alert_over_by">Over by %1$s</string>
     <string name="home_budget_navigate">Open Budgets</string>
+
+    <!-- Phase 2.9 — Transactions filter polish -->
+    <string name="filter_amount_min">Min</string>
+    <string name="filter_amount_max">Max</string>
+    <string name="filter_amount_min_hint">Min amount</string>
+    <string name="filter_amount_max_hint">Max amount</string>
 </resources>

@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -41,6 +42,7 @@ import io.github.jiro.expensetracker.data.local.TransactionWithCategory
 import io.github.jiro.expensetracker.domain.model.TransactionType
 import io.github.jiro.expensetracker.ui.charts.MonthlyTotals
 import io.github.jiro.expensetracker.ui.theme.IncomeGreen
+import io.github.jiro.expensetracker.ui.transactions.highlightMatches
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -48,7 +50,11 @@ import java.util.Locale
 
 /** A single row in a transaction list. Tap to edit (caller wires the click). */
 @Composable
-internal fun TransactionRow(row: TransactionWithCategory, onClick: () -> Unit) {
+internal fun TransactionRow(
+    row: TransactionWithCategory,
+    onClick: () -> Unit,
+    searchQuery: String? = null,
+) {
     val txn = row.transaction
     val category = row.category
     val type = TransactionType.fromStorage(txn.type)
@@ -58,6 +64,11 @@ internal fun TransactionRow(row: TransactionWithCategory, onClick: () -> Unit) {
     } else {
         IncomeGreen
     }
+    val trimmed = searchQuery?.trim().orEmpty()
+    val highlightStyle = SpanStyle(
+        color = MaterialTheme.colorScheme.primary,
+        fontWeight = FontWeight.Bold,
+    )
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -71,7 +82,7 @@ internal fun TransactionRow(row: TransactionWithCategory, onClick: () -> Unit) {
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = txn.title,
+                    text = highlightMatches(txn.title, trimmed, highlightStyle),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )
@@ -92,7 +103,7 @@ internal fun TransactionRow(row: TransactionWithCategory, onClick: () -> Unit) {
             )
             if (!txn.note.isNullOrBlank()) {
                 Text(
-                    text = txn.note,
+                    text = highlightMatches(txn.note, trimmed, highlightStyle),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -127,6 +138,7 @@ internal fun SwipeableTransactionRow(
     row: TransactionWithCategory,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    searchQuery: String? = null,
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
@@ -144,7 +156,7 @@ internal fun SwipeableTransactionRow(
         enableDismissFromEndToStart = true,
         backgroundContent = { DeleteBackground(dismissState.dismissDirection) },
     ) {
-        TransactionRow(row = row, onClick = onEdit)
+        TransactionRow(row = row, onClick = onEdit, searchQuery = searchQuery)
     }
 }
 

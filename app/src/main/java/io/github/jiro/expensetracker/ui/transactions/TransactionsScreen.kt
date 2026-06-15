@@ -52,6 +52,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.jiro.expensetracker.R
 import io.github.jiro.expensetracker.data.local.CategoryEntity
+import io.github.jiro.expensetracker.data.local.MoneyFormat
 import io.github.jiro.expensetracker.ui.home.DayHeader
 import io.github.jiro.expensetracker.ui.home.HomeViewModel
 import io.github.jiro.expensetracker.ui.home.SwipeableTransactionRow
@@ -97,6 +98,8 @@ fun TransactionsScreen(
     // Debounce the search text: the local `searchInput` updates immediately for
     // UI responsiveness, the actual filter is committed 300ms after the last keystroke.
     var searchInput by remember { mutableStateOf(filters.searchQuery) }
+    var minInput by remember { mutableStateOf(filters.minAmount?.toString() ?: "") }
+    var maxInput by remember { mutableStateOf(filters.maxAmount?.toString() ?: "") }
     LaunchedEffect(filters.searchQuery) {
         // When the repo's filters change (e.g. after a "clear filters"), reset the local input.
         if (filters.searchQuery != searchInput) {
@@ -108,6 +111,26 @@ fun TransactionsScreen(
         if (searchInput != filters.searchQuery) {
             viewModel.setSearchQuery(searchInput)
         }
+    }
+    LaunchedEffect(minInput) {
+        delay(300)
+        val parsed = if (minInput.isBlank()) null else MoneyFormat.parseAmountToMinor(minInput)
+        if (parsed != filters.minAmount) viewModel.setMinAmount(parsed)
+    }
+    LaunchedEffect(maxInput) {
+        delay(300)
+        val parsed = if (maxInput.isBlank()) null else MoneyFormat.parseAmountToMinor(maxInput)
+        if (parsed != filters.maxAmount) viewModel.setMaxAmount(parsed)
+    }
+
+    // Sync the local inputs when the repo's filters change externally.
+    LaunchedEffect(filters.minAmount) {
+        val expected = filters.minAmount?.toString() ?: ""
+        if (expected != minInput) minInput = expected
+    }
+    LaunchedEffect(filters.maxAmount) {
+        val expected = filters.maxAmount?.toString() ?: ""
+        if (expected != maxInput) maxInput = expected
     }
 
     Scaffold(
@@ -126,6 +149,10 @@ fun TransactionsScreen(
                 onCategoryChange = viewModel::setCategoryFilter,
                 onDateRangeChange = viewModel::setDateRange,
                 onClear = viewModel::clearFilters,
+                minInput = minInput,
+                onMinInputChange = { minInput = it },
+                maxInput = maxInput,
+                onMaxInputChange = { maxInput = it },
             )
             Spacer(Modifier.size(8.dp))
             Box(
@@ -153,6 +180,7 @@ fun TransactionsScreen(
                                     row = row,
                                     onEdit = { onTransactionClick(row.transaction.id) },
                                     onDelete = { viewModel.delete(row) },
+                                    searchQuery = filters.searchQuery,
                                 )
                             }
                         }
@@ -174,6 +202,10 @@ private fun FilterControls(
     onCategoryChange: (Long?) -> Unit,
     onDateRangeChange: (DateRangePreset) -> Unit,
     onClear: () -> Unit,
+    minInput: String,
+    onMinInputChange: (String) -> Unit,
+    maxInput: String,
+    onMaxInputChange: (String) -> Unit,
 ) {
     var showDateDialog by remember { mutableStateOf(false) }
 
@@ -219,6 +251,31 @@ private fun FilterControls(
                 label = stringResource(R.string.filter_type_expense),
                 selected = filters.typeFilter == TypeFilter.EXPENSE,
                 onClick = { onTypeChange(TypeFilter.EXPENSE) },
+            )
+        }
+
+        // NEW: amount range row
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OutlinedTextField(
+                value = minInput,
+                onValueChange = onMinInputChange,
+                modifier = Modifier.weight(1f),
+                label = { Text(stringResource(R.string.filter_amount_min)) },
+                placeholder = { Text(stringResource(R.string.filter_amount_min_hint)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+            )
+            OutlinedTextField(
+                value = maxInput,
+                onValueChange = onMaxInputChange,
+                modifier = Modifier.weight(1f),
+                label = { Text(stringResource(R.string.filter_amount_max)) },
+                placeholder = { Text(stringResource(R.string.filter_amount_max_hint)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             )
         }
 
