@@ -180,7 +180,7 @@ The setters delegate the validation + auto-derive logic to the pure helpers and 
   - A trailing `IconButton` with an `X` icon that calls `viewModel.removeFxRate(displayKey)`.
 - An empty state: if `parseRates(...).isEmpty()`, show `Text(settings_fx_empty)` (a friendly placeholder).
 - An "Add rate" `TextButton` at the bottom of the card. Tapping opens an `AlertDialog`:
-  - A "From" `ExposedDropdownMenuBox` (or a `RadioButton` list — 10 items is OK) with `SUPPORTED_CURRENCIES` + "Custom…" option.
+  - A "From" picker (a list of `RadioButton`s with `SUPPORTED_CURRENCIES` + a "Custom…" option at the bottom — same pattern as the home currency picker).
   - A "To" picker, same as From.
   - A `OutlinedTextField` for the rate, with `keyboardType = Decimal`.
   - "OK" and "Cancel" buttons. The "OK" button is enabled when from != to AND the rate is parseable as a positive double.
