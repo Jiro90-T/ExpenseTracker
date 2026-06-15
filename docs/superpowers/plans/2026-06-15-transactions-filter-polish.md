@@ -136,23 +136,11 @@ Open `app/src/test/java/io/github/jiro/expensetracker/ui/transactions/FiltersTes
     @Test
     fun filterTransactions_amountRangeWithFxNormalized_usesHomeCurrency() {
         // USD home, EUR transaction. Rate: 1 EUR = 1.5 USD.
-        // 100 EUR minor = 10000 cents = €100.00.
-        // In home (USD) = 100 / 1.5 * 10000 = ~66667 cents = $666.67.
-        // We use min = $500 (50000 cents) and max = $700 (70000 cents).
-        // So the EUR tx ($666.67 equivalent) should pass.
-        val usd = TransactionEntity(
-            id = 1L,
-            title = "USD",
-            amountMinor = 1_000L,
-            currencyCode = "USD",
-            type = "EXPENSE",
-            categoryId = 1L,
-            occurredAtEpochMillis = date(2026, 6, 14),
-            note = null,
-            createdAtEpochMillis = date(2026, 6, 14),
-        )
+        // 100 EUR = €100.00 → in home (USD) = 100 / 1.5 * 100 = $66.67.
+        // We use min = $50 (5000 cents) and max = $80 (8000 cents).
+        // So the EUR tx ($66.67 equivalent) should pass.
         val eur = TransactionEntity(
-            id = 2L,
+            id = 1L,
             title = "EUR",
             amountMinor = 10_000L,
             currencyCode = "EUR",
@@ -163,18 +151,17 @@ Open `app/src/test/java/io/github/jiro/expensetracker/ui/transactions/FiltersTes
             createdAtEpochMillis = date(2026, 6, 14),
         )
         val cat = categories().first { it.id == 1L }
-        val rows = listOf(TransactionWithCategory(usd, cat), TransactionWithCategory(eur, cat))
+        val rows = listOf(TransactionWithCategory(eur, cat))
         val fxRates = mapOf("EUR_to_USD" to 1.5)
         val out = filterTransactions(
             rows,
-            TransactionFilters(minAmount = 50_000L, maxAmount = 70_000L),
+            TransactionFilters(minAmount = 5_000L, maxAmount = 8_000L),  // $50 .. $80
             categories(),
             date(2026, 6, 15),
             homeCurrency = "USD",
             fxRates = fxRates,
         )
-        assertEquals(2, out.size, "Both USD ($10) and EUR (~$666) should be inside the 500..700 USD range")
-        // Wait — USD is $10 (1000 cents), which is BELOW min. Let me adjust the test.
+        assertEquals(1, out.size, "EUR (~$66.67) should fall inside the 5000..8000 cents USD range")
     }
 
     @Test
@@ -206,47 +193,11 @@ Open `app/src/test/java/io/github/jiro/expensetracker/ui/transactions/FiltersTes
     }
 ```
 
-**Note on the FX test:** the test as written is logically wrong (the USD $10 row is below the $500 min). The implementer should **fix the test to have only the EUR transaction** in the input, with the rate set so the EUR amount falls within the USD range. Replace the FX test with this correct version:
-
-```kotlin
-    @Test
-    fun filterTransactions_amountRangeWithFxNormalized_usesHomeCurrency() {
-        // USD home, EUR transaction. Rate: 1 EUR = 1.5 USD.
-        // 100 EUR = €100.00 → in home (USD) = 100 / 1.5 * 100 = $66.67.
-        // We use min = $50 (5000 cents) and max = $80 (8000 cents).
-        // So the EUR tx ($66.67 equivalent) should pass.
-        val eur = TransactionEntity(
-            id = 1L,
-            title = "EUR",
-            amountMinor = 10_000L,
-            currencyCode = "EUR",
-            type = "EXPENSE",
-            categoryId = 1L,
-            occurredAtEpochMillis = date(2026, 6, 14),
-            note = null,
-            createdAtEpochMillis = date(2026, 6, 14),
-        )
-        val cat = categories().first { it.id == 1L }
-        val rows = listOf(TransactionWithCategory(eur, cat))
-        val fxRates = mapOf("EUR_to_USD" to 1.5)
-        val out = filterTransactions(
-            rows,
-            TransactionFilters(minAmount = 5_000L, maxAmount = 8_000L),  // $50 .. $80
-            categories(),
-            date(2026, 6, 15),
-            homeCurrency = "USD",
-            fxRates = fxRates,
-        )
-        assertEquals(1, out.size, "EUR (~$66.67) should fall inside the 5000..8000 cents USD range")
-    }
-```
-
-Use the **corrected version above**, not the originally-written one. (The plan's Step 1 above shows the buggy version for context — the implementer must use the corrected one.)
 
 - [ ] **Step 2: Run tests to verify they fail (function/type mismatch)**
 
 Run: `./gradlew testDebugUnitTest --tests "*FiltersTest"`
-Expected: 9/10 new tests fail to compile (missing `minAmount`/`maxAmount` fields on `TransactionFilters`, missing `homeCurrency`/`fxRates` params on `filterTransactions`, missing `highlightMatches` function). The 10th test (`amountRangeWithFxNormalized_usesHomeCurrency`) compiles because the existing `filterTransactions` signature is forgiving with defaults — it will compile but fail the assertion.
+Expected: 10/10 new tests fail to compile (missing `minAmount`/`maxAmount` fields on `TransactionFilters`, missing `homeCurrency`/`fxRates` params on `filterTransactions`, missing `highlightMatches` function).
 
 - [ ] **Step 3: Extend `Filters.kt`**
 
@@ -851,10 +802,9 @@ Report: build pass, test pass, commit count, and any smoke-test notes from the i
 ## Self-review notes (already applied)
 
 - **Spec coverage:** Every spec section maps to a task. Task 1 covers the 7 amount range tests + 3 highlight tests. Task 2 covers SharedPreferences persistence. Task 3 covers the VM wiring (5-arg combine + 2 new setters). Task 4 covers the UI (TransactionRow searchQuery, TransactionsScreen 2 amount fields, 4 new strings).
-- **Placeholder scan:** No "TBD" or "implement later" anywhere. All code is complete. The intentionally-buggy FX test in Task 1 is annotated and the corrected version is provided immediately after.
+- **Placeholder scan:** No "TBD" or "implement later" anywhere. All code is complete.
 - **Type consistency:** `TransactionFilters(searchQuery, categoryId, typeFilter, dateRange, minAmount, maxAmount)` (6 fields, 2 new). `filterTransactions(rows, filters, allCategories, nowMs, homeCurrency, fxRates)` (6 params, 2 new with defaults). `highlightMatches(text, query, highlightStyle): AnnotatedString` (new). `FiltersRepository.KEY_FILTER_MIN_AMOUNT` / `KEY_FILTER_MAX_AMOUNT` (new). `HomeViewModel.filteredTransactions` is now 5-arg `combine`. All consistent across Tasks 1, 2, 3, 4.
 - **Cumulative string-resource warning:** All 4 new strings are added in Task 4 Step 1, before any UI code references them.
-- **FX test correction:** The plan's Step 1 contains a deliberately-buggy FX test for context; the corrected version is provided immediately after, and the implementer should use the corrected one. This is documented inline so the implementer doesn't accidentally use the buggy version.
 - **Param ordering for `filterTransactions`:** The new params `homeCurrency` and `fxRates` come AFTER `nowMs` (the existing time-anchor param) and BEFORE the next time-anchor-ish param would go. The 34 prior tests don't pass these (they use the defaults `"USD"` + `emptyMap()`), so they continue to work without modification.
 
 ## Out of scope (intentional, deferred)
