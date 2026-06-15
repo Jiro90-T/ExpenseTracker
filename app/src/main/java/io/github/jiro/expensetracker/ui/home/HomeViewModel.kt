@@ -133,15 +133,23 @@ class HomeViewModel @Inject constructor(
             repository.observeAll(),
             filters,
             allCategories,
-        ) { rows, f, cats -> Triple(rows, f, cats) }
-            .map { (rows, f, cats) ->
-                filterTransactions(rows, f, cats, nowMs = System.currentTimeMillis())
-            }
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5_000),
-                initialValue = emptyList(),
+            settingsRepository.homeCurrency,
+            settingsRepository.fxRates,
+        ) { rows, f, cats, home, rates ->
+            filterTransactions(
+                rows = rows,
+                filters = f,
+                allCategories = cats,
+                nowMs = System.currentTimeMillis(),
+                homeCurrency = home,
+                fxRates = rates,
             )
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList(),
+        )
 
     /** Budgets that have been exceeded in the current month. Sorted by overage desc. */
     val budgetAlerts: StateFlow<List<BudgetAlert>> =
@@ -210,6 +218,8 @@ class HomeViewModel @Inject constructor(
     fun setTypeFilter(t: TypeFilter) = setFilters(filters.value.copy(typeFilter = t))
     fun setDateRange(d: DateRangePreset) = setFilters(filters.value.copy(dateRange = d))
     fun clearFilters() = filtersRepository.setFilters(TransactionFilters())
+    fun setMinAmount(minor: Long?) = setFilters(filters.value.copy(minAmount = minor))
+    fun setMaxAmount(minor: Long?) = setFilters(filters.value.copy(maxAmount = minor))
 }
 
 /**
