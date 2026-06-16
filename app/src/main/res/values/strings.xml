@@ -237,6 +237,7 @@
     <string name="settings_fx_to">To</string>
     <string name="settings_fx_rate_hint">Rate (1 from = ? to)</string>
     <string name="settings_fx_empty">No FX rates yet. Add one to convert foreign transactions.</string>
+    <string name="settings_fx_delete">Delete rate</string>
     <string name="settings_dialog_ok">OK</string>
     <string name="settings_dialog_cancel">Cancel</string>
 </resources>

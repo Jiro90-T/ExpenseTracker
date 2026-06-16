@@ -236,7 +236,7 @@ fun SettingsScreen(
                                 IconButton(onClick = { viewModel.removeFxRate(row.displayKey) }) {
                                     Icon(
                                         Icons.Filled.Close,
-                                        contentDescription = stringResource(R.string.settings_dialog_cancel),
+                                        contentDescription = stringResource(R.string.settings_fx_delete),
                                     )
                                 }
                             }
