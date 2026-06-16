@@ -1,6 +1,7 @@
 package io.github.jiro.expensetracker.ui.charts
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,6 +31,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.jiro.expensetracker.R
+import io.github.jiro.expensetracker.ui.theme.DarkNetBlue
 import io.github.jiro.expensetracker.ui.theme.ExpenseRed
 import io.github.jiro.expensetracker.ui.theme.IncomeGreen
 import io.github.jiro.expensetracker.ui.theme.NetBlue
@@ -54,6 +56,8 @@ fun LineChart(
     onSelect: (MonthlyTrend?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val netBlue = if (isSystemInDarkTheme()) DarkNetBlue else NetBlue
+
     if (data.isEmpty()) {
         Box(
             modifier = modifier
@@ -101,9 +105,9 @@ fun LineChart(
             ) {
                 LegendDotGhost(color = ExpenseRed, label = stringResource(R.string.trends_legend_expense_prior))
                 Spacer(Modifier.size(8.dp))
-                LegendDot(color = NetBlue, label = stringResource(R.string.trends_legend_net))
+                LegendDot(color = netBlue, label = stringResource(R.string.trends_legend_net))
                 Spacer(Modifier.size(8.dp))
-                LegendDotGhost(color = NetBlue, label = stringResource(R.string.trends_legend_net_prior))
+                LegendDotGhost(color = netBlue, label = stringResource(R.string.trends_legend_net_prior))
             }
         } else {
             Row(
@@ -115,7 +119,7 @@ fun LineChart(
                 Spacer(Modifier.size(12.dp))
                 LegendDot(color = ExpenseRed, label = stringResource(R.string.trends_legend_expense))
                 Spacer(Modifier.size(12.dp))
-                LegendDot(color = NetBlue, label = stringResource(R.string.trends_legend_net))
+                LegendDot(color = netBlue, label = stringResource(R.string.trends_legend_net))
             }
         }
         Spacer(Modifier.size(4.dp))
@@ -175,7 +179,7 @@ fun LineChart(
                 val ghostPaths = listOf(
                     Pair(IncomeGreen, prior.mapIndexed { i, m -> pointFor(m.incomeMinor, i) }),
                     Pair(ExpenseRed, prior.mapIndexed { i, m -> pointFor(m.expenseMinor, i) }),
-                    Pair(NetBlue, prior.mapIndexed { i, m -> pointFor(m.netMinor, i) }),
+                    Pair(netBlue, prior.mapIndexed { i, m -> pointFor(m.netMinor, i) }),
                 )
                 for ((color, points) in ghostPaths) {
                     if (points.size < 2) continue
@@ -212,7 +216,7 @@ fun LineChart(
             val paths = listOf(
                 Pair(IncomeGreen, data.mapIndexed { i, m -> pointFor(m.incomeMinor, i) }),
                 Pair(ExpenseRed, data.mapIndexed { i, m -> pointFor(m.expenseMinor, i) }),
-                Pair(NetBlue, data.mapIndexed { i, m -> pointFor(m.netMinor, i) }),
+                Pair(netBlue, data.mapIndexed { i, m -> pointFor(m.netMinor, i) }),
             )
             for ((color, points) in paths) {
                 if (points.size < 2) continue
