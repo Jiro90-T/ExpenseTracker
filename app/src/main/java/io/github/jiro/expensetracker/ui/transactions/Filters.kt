@@ -76,6 +76,7 @@ fun filterTransactions(
 ): List<TransactionWithCategory> {
     val trimmedQuery = filters.searchQuery.trim()
     val hasQuery = trimmedQuery.isNotEmpty()
+    val strippedQuery = if (hasQuery) MoneyFormat.stripAmountSeparators(trimmedQuery) else ""
     val categoryNameById = allCategories.associate { it.id to it.name }
     val (rangeFrom, rangeToExclusive) = resolveDateRange(filters.dateRange, nowMs)
     val (minAmount, maxAmount) = resolveAmountRange(filters.minAmount, filters.maxAmount)
@@ -89,8 +90,10 @@ fun filterTransactions(
             val noteMatch = t.note?.contains(trimmedQuery, ignoreCase = true) == true
             val categoryMatch = categoryNameById[t.categoryId]
                 ?.contains(trimmedQuery, ignoreCase = true) == true
-            val amountMatch = MoneyFormat.formatAmountForEdit(t.amountMinor)
-                .contains(trimmedQuery, ignoreCase = true)
+            val formatted = MoneyFormat.formatAmountForEdit(t.amountMinor)
+            val amountMatch = formatted.contains(trimmedQuery, ignoreCase = true)
+                || (strippedQuery != trimmedQuery.lowercase()
+                    && formatted.contains(strippedQuery, ignoreCase = true))
             if (!(titleMatch || noteMatch || categoryMatch || amountMatch)) return@filter false
         }
 

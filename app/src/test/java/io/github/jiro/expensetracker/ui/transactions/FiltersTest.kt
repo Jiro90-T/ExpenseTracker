@@ -159,6 +159,50 @@ class FiltersTest {
         assertTrue(out.isEmpty())
     }
 
+    // ---- search amount: thousands-separator normalization (Phase 2.11 polish) ----
+
+    @Test
+    fun filterTransactions_searchAmountMatchesWithComma() {
+        val rows = listOf(
+            txn(3L, "C", 120_000L, "EXPENSE", 1L, date(2026, 6, 14), null),   // $1,200.00
+        )
+        val out = filterTransactions(
+            rows,
+            TransactionFilters(searchQuery = "1,200"),
+            categories(),
+            date(2026, 6, 15),
+        )
+        assertEquals(rows, out)
+    }
+
+    @Test
+    fun filterTransactions_searchAmountMatchesWithSpace() {
+        val rows = listOf(
+            txn(3L, "C", 120_000L, "EXPENSE", 1L, date(2026, 6, 14), null),   // $1,200.00
+        )
+        val out = filterTransactions(
+            rows,
+            TransactionFilters(searchQuery = "1 200"),
+            categories(),
+            date(2026, 6, 15),
+        )
+        assertEquals(rows, out)
+    }
+
+    @Test
+    fun filterTransactions_searchAmountMatchesNoSeparators_regressionGuard() {
+        val rows = listOf(
+            txn(3L, "C", 120_000L, "EXPENSE", 1L, date(2026, 6, 14), null),   // $1,200.00
+        )
+        val out = filterTransactions(
+            rows,
+            TransactionFilters(searchQuery = "1200"),
+            categories(),
+            date(2026, 6, 15),
+        )
+        assertEquals(rows, out)
+    }
+
     @Test
     fun filterTransactions_searchWhitespaceTrimmed() {
         val rows = listOf(

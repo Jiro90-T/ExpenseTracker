@@ -34,4 +34,19 @@ object MoneyFormat {
         val fraction = minor % 100
         return "%d.%02d".format(whole, fraction)
     }
+
+    /**
+     * Pure: strips thousands separators (`,`, ASCII space, non-breaking space)
+     * from a user-typed search string and lowercases it. "1,200", "1 200",
+     * "1200" all normalize to "1200". "1,200.50" → "1200.50".
+     */
+    fun stripAmountSeparators(query: String): String {
+        return query
+            .replace(',', ' ')
+            .replace(' ', ' ')
+            .replace(Char(0x202F), ' ')   // narrow no-break space
+            .replace(Char(0x00A0), ' ')   // non-breaking space
+            .replace(" ", "")
+            .lowercase()
+    }
 }
