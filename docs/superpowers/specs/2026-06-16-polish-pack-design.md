@@ -6,7 +6,7 @@
 
 ## Goal
 
-Bundle four small, deferred polish items from prior phases into a single release. No new abstractions, no new deps, no API changes. ~80 lines of production code, ~30 lines of test code, 1 new string, 1 deleted constant.
+Bundle four small, deferred polish items from prior phases into a single release. No new abstractions, no new deps, no API changes. ~75 lines of production code, ~30 lines of test code, 1 new string, 1 deleted constant.
 
 1. **Thousands-separators search fix** — searching `"1,200"`, `"1 200"`, or `"1200"` all match a transaction of $1,200.00 (Phase 2.9 follow-up).
 2. **A11y + dead-code cleanup** — the FX-rate delete `IconButton` uses `"Cancel"` as its contentDescription (wrong). The `COMMON_CURRENCY_PAIRS` constant ships but is never read (Phase 2.10 follow-up).
@@ -48,7 +48,7 @@ In the receipt viewer:
 
 | File | Purpose |
 | --- | --- |
-| `data/local/MoneyFormat.kt` (modified) | 2 new pure helpers: `normalizeAmountForSearch`, `stripAmountSeparators`. |
+| `data/local/MoneyFormat.kt` (modified) | 1 new pure helper: `stripAmountSeparators`. |
 | `ui/transactions/Filters.kt` (modified) | Search loop uses `stripAmountSeparators` on the query and `normalizeAmountForSearch` on the amount. |
 | `app/src/test/.../ui/transactions/FiltersTest.kt` (modified) | +3 tests. |
 | `ui/settings/SettingsScreen.kt` (modified) | Line 239 `contentDescription` uses new string. |
@@ -60,29 +60,27 @@ In the receipt viewer:
 
 ### Search helper details
 
-In `MoneyFormat.kt`:
+In `MoneyFormat.kt`, add one pure helper:
 
 ```kotlin
-/** Pure: returns the amount as a digits-and-decimal string with no separators.
- * Example: 120000L minor → "1200.00" (NOT "1,200.00"). */
-fun normalizeAmountForSearch(minor: Long): String
-
 /** Pure: strips thousands separators (`,`, space, non-breaking space) from
- * a user-typed search string and lowercases it.
- * "1,200", "1 200", "1200" → "1200"; "1,200.50" → "1200.50". */
+ * a user-typed search string and lowercases it. "1,200", "1 200", "1200"
+ * → "1200"; "1,200.50" → "1200.50". */
 fun stripAmountSeparators(query: String): String
 ```
+
+Note: `formatAmountForEdit` already returns a separator-free string (`120_000L` → `"1200.00"`), so the amount side does not need a separate normalizer — we compare the user's query-stripped form against `formatAmountForEdit`'s output directly. The original 2-helper design was simplified after reading the actual `MoneyFormat` implementation (it has no thousands separator in the display format, so `normalizeAmountForSearch` would be a no-op duplicate of `formatAmountForEdit`).
 
 In `Filters.kt:filterTransactions`, the amount-match branch becomes:
 
 ```kotlin
 val stripped = MoneyFormat.stripAmountSeparators(trimmedQuery)
-val amountMatch = MoneyFormat.formatAmountForEdit(t.amountMinor)
-    .contains(trimmedQuery, ignoreCase = true)
-    || MoneyFormat.normalizeAmountForSearch(t.amountMinor).contains(stripped)
+val formatted = MoneyFormat.formatAmountForEdit(t.amountMinor)
+val amountMatch = formatted.contains(trimmedQuery, ignoreCase = true)
+    || (stripped != trimmedQuery && formatted.contains(stripped, ignoreCase = true))
 ```
 
-Both checks are OR'd — preserving the existing user-typed-experience match (`"1,200"` against `"1,200.00"`) and adding the new normalized match (`"1200"` against `"1200.00"`). `stripped` is computed once outside the row loop.
+The first check preserves the existing match (e.g. `"1200"` against `"1200.00"`). The second check adds support for separator-bearing queries (`"1,200"` or `"1 200"` against `"1200.00"`). `stripped` is computed once outside the row loop. The `stripped != trimmedQuery` guard avoids a redundant comparison when the query had no separators.
 
 ### Pinch-to-zoom details
 
@@ -147,9 +145,9 @@ settings_fx_delete  "Delete rate"
 
 In `app/src/test/.../ui/transactions/FiltersTest.kt`, add 3 tests:
 
-1. `filterTransactions_searchMatchesAmountWithNoSeparators` — query `"1200"` matches a 120000L-minor transaction (currently fails; passing after fix).
-2. `filterTransactions_searchMatchesAmountWithSpace` — query `"1 200"` matches.
-3. `filterTransactions_searchMatchesAmountWithComma` — query `"1,200"` matches (was already passing, regression-guard).
+1. `filterTransactions_searchAmountMatchesWithComma` — query `"1,200"` matches a 120_000L-minor transaction (currently fails; the user types a comma, the existing code only matches `"1200"`).
+2. `filterTransactions_searchAmountMatchesWithSpace` — query `"1 200"` matches the same transaction (currently fails).
+3. `filterTransactions_searchAmountMatchesNoSeparators_regressionGuard` — query `"1200"` matches (was already passing via the formattedMatch path; this guards against future regression).
 
 (`stripAmountSeparators` is tested transitively via the `filterTransactions` tests. A direct unit test on `stripAmountSeparators` is redundant.)
 
