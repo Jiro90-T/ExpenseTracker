@@ -240,4 +240,13 @@
     <string name="settings_fx_delete">Delete rate</string>
     <string name="settings_dialog_ok">OK</string>
     <string name="settings_dialog_cancel">Cancel</string>
+
+    <!-- Phase 2.12 — Transactions sort options -->
+    <string name="filter_sort_label">Sort</string>
+    <string name="filter_sort_field_date">Date</string>
+    <string name="filter_sort_field_amount">Amount</string>
+    <string name="filter_sort_field_title">Title</string>
+    <string name="filter_sort_field_category">Category</string>
+    <string name="filter_sort_direction_asc">Sort ascending</string>
+    <string name="filter_sort_direction_desc">Sort descending</string>
 </resources>

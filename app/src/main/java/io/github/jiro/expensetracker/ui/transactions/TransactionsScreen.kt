@@ -15,6 +15,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
@@ -72,6 +74,7 @@ fun TransactionsScreen(
     val filteredTransactions by viewModel.filteredTransactions.collectAsStateWithLifecycle()
     val filters by viewModel.filters.collectAsStateWithLifecycle()
     val allCategories by viewModel.allCategories.collectAsStateWithLifecycle()
+    val sort by viewModel.sort.collectAsStateWithLifecycle()
     val undoState by viewModel.undo.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val undoLabel = stringResource(R.string.action_undo)
@@ -153,6 +156,9 @@ fun TransactionsScreen(
                 onMinInputChange = { minInput = it },
                 maxInput = maxInput,
                 onMaxInputChange = { maxInput = it },
+                sort = sort,
+                onSortFieldChange = viewModel::setSortField,
+                onFlipDirection = viewModel::flipSortDirection,
             )
             Spacer(Modifier.size(8.dp))
             Box(
@@ -165,17 +171,30 @@ fun TransactionsScreen(
                         onClear = viewModel::clearFilters,
                     )
                 } else {
-                    val grouped = remember(filteredTransactions) { groupByDay(filteredTransactions) }
+                    val grouped = remember(filteredTransactions, sort.field) {
+                        if (sort.field == SortField.DATE) groupByDay(filteredTransactions) else null
+                    }
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        grouped.forEach { group ->
-                            item(key = "day_${group.dayStartMs}") {
-                                DayHeader(group.dayStartMs)
+                        if (grouped != null) {
+                            grouped.forEach { group ->
+                                item(key = "day_${group.dayStartMs}") {
+                                    DayHeader(group.dayStartMs)
+                                }
+                                items(group.items, key = { it.transaction.id }) { row ->
+                                    SwipeableTransactionRow(
+                                        row = row,
+                                        onEdit = { onTransactionClick(row.transaction.id) },
+                                        onDelete = { viewModel.delete(row) },
+                                        searchQuery = filters.searchQuery,
+                                    )
+                                }
                             }
-                            items(group.items, key = { it.transaction.id }) { row ->
+                        } else {
+                            items(filteredTransactions, key = { it.transaction.id }) { row ->
                                 SwipeableTransactionRow(
                                     row = row,
                                     onEdit = { onTransactionClick(row.transaction.id) },
@@ -206,6 +225,9 @@ private fun FilterControls(
     onMinInputChange: (String) -> Unit,
     maxInput: String,
     onMaxInputChange: (String) -> Unit,
+    sort: TransactionSort,
+    onSortFieldChange: (SortField) -> Unit,
+    onFlipDirection: () -> Unit,
 ) {
     var showDateDialog by remember { mutableStateOf(false) }
 
@@ -252,6 +274,36 @@ private fun FilterControls(
                 selected = filters.typeFilter == TypeFilter.EXPENSE,
                 onClick = { onTypeChange(TypeFilter.EXPENSE) },
             )
+        }
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "${stringResource(R.string.filter_sort_label)}:",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            SortFieldDropdown(
+                selected = sort.field,
+                onSelect = onSortFieldChange,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = onFlipDirection) {
+                Icon(
+                    imageVector = if (sort.direction == SortDirection.ASC)
+                        Icons.Filled.ArrowUpward
+                    else
+                        Icons.Filled.ArrowDownward,
+                    contentDescription = stringResource(
+                        if (sort.direction == SortDirection.ASC)
+                            R.string.filter_sort_direction_asc
+                        else
+                            R.string.filter_sort_direction_desc
+                    ),
+                )
+            }
         }
 
         // NEW: amount range row
@@ -510,6 +562,54 @@ private fun DateRangePickerDialog(
         },
     )
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SortFieldDropdown(
+    selected: SortField,
+    onSelect: (SortField) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = modifier,
+    ) {
+        OutlinedTextField(
+            value = stringResource(selected.labelRes),
+            onValueChange = {},
+            readOnly = true,
+            singleLine = true,
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth(),
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+        )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            SortField.entries.forEach { field ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(field.labelRes)) },
+                    onClick = {
+                        onSelect(field)
+                        expanded = false
+                    },
+                )
+            }
+        }
+    }
+}
+
+private val SortField.labelRes: Int
+    get() = when (this) {
+        SortField.DATE -> R.string.filter_sort_field_date
+        SortField.AMOUNT -> R.string.filter_sort_field_amount
+        SortField.TITLE -> R.string.filter_sort_field_title
+        SortField.CATEGORY -> R.string.filter_sort_field_category
+    }
 
 @Composable
 private fun EmptyState(isFiltered: Boolean, onClear: () -> Unit) {
