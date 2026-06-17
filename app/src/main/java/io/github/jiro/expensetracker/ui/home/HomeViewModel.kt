@@ -15,9 +15,13 @@ import io.github.jiro.expensetracker.ui.charts.MonthlyTotals
 import io.github.jiro.expensetracker.ui.charts.computeMonthlyTotals
 import io.github.jiro.expensetracker.ui.transactions.DateRangePreset
 import io.github.jiro.expensetracker.ui.transactions.FiltersRepository
+import io.github.jiro.expensetracker.ui.transactions.SortDirection
+import io.github.jiro.expensetracker.ui.transactions.SortField
 import io.github.jiro.expensetracker.ui.transactions.TransactionFilters
+import io.github.jiro.expensetracker.ui.transactions.TransactionSort
 import io.github.jiro.expensetracker.ui.transactions.TypeFilter
 import io.github.jiro.expensetracker.ui.transactions.filterTransactions
+import io.github.jiro.expensetracker.ui.transactions.sortTransactions
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -127,16 +131,30 @@ class HomeViewModel @Inject constructor(
     /** The current filter state, sourced from FiltersRepository. */
     val filters: StateFlow<TransactionFilters> = filtersRepository.filters
 
-    /** All transactions filtered by the current [filters]. */
+    /** The current sort state, sourced from FiltersRepository. */
+    val sort: StateFlow<TransactionSort> = filtersRepository.sort
+
+    /** All transactions filtered by the current [filters] then sorted by [sort]. */
     val filteredTransactions: StateFlow<List<TransactionWithCategory>> =
         combine(
             repository.observeAll(),
             filters,
+            sort,
             allCategories,
             settingsRepository.homeCurrency,
             settingsRepository.fxRates,
-        ) { rows, f, cats, home, rates ->
-            filterTransactions(
+        ) { values ->
+            @Suppress("UNCHECKED_CAST")
+            val rows = values[0] as List<TransactionWithCategory>
+            @Suppress("UNCHECKED_CAST")
+            val f = values[1] as TransactionFilters
+            val s = values[2] as TransactionSort
+            @Suppress("UNCHECKED_CAST")
+            val cats = values[3] as List<CategoryEntity>
+            val home = values[4] as String
+            @Suppress("UNCHECKED_CAST")
+            val rates = values[5] as Map<String, Double>
+            val filtered = filterTransactions(
                 rows = rows,
                 filters = f,
                 allCategories = cats,
@@ -144,6 +162,7 @@ class HomeViewModel @Inject constructor(
                 homeCurrency = home,
                 fxRates = rates,
             )
+            sortTransactions(filtered, s, cats, home, rates)
         }
         .stateIn(
             scope = viewModelScope,
@@ -220,6 +239,16 @@ class HomeViewModel @Inject constructor(
     fun clearFilters() = filtersRepository.setFilters(TransactionFilters())
     fun setMinAmount(minor: Long?) = setFilters(filters.value.copy(minAmount = minor))
     fun setMaxAmount(minor: Long?) = setFilters(filters.value.copy(maxAmount = minor))
+
+    fun setSortField(field: SortField) =
+        filtersRepository.setSort(sort.value.copy(field = field))
+
+    fun setSortDirection(direction: SortDirection) =
+        filtersRepository.setSort(sort.value.copy(direction = direction))
+
+    fun flipSortDirection() = setSortDirection(
+        if (sort.value.direction == SortDirection.ASC) SortDirection.DESC else SortDirection.ASC
+    )
 }
 
 /**
