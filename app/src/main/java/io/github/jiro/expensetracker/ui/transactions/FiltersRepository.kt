@@ -10,8 +10,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Persists the user's [TransactionFilters] across app restarts. SharedPreferences
- * round-trips four keys — one per field. Mirrors [io.github.jiro.expensetracker.preferences.SettingsRepository].
+ * Persists the user's [TransactionFilters] and [TransactionSort] across app
+ * restarts. SharedPreferences round-trips the keys. Mirrors
+ * [io.github.jiro.expensetracker.preferences.SettingsRepository].
  */
 @Singleton
 class FiltersRepository @Inject constructor(
@@ -21,6 +22,9 @@ class FiltersRepository @Inject constructor(
 
     private val _filters = MutableStateFlow(loadFilters())
     val filters: StateFlow<TransactionFilters> = _filters.asStateFlow()
+
+    private val _sort = MutableStateFlow(loadSort())
+    val sort: StateFlow<TransactionSort> = _sort.asStateFlow()
 
     fun setFilters(filters: TransactionFilters) {
         if (_filters.value == filters) return
@@ -32,6 +36,14 @@ class FiltersRepository @Inject constructor(
             .putLong(KEY_FILTER_MIN_AMOUNT, filters.minAmount ?: LONG_MIN_VALUE)
             .putLong(KEY_FILTER_MAX_AMOUNT, filters.maxAmount ?: LONG_MIN_VALUE)
         _filters.value = filters
+    }
+
+    fun setSort(sort: TransactionSort) {
+        if (_sort.value == sort) return
+        prefs.edit()
+            .putString(KEY_SORT_FIELD, sort.field.name)
+            .putString(KEY_SORT_DIRECTION, sort.direction.name)
+        _sort.value = sort
     }
 
     private fun loadFilters(): TransactionFilters = TransactionFilters(
@@ -46,6 +58,15 @@ class FiltersRepository @Inject constructor(
             .takeIf { it != LONG_MIN_VALUE },
         maxAmount = prefs.getLong(KEY_FILTER_MAX_AMOUNT, LONG_MIN_VALUE)
             .takeIf { it != LONG_MIN_VALUE },
+    )
+
+    private fun loadSort(): TransactionSort = TransactionSort(
+        field = runCatching {
+            SortField.valueOf(prefs.getString(KEY_SORT_FIELD, null) ?: SortField.DATE.name)
+        }.getOrDefault(SortField.DATE),
+        direction = runCatching {
+            SortDirection.valueOf(prefs.getString(KEY_SORT_DIRECTION, null) ?: SortDirection.DESC.name)
+        }.getOrDefault(SortDirection.DESC),
     )
 
     private fun encodeDateRange(preset: DateRangePreset): String = when (preset) {
@@ -85,6 +106,8 @@ class FiltersRepository @Inject constructor(
         const val KEY_DATE_RANGE = "filters.dateRange"
         const val KEY_FILTER_MIN_AMOUNT = "filters.minAmount"
         const val KEY_FILTER_MAX_AMOUNT = "filters.maxAmount"
+        const val KEY_SORT_FIELD = "sort.field"
+        const val KEY_SORT_DIRECTION = "sort.direction"
         const val CATEGORY_ID_ALL = -1L
         const val LONG_MIN_VALUE = Long.MIN_VALUE
     }
