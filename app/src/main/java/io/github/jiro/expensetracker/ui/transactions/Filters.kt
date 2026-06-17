@@ -240,3 +240,91 @@ fun highlightMatches(
         }
     }
 }
+
+enum class SortField { DATE, AMOUNT, TITLE, CATEGORY }
+enum class SortDirection { ASC, DESC }
+
+data class TransactionSort(
+    val field: SortField = SortField.DATE,
+    val direction: SortDirection = SortDirection.DESC,
+)
+
+/**
+ * Pure: sorts [rows] in place-stably by [sort]. The pure filter helper
+ * returns rows in input order; this function applies the user's chosen
+ * sort after filtering.
+ *
+ * - DATE: occurredAtEpochMillis.
+ * - AMOUNT: FX-converted amountMinor in [homeCurrency] (fallback to raw
+ *   amountMinor when the FX rate is missing — matches the Phase 2.9
+ *   amount range filter).
+ * - TITLE: case-insensitive alphabetical on transaction.title.
+ * - CATEGORY: case-insensitive alphabetical on the category name from
+ *   [allCategories]. Empty/null names sort to the end regardless of
+ *   direction.
+ *
+ * For non-Date sorts, ties break by occurredAtEpochMillis DESC (newer
+ * first within the tie). Kotlin's `sortedBy` is stable, so this is
+ * honored by chaining `thenByDescending`.
+ */
+fun sortTransactions(
+    rows: List<TransactionWithCategory>,
+    sort: TransactionSort,
+    allCategories: List<CategoryEntity>,
+    homeCurrency: String,
+    fxRates: Map<String, Double>,
+): List<TransactionWithCategory> {
+    if (rows.size < 2) return rows
+    val nameById = allCategories.associate { it.id to it.name }
+    val amountKey: (TransactionWithCategory) -> Long = { row ->
+        val t = row.transaction
+        FxConverter.convertMinor(t.amountMinor, t.currencyCode, homeCurrency, fxRates)
+            ?: t.amountMinor
+    }
+    val dateKey: (TransactionWithCategory) -> Long = { it.transaction.occurredAtEpochMillis }
+    return when (sort.field) {
+        SortField.DATE -> {
+            if (sort.direction == SortDirection.ASC) {
+                rows.sortedBy(dateKey)
+            } else {
+                rows.sortedByDescending(dateKey)
+            }
+        }
+        SortField.AMOUNT -> {
+            val comparator: Comparator<TransactionWithCategory> = if (sort.direction == SortDirection.ASC) {
+                compareBy(amountKey).thenByDescending(dateKey)
+            } else {
+                compareByDescending(amountKey).thenByDescending(dateKey)
+            }
+            rows.sortedWith(comparator)
+        }
+        SortField.TITLE -> {
+            val titleKey: (TransactionWithCategory) -> String = { it.transaction.title.lowercase() }
+            val comparator: Comparator<TransactionWithCategory> = if (sort.direction == SortDirection.ASC) {
+                compareBy(titleKey).thenByDescending(dateKey)
+            } else {
+                compareByDescending(titleKey).thenByDescending(dateKey)
+            }
+            rows.sortedWith(comparator)
+        }
+        SortField.CATEGORY -> {
+            // Empty/null names sort to the end regardless of direction.
+            val (withName, withoutName) = rows.partition {
+                !nameById[it.transaction.categoryId].isNullOrEmpty()
+            }
+            val categoryNameKey: (TransactionWithCategory) -> String = { row ->
+                nameById[row.transaction.categoryId]!!.lowercase()
+            }
+            val namedComparator: Comparator<TransactionWithCategory> = if (sort.direction == SortDirection.ASC) {
+                compareBy(categoryNameKey).thenByDescending(dateKey)
+            } else {
+                compareByDescending(categoryNameKey).thenByDescending(dateKey)
+            }
+            val sortedNamed = withName.sortedWith(namedComparator)
+            // The "without name" rows are ordered by date desc (newest first)
+            // so the partition is deterministic.
+            val sortedUnnamed = withoutName.sortedByDescending(dateKey)
+            sortedNamed + sortedUnnamed
+        }
+    }
+}

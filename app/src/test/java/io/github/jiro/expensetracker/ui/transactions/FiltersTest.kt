@@ -747,4 +747,319 @@ class FiltersTest {
         cal.set(year, month - 1, day, hour, minute, second)
         return cal.timeInMillis
     }
+
+    // ---- sort ----
+
+    @Test
+    fun sortTransactions_dateDesc_returnsNewestFirst() {
+        val rows = listOf(
+            txn(1L, "A", 100L, "EXPENSE", 1L, date(2026, 6, 1), null),
+            txn(2L, "B", 200L, "EXPENSE", 1L, date(2026, 6, 14), null),
+            txn(3L, "C", 300L, "EXPENSE", 1L, date(2026, 6, 7), null),
+        )
+        val out = sortTransactions(
+            rows,
+            TransactionSort(SortField.DATE, SortDirection.DESC),
+            categories(),
+            "USD",
+            emptyMap(),
+        )
+        assertEquals(listOf(2L, 3L, 1L), out.map { it.transaction.id })
+    }
+
+    @Test
+    fun sortTransactions_dateAsc_returnsOldestFirst() {
+        val rows = listOf(
+            txn(1L, "A", 100L, "EXPENSE", 1L, date(2026, 6, 1), null),
+            txn(2L, "B", 200L, "EXPENSE", 1L, date(2026, 6, 14), null),
+            txn(3L, "C", 300L, "EXPENSE", 1L, date(2026, 6, 7), null),
+        )
+        val out = sortTransactions(
+            rows,
+            TransactionSort(SortField.DATE, SortDirection.ASC),
+            categories(),
+            "USD",
+            emptyMap(),
+        )
+        assertEquals(listOf(1L, 3L, 2L), out.map { it.transaction.id })
+    }
+
+    @Test
+    fun sortTransactions_amountDesc_usesHomeCurrency() {
+        // Row 1: 5_000 USD (raw = converted = 5_000)
+        // Row 2: 100_000 JPY with rate 0.01 = 1_000 USD-converted
+        // Sort amount DESC: 5_000 > 1_000, so Row 1 (USD) is first.
+        // If the sort used raw amountMinor, Row 2 (100_000) would be first.
+        val rows = listOf(
+            txnCur(1L, "A", 5_000L, "USD", "EXPENSE", 1L, date(2026, 6, 1), null),
+            txnCur(2L, "B", 100_000L, "JPY", "EXPENSE", 1L, date(2026, 6, 2), null),
+        )
+        val out = sortTransactions(
+            rows,
+            TransactionSort(SortField.AMOUNT, SortDirection.DESC),
+            categories(),
+            "USD",
+            mapOf("JPY_to_USD" to 0.01),
+        )
+        assertEquals(listOf(1L, 2L), out.map { it.transaction.id })
+    }
+
+    @Test
+    fun sortTransactions_amountAsc_smallestFirst() {
+        val rows = listOf(
+            txnCur(1L, "A", 5_000L, "USD", "EXPENSE", 1L, date(2026, 6, 1), null),
+            txnCur(2L, "B", 100_000L, "JPY", "EXPENSE", 1L, date(2026, 6, 2), null),
+        )
+        val out = sortTransactions(
+            rows,
+            TransactionSort(SortField.AMOUNT, SortDirection.ASC),
+            categories(),
+            "USD",
+            mapOf("JPY_to_USD" to 0.01),
+        )
+        assertEquals(listOf(2L, 1L), out.map { it.transaction.id })
+    }
+
+    @Test
+    fun sortTransactions_amount_usesFxWhenAvailable() {
+        // JPY row with rate 0.01: 100_000 * 0.01 = 1_000 USD
+        // USD row: 500 USD. USD < 1_000, so JPY row is first under DESC.
+        // If FX were ignored, JPY raw 100_000 > USD raw 500, so the order would
+        // still happen to be JPY first — that's why the prior test uses 5_000 USD
+        // (it forces raw and converted to disagree). This test pins the
+        // FxConverter contract.
+        val rows = listOf(
+            txnCur(1L, "USD-small", 500L, "USD", "EXPENSE", 1L, date(2026, 6, 1), null),
+            txnCur(2L, "JPY-big-converted", 100_000L, "JPY", "EXPENSE", 1L, date(2026, 6, 2), null),
+        )
+        val out = sortTransactions(
+            rows,
+            TransactionSort(SortField.AMOUNT, SortDirection.DESC),
+            categories(),
+            "USD",
+            mapOf("JPY_to_USD" to 0.01),
+        )
+        assertEquals(listOf(2L, 1L), out.map { it.transaction.id })
+    }
+
+    @Test
+    fun sortTransactions_amount_fallsBackToRawWhenFxMissing() {
+        // No FX rate for JPY: sort uses raw amountMinor.
+        // 100_000 JPY (raw) > 5_000 USD (raw), so JPY is first under DESC.
+        val rows = listOf(
+            txnCur(1L, "A", 5_000L, "USD", "EXPENSE", 1L, date(2026, 6, 1), null),
+            txnCur(2L, "B", 100_000L, "JPY", "EXPENSE", 1L, date(2026, 6, 2), null),
+        )
+        val out = sortTransactions(
+            rows,
+            TransactionSort(SortField.AMOUNT, SortDirection.DESC),
+            categories(),
+            "USD",
+            emptyMap(),
+        )
+        assertEquals(listOf(2L, 1L), out.map { it.transaction.id })
+    }
+
+    @Test
+    fun sortTransactions_titleAsc_caseInsensitive() {
+        val rows = listOf(
+            txn(1L, "banana", 100L, "EXPENSE", 1L, date(2026, 6, 1), null),
+            txn(2L, "Apple", 200L, "EXPENSE", 1L, date(2026, 6, 2), null),
+            txn(3L, "cherry", 300L, "EXPENSE", 1L, date(2026, 6, 3), null),
+        )
+        val out = sortTransactions(
+            rows,
+            TransactionSort(SortField.TITLE, SortDirection.ASC),
+            categories(),
+            "USD",
+            emptyMap(),
+        )
+        assertEquals(listOf(2L, 1L, 3L), out.map { it.transaction.id })
+    }
+
+    @Test
+    fun sortTransactions_titleDesc_reverseOrder() {
+        val rows = listOf(
+            txn(1L, "banana", 100L, "EXPENSE", 1L, date(2026, 6, 1), null),
+            txn(2L, "Apple", 200L, "EXPENSE", 1L, date(2026, 6, 2), null),
+            txn(3L, "cherry", 300L, "EXPENSE", 1L, date(2026, 6, 3), null),
+        )
+        val out = sortTransactions(
+            rows,
+            TransactionSort(SortField.TITLE, SortDirection.DESC),
+            categories(),
+            "USD",
+            emptyMap(),
+        )
+        assertEquals(listOf(3L, 1L, 2L), out.map { it.transaction.id })
+    }
+
+    @Test
+    fun sortTransactions_categoryAsc_alphabeticalByName() {
+        // Categories: Food(1L), Restaurants(2L), Salary(3L)
+        val rows = listOf(
+            txn(1L, "A", 100L, "EXPENSE", 3L, date(2026, 6, 1), null),  // Salary
+            txn(2L, "B", 200L, "EXPENSE", 1L, date(2026, 6, 2), null),  // Food
+            txn(3L, "C", 300L, "EXPENSE", 2L, date(2026, 6, 3), null),  // Restaurants
+        )
+        val out = sortTransactions(
+            rows,
+            TransactionSort(SortField.CATEGORY, SortDirection.ASC),
+            categories(),
+            "USD",
+            emptyMap(),
+        )
+        // Food < Restaurants < Salary
+        assertEquals(listOf(2L, 3L, 1L), out.map { it.transaction.id })
+    }
+
+    @Test
+    fun sortTransactions_categoryDesc_reverseOrder() {
+        val rows = listOf(
+            txn(1L, "A", 100L, "EXPENSE", 3L, date(2026, 6, 1), null),  // Salary
+            txn(2L, "B", 200L, "EXPENSE", 1L, date(2026, 6, 2), null),  // Food
+            txn(3L, "C", 300L, "EXPENSE", 2L, date(2026, 6, 3), null),  // Restaurants
+        )
+        val out = sortTransactions(
+            rows,
+            TransactionSort(SortField.CATEGORY, SortDirection.DESC),
+            categories(),
+            "USD",
+            emptyMap(),
+        )
+        assertEquals(listOf(1L, 3L, 2L), out.map { it.transaction.id })
+    }
+
+    @Test
+    fun sortTransactions_categoryEmptyName_sortsToEnd_asc() {
+        // A row with an empty-name category sorts to the end regardless of direction.
+        // Build it directly because the `txn` helper hardcodes categories().
+        val emptyCategory = CategoryEntity(
+            id = 99L, name = "", type = "EXPENSE", sortOrder = 0, isBuiltIn = false,
+        )
+        val emptyRowEntity = TransactionEntity(
+            id = 1L,
+            title = "A",
+            amountMinor = 100L,
+            currencyCode = "USD",
+            type = "EXPENSE",
+            categoryId = 99L,
+            occurredAtEpochMillis = date(2026, 6, 1),
+            note = null,
+            createdAtEpochMillis = date(2026, 6, 1),
+        )
+        val rows = listOf(
+            TransactionWithCategory(emptyRowEntity, emptyCategory),
+            txn(2L, "B", 200L, "EXPENSE", 1L, date(2026, 6, 2), null),  // Food
+        )
+        val out = sortTransactions(
+            rows,
+            TransactionSort(SortField.CATEGORY, SortDirection.ASC),
+            listOf(emptyCategory) + categories(),
+            "USD",
+            emptyMap(),
+        )
+        // Food first (asc), then the empty-category row.
+        assertEquals(listOf(2L, 1L), out.map { it.transaction.id })
+    }
+
+    @Test
+    fun sortTransactions_categoryEmptyName_sortsToEnd_desc() {
+        val emptyCategory = CategoryEntity(
+            id = 99L, name = "", type = "EXPENSE", sortOrder = 0, isBuiltIn = false,
+        )
+        val emptyRowEntity = TransactionEntity(
+            id = 1L,
+            title = "A",
+            amountMinor = 100L,
+            currencyCode = "USD",
+            type = "EXPENSE",
+            categoryId = 99L,
+            occurredAtEpochMillis = date(2026, 6, 1),
+            note = null,
+            createdAtEpochMillis = date(2026, 6, 1),
+        )
+        val rows = listOf(
+            TransactionWithCategory(emptyRowEntity, emptyCategory),
+            txn(2L, "B", 200L, "EXPENSE", 1L, date(2026, 6, 2), null),  // Food
+        )
+        val out = sortTransactions(
+            rows,
+            TransactionSort(SortField.CATEGORY, SortDirection.DESC),
+            listOf(emptyCategory) + categories(),
+            "USD",
+            emptyMap(),
+        )
+        // Even under DESC, empty-category still sorts last.
+        assertEquals(listOf(2L, 1L), out.map { it.transaction.id })
+    }
+
+    @Test
+    fun sortTransactions_tieBreakerByDateDesc() {
+        // Two rows with the same amount; the newer one is first under DESC.
+        val rows = listOf(
+            txn(1L, "A", 100L, "EXPENSE", 1L, date(2026, 6, 1), null),  // older
+            txn(2L, "B", 100L, "EXPENSE", 1L, date(2026, 6, 14), null), // newer
+        )
+        val out = sortTransactions(
+            rows,
+            TransactionSort(SortField.AMOUNT, SortDirection.DESC),
+            categories(),
+            "USD",
+            emptyMap(),
+        )
+        assertEquals(listOf(2L, 1L), out.map { it.transaction.id })
+    }
+
+    @Test
+    fun sortTransactions_emptyInput_returnsEmpty() {
+        val out = sortTransactions(
+            emptyList<TransactionWithCategory>(),
+            TransactionSort(SortField.DATE, SortDirection.DESC),
+            categories(),
+            "USD",
+            emptyMap(),
+        )
+        assertTrue(out.isEmpty())
+    }
+
+    @Test
+    fun sortTransactions_singleRow_returnsAsIs() {
+        val rows = listOf(
+            txn(1L, "A", 100L, "EXPENSE", 1L, date(2026, 6, 1), null),
+        )
+        val out = sortTransactions(
+            rows,
+            TransactionSort(SortField.AMOUNT, SortDirection.ASC),
+            categories(),
+            "USD",
+            emptyMap(),
+        )
+        assertEquals(rows, out)
+    }
+
+    private fun txnCur(
+        id: Long,
+        title: String,
+        amountMinor: Long,
+        currencyCode: String,
+        type: String,
+        categoryId: Long,
+        occurredAt: Long,
+        note: String?,
+    ): TransactionWithCategory {
+        val t = TransactionEntity(
+            id = id,
+            title = title,
+            amountMinor = amountMinor,
+            currencyCode = currencyCode,
+            type = type,
+            categoryId = categoryId,
+            occurredAtEpochMillis = occurredAt,
+            note = note,
+            createdAtEpochMillis = occurredAt,
+        )
+        val c = categories().first { it.id == categoryId }
+        return TransactionWithCategory(t, c)
+    }
 }
