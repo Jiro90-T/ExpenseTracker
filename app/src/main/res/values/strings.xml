@@ -119,6 +119,31 @@
     <string name="nav_more">More</string>
     <string name="nav_add">Add</string>
 
+    <!-- Statistics screen (Phase 2.13) -->
+    <string name="nav_statistics">Statistics</string>
+    <string name="stats_tab_top_cats">Top Cats</string>
+    <string name="stats_tab_savings">Savings</string>
+    <string name="stats_tab_patterns">Patterns</string>
+    <string name="stats_tab_yoy">YoY</string>
+    <string name="stats_top_cats_header">Top spending — %1$s</string>
+    <string name="stats_savings_header">%1$s</string>
+    <string name="stats_patterns_header">Day of week · last 90 days</string>
+    <string name="stats_yoy_header">%1$s vs %2$s</string>
+    <string name="stats_savings_rate_label">Savings rate</string>
+    <string name="stats_avg_monthly_label">Avg / mo</string>
+    <string name="stats_avg_monthly_subtitle">last %1$d mo</string>
+    <string name="stats_top_tx_label">Largest expense</string>
+    <string name="stats_net_label">Net</string>
+    <string name="stats_no_data">Not enough data</string>
+    <string name="stats_fx_missing">Some amounts shown without FX conversion</string>
+    <string name="stats_dow_mon">Mon</string>
+    <string name="stats_dow_tue">Tue</string>
+    <string name="stats_dow_wed">Wed</string>
+    <string name="stats_dow_thu">Thu</string>
+    <string name="stats_dow_fri">Fri</string>
+    <string name="stats_dow_sat">Sat</string>
+    <string name="stats_dow_sun">Sun</string>
+
     <!-- Trends (Phase 2.5) -->
     <string name="trends_tap_hint">Tap a month to see details</string>
     <string name="trends_detail_title">%1$s</string>
