@@ -344,4 +344,82 @@ class StatisticsCalculatorTest {
         val out = StatisticsCalculator.dayOfWeekPattern(txns, "USD", emptyMap(), nowMs)
         assertTrue(out.all { it.amountMinor == 500L || it.amountMinor == 0L })
     }
+
+    // ---- yearOverYear ----
+
+    @Test
+    fun yearOverYear_basicPercentChange() {
+        val txns = listOf(
+            txn(1L, "A", 800L, "USD", "EXPENSE", 1L, date(2025, 6, 10)),
+            txn(2L, "B", 1_000L, "USD", "EXPENSE", 2L, date(2026, 6, 10)),
+        )
+        val out = StatisticsCalculator.yearOverYear(txns, "USD", emptyMap(), nowMs)
+        assertEquals("June 2026", out.currentMonthLabel)
+        assertEquals("June 2025", out.previousMonthLabel)
+        assertEquals(1_000L, out.currentExpenseMinor)
+        assertEquals(800L, out.previousExpenseMinor)
+        assertEquals(0.25f, out.percentChange, 0.001f)  // (1000-800)/800 = 0.25
+        assertEquals(false, out.isNewSpending)
+    }
+
+    @Test
+    fun yearOverYear_previousIsZero_marksNewSpending() {
+        val txns = listOf(
+            txn(1L, "A", 500L, "USD", "EXPENSE", 1L, date(2026, 6, 10)),
+        )
+        val out = StatisticsCalculator.yearOverYear(txns, "USD", emptyMap(), nowMs)
+        assertEquals(500L, out.currentExpenseMinor)
+        assertEquals(0L, out.previousExpenseMinor)
+        assertEquals(0f, out.percentChange, 0.0001f)
+        assertEquals(true, out.isNewSpending)
+    }
+
+    @Test
+    fun yearOverYear_bothZero() {
+        val out = StatisticsCalculator.yearOverYear(emptyList(), "USD", emptyMap(), nowMs)
+        assertEquals(0L, out.currentExpenseMinor)
+        assertEquals(0L, out.previousExpenseMinor)
+        assertEquals(0f, out.percentChange, 0.0001f)
+        assertEquals(false, out.isNewSpending)
+    }
+
+    @Test
+    fun yearOverYear_calendarBoundary() {
+        // nowMs = Jun 17 2026; previous = Jun 1 - Jun 30 2025.
+        val txns = listOf(
+            txn(1L, "May", 999L, "USD", "EXPENSE", 1L, date(2025, 5, 31)),     // boundary: May, not Jun
+            txn(2L, "Jul", 999L, "USD", "EXPENSE", 1L, date(2025, 7, 1)),      // boundary: Jul, not Jun
+            txn(3L, "Jun",  500L, "USD", "EXPENSE", 1L, date(2025, 6, 15)),
+            txn(4L, "Jun", 1_000L, "USD", "EXPENSE", 1L, date(2026, 6, 10)),
+        )
+        val out = StatisticsCalculator.yearOverYear(txns, "USD", emptyMap(), nowMs)
+        assertEquals(500L, out.previousExpenseMinor)
+        assertEquals(1_000L, out.currentExpenseMinor)
+    }
+
+    @Test
+    fun yearOverYear_excludesIncome() {
+        val txns = listOf(
+            income(1L, 5_000L, date(2025, 6, 10)),
+            income(2L, 5_000L, date(2026, 6, 10)),
+        )
+        val out = StatisticsCalculator.yearOverYear(txns, "USD", emptyMap(), nowMs)
+        assertEquals(0L, out.currentExpenseMinor)
+        assertEquals(0L, out.previousExpenseMinor)
+    }
+
+    @Test
+    fun yearOverYear_usesHomeCurrency() {
+        val txns = listOf(
+            txn(1L, "A", 800_00L, "EUR", "EXPENSE", 1L, date(2025, 6, 10)),
+            txn(2L, "B", 1_000_00L, "EUR", "EXPENSE", 2L, date(2026, 6, 10)),
+        )
+        val rates = mapOf("EUR_to_USD" to 1.10)
+        val out = StatisticsCalculator.yearOverYear(txns, "USD", rates, nowMs)
+        // 80000 * 1.10 = 88000; 100000 * 1.10 = 110000
+        assertEquals(110_000L, out.currentExpenseMinor)
+        assertEquals(88_000L, out.previousExpenseMinor)
+        // (110000 - 88000) / 88000 = 0.25
+        assertEquals(0.25f, out.percentChange, 0.001f)
+    }
 }

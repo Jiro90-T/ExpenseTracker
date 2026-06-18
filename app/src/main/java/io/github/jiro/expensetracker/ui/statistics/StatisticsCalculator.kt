@@ -194,17 +194,38 @@ object StatisticsCalculator {
         nowMs: Long,
     ): YearOverYear {
         val today = Instant.ofEpochMilli(nowMs).atZone(ZoneId.systemDefault()).toLocalDate()
-        val currentLabel = monthLabel(nowMs)
-        val previousLabel = monthLabel(
-            YearMonth.of(today.year - 1, today.monthValue).atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        )
+        val (curStart, curEnd) = monthBounds(today.year, today.monthValue)
+        val previous = YearMonth.of(today.year - 1, today.monthValue)
+        val (prevStart, prevEnd) = monthBounds(previous.year, previous.monthValue)
+
+        fun sum(start: Long, end: Long): Long {
+            var s = 0L
+            for (row in txns) {
+                val t = row.transaction
+                if (t.type != TransactionType.EXPENSE.name) continue
+                if (t.occurredAtEpochMillis !in start until end) continue
+                val c = FxConverter.convertMinor(t.amountMinor, t.currencyCode, homeCurrency, fxRates) ?: t.amountMinor
+                s += c
+            }
+            return s
+        }
+
+        val currentExpenseMinor = sum(curStart, curEnd)
+        val previousExpenseMinor = sum(prevStart, prevEnd)
+        val percentChange = if (previousExpenseMinor > 0L) {
+            ((currentExpenseMinor - previousExpenseMinor).toDouble() / previousExpenseMinor.toDouble()).toFloat()
+        } else 0f
+        val isNewSpending = previousExpenseMinor == 0L && currentExpenseMinor > 0L
+
         return YearOverYear(
-            currentMonthLabel = currentLabel,
-            previousMonthLabel = previousLabel,
-            currentExpenseMinor = 0L,
-            previousExpenseMinor = 0L,
-            percentChange = 0f,
-            isNewSpending = false,
+            currentMonthLabel = monthLabel(nowMs),
+            previousMonthLabel = monthLabel(
+                previous.atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            ),
+            currentExpenseMinor = currentExpenseMinor,
+            previousExpenseMinor = previousExpenseMinor,
+            percentChange = percentChange,
+            isNewSpending = isNewSpending,
         )
     }
 }
