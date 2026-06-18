@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.QueryStats
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -39,6 +40,7 @@ internal enum class BottomTab(
     // add-edit route via the onAddClick callback wired from AppNavHost.
     Budget(Routes.BUDGET, R.string.nav_budget, Icons.Filled.AccountBalanceWallet),
     Trends(Routes.TRENDS, R.string.nav_trends, Icons.Filled.Assessment),
+    Statistics(Routes.STATISTICS, R.string.nav_statistics, Icons.Filled.QueryStats),
     More(Routes.MORE, R.string.nav_more, Icons.Filled.MoreHoriz),
 }
 
