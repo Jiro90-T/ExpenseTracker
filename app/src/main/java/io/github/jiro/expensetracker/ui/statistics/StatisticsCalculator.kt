@@ -107,16 +107,65 @@ object StatisticsCalculator {
         homeCurrency: String,
         fxRates: Map<String, Double>,
         nowMs: Long,
-    ): SavingsAndAverage = SavingsAndAverage(
-        monthLabel = monthLabel(nowMs),
-        incomeMinor = 0L,
-        expenseMinor = 0L,
-        netMinor = 0L,
-        savingsRate = 0f,
-        averageMonthlyExpenseMinor = 0L,
-        topTransactionMinor = 0L,
-        averageMonthlySampleMonths = 0,
-    )
+    ): SavingsAndAverage {
+        val today = Instant.ofEpochMilli(nowMs).atZone(ZoneId.systemDefault()).toLocalDate()
+        val (monthStart, monthEnd) = monthBounds(today.year, today.monthValue)
+
+        var incomeMinor = 0L
+        var expenseMinor = 0L
+        var topTransactionMinor = 0L
+
+        for (row in txns) {
+            val t = row.transaction
+            val converted = FxConverter.convertMinor(t.amountMinor, t.currencyCode, homeCurrency, fxRates) ?: t.amountMinor
+            if (t.occurredAtEpochMillis in monthStart until monthEnd) {
+                if (t.type == TransactionType.INCOME.name) {
+                    incomeMinor += converted
+                } else if (t.type == TransactionType.EXPENSE.name) {
+                    expenseMinor += converted
+                    if (converted > topTransactionMinor) topTransactionMinor = converted
+                }
+            }
+        }
+
+        val netMinor = incomeMinor - expenseMinor
+        val savingsRate = if (incomeMinor > 0L) {
+            ((netMinor.toDouble()) / incomeMinor.toDouble()).toFloat().coerceIn(0f, 1f)
+        } else 0f
+
+        // Average over the 6 calendar months immediately preceding [today].
+        var sumPrior = 0L
+        var monthsWithData = 0
+        for (offset in 1..6) {
+            val ym = YearMonth.of(today.year, today.monthValue).minusMonths(offset.toLong())
+            val (s, e) = monthBounds(ym.year, ym.monthValue)
+            var monthTotal = 0L
+            for (row in txns) {
+                val t = row.transaction
+                if (t.type != TransactionType.EXPENSE.name) continue
+                if (t.occurredAtEpochMillis in s until e) {
+                    val c = FxConverter.convertMinor(t.amountMinor, t.currencyCode, homeCurrency, fxRates) ?: t.amountMinor
+                    monthTotal += c
+                }
+            }
+            if (monthTotal > 0L) {
+                sumPrior += monthTotal
+                monthsWithData++
+            }
+        }
+        val averageMonthlyExpenseMinor = if (monthsWithData >= 3) sumPrior / 6L else 0L
+
+        return SavingsAndAverage(
+            monthLabel = monthLabel(nowMs),
+            incomeMinor = incomeMinor,
+            expenseMinor = expenseMinor,
+            netMinor = netMinor,
+            savingsRate = savingsRate,
+            averageMonthlyExpenseMinor = averageMonthlyExpenseMinor,
+            topTransactionMinor = topTransactionMinor,
+            averageMonthlySampleMonths = monthsWithData,
+        )
+    }
 
     fun dayOfWeekPattern(
         txns: List<TransactionWithCategory>,

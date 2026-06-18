@@ -190,4 +190,100 @@ class StatisticsCalculatorTest {
         assertEquals(1, out.slices.size)
         assertEquals(500L, out.slices[0].amountMinor)
     }
+
+    // ---- savingsAndAverage ----
+
+    @Test
+    fun savingsAndAverage_basicIncomeAndExpense() {
+        val txns = listOf(
+            income(1L, 500_000L, date(2026, 6, 1)),
+            txn(2L, "Coffee", 1_000L, "USD", "EXPENSE", 1L, date(2026, 6, 5)),
+            txn(3L, "Lunch", 4_000L, "USD", "EXPENSE", 2L, date(2026, 6, 6)),
+        )
+        val out = StatisticsCalculator.savingsAndAverage(txns, "USD", emptyMap(), nowMs)
+        assertEquals(500_000L, out.incomeMinor)
+        assertEquals(5_000L, out.expenseMinor)
+        assertEquals(495_000L, out.netMinor)
+        // (500000 - 5000) / 500000 = 0.99
+        assertEquals(0.99f, out.savingsRate, 0.001f)
+        assertEquals(4_000L, out.topTransactionMinor)
+    }
+
+    @Test
+    fun savingsAndAverage_zeroIncome_returnsZeroRate() {
+        val txns = listOf(
+            txn(1L, "Coffee", 1_000L, "USD", "EXPENSE", 1L, date(2026, 6, 5)),
+        )
+        val out = StatisticsCalculator.savingsAndAverage(txns, "USD", emptyMap(), nowMs)
+        assertEquals(0f, out.savingsRate, 0.0001f)
+    }
+
+    @Test
+    fun savingsAndAverage_expenseExceedsIncome_clampsToZero() {
+        val txns = listOf(
+            income(1L, 100L, date(2026, 6, 1)),
+            txn(2L, "Big", 5_000L, "USD", "EXPENSE", 1L, date(2026, 6, 5)),
+        )
+        val out = StatisticsCalculator.savingsAndAverage(txns, "USD", emptyMap(), nowMs)
+        assertEquals(0f, out.savingsRate, 0.0001f)
+    }
+
+    @Test
+    fun savingsAndAverage_averageOverSixCompletedMonths() {
+        // nowMs = Jun 17 2026. Six prior completed months: Dec, Jan, Feb, Mar, Apr, May.
+        val priorMonthExpenses = mapOf(
+            2025 to listOf(12 to 1000L),                  // Dec 2025
+            2026 to listOf(1 to 2000L, 2 to 3000L,        // Jan, Feb, Mar, Apr, May 2026
+                            3 to 4000L, 4 to 5000L, 5 to 6000L),
+        )
+        val txns = mutableListOf<TransactionWithCategory>()
+        for ((year, months) in priorMonthExpenses) {
+            for ((month, amt) in months) {
+                txns += txn(txns.size + 1L, "X", amt, "USD", "EXPENSE", 1L, date(year, month, 15))
+            }
+        }
+        // Plus an unrelated row in current month (Jun 2026) — must be excluded.
+        txns += txn(99L, "Jun", 7_777L, "USD", "EXPENSE", 1L, date(2026, 6, 5))
+        val out = StatisticsCalculator.savingsAndAverage(txns, "USD", emptyMap(), nowMs)
+        // sum = 1000+2000+3000+4000+5000+6000 = 21000; avg = 21000/6 = 3500
+        assertEquals(3_500L, out.averageMonthlyExpenseMinor)
+        assertEquals(6, out.averageMonthlySampleMonths)
+        // Top transaction is the Jun one (current month), not the May one.
+        assertEquals(7_777L, out.topTransactionMinor)
+    }
+
+    @Test
+    fun savingsAndAverage_averageReturnsZeroWhenLessThanThreeMonths() {
+        // Only 2 prior completed months have data.
+        val txns = listOf(
+            txn(1L, "X", 1000L, "USD", "EXPENSE", 1L, date(2026, 4, 15)),
+            txn(2L, "X", 2000L, "USD", "EXPENSE", 1L, date(2026, 5, 15)),
+        )
+        val out = StatisticsCalculator.savingsAndAverage(txns, "USD", emptyMap(), nowMs)
+        assertEquals(0L, out.averageMonthlyExpenseMinor)
+        assertEquals(2, out.averageMonthlySampleMonths)
+    }
+
+    @Test
+    fun savingsAndAverage_topTransaction() {
+        val txns = listOf(
+            txn(1L, "A", 100L, "USD", "EXPENSE", 1L, date(2026, 6, 1)),
+            txn(2L, "B", 9_999L, "USD", "EXPENSE", 2L, date(2026, 6, 5)),
+            txn(3L, "C", 50L, "USD", "EXPENSE", 3L, date(2026, 6, 6)),
+        )
+        val out = StatisticsCalculator.savingsAndAverage(txns, "USD", emptyMap(), nowMs)
+        assertEquals(9_999L, out.topTransactionMinor)
+    }
+
+    @Test
+    fun savingsAndAverage_emptyTxns() {
+        val out = StatisticsCalculator.savingsAndAverage(emptyList(), "USD", emptyMap(), nowMs)
+        assertEquals(0L, out.incomeMinor)
+        assertEquals(0L, out.expenseMinor)
+        assertEquals(0L, out.netMinor)
+        assertEquals(0f, out.savingsRate, 0.0001f)
+        assertEquals(0L, out.averageMonthlyExpenseMinor)
+        assertEquals(0L, out.topTransactionMinor)
+        assertEquals(0, out.averageMonthlySampleMonths)
+    }
 }
