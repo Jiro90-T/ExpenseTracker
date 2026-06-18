@@ -69,7 +69,38 @@ object StatisticsCalculator {
         homeCurrency: String,
         fxRates: Map<String, Double>,
         nowMs: Long,
-    ): TopCategoriesResult = TopCategoriesResult(monthLabel(nowMs), emptyList(), 0)
+    ): TopCategoriesResult {
+        val today = Instant.ofEpochMilli(nowMs).atZone(ZoneId.systemDefault()).toLocalDate()
+        val (monthStart, monthEnd) = monthBounds(today.year, today.monthValue)
+        val catsById = cats.associateBy { it.id }
+
+        val byCategory = mutableMapOf<Long, Long>()
+        var missingRateCount = 0
+
+        for (row in txns) {
+            val t = row.transaction
+            if (t.type != TransactionType.EXPENSE.name) continue
+            if (t.occurredAtEpochMillis < monthStart || t.occurredAtEpochMillis >= monthEnd) continue
+            val converted = FxConverter.convertMinor(t.amountMinor, t.currencyCode, homeCurrency, fxRates)
+            if (converted == null && t.currencyCode != homeCurrency) {
+                missingRateCount++
+            }
+            val contribution = converted ?: t.amountMinor
+            byCategory[t.categoryId] = (byCategory[t.categoryId] ?: 0L) + contribution
+        }
+
+        val sorted = byCategory.entries.sortedByDescending { it.value }
+        val top5 = sorted.take(5)
+        val rest = sorted.drop(5)
+        val slices = top5.map { (id, amt) ->
+            val name = catsById[id]?.name ?: "Other"
+            CategorySpend(categoryId = id, categoryName = name, amountMinor = amt)
+        }
+        val withOther = if (rest.isEmpty()) slices
+        else slices + CategorySpend(categoryId = -1L, categoryName = "Other", amountMinor = rest.sumOf { it.value })
+
+        return TopCategoriesResult(monthLabel(nowMs), withOther, missingRateCount)
+    }
 
     fun savingsAndAverage(
         txns: List<TransactionWithCategory>,
