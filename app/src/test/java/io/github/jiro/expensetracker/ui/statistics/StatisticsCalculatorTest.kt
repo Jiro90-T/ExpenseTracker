@@ -286,4 +286,62 @@ class StatisticsCalculatorTest {
         assertEquals(0L, out.topTransactionMinor)
         assertEquals(0, out.averageMonthlySampleMonths)
     }
+
+    // ---- dayOfWeek ----
+
+    @Test
+    fun dayOfWeek_alwaysReturnsSevenBuckets() {
+        val out = StatisticsCalculator.dayOfWeekPattern(emptyList(), "USD", emptyMap(), nowMs)
+        assertEquals(7, out.size)
+        // Ordered Mon..Sun
+        assertEquals(1, out[0].isoDayOfWeek)
+        assertEquals(7, out[6].isoDayOfWeek)
+        assertTrue(out.all { it.amountMinor == 0L })
+    }
+
+    @Test
+    fun dayOfWeek_sumsAcrossMultipleWeeks() {
+        // nowMs = Jun 17 2026 (Wednesday). Add expenses on 3 Mondays within 90 days.
+        // Mondays before Jun 17 2026 within 90d: Jun 8, Jun 1, May 25.
+        val txns = listOf(
+            txn(1L, "A", 100L, "USD", "EXPENSE", 1L, date(2026, 6, 8)),   // Mon
+            txn(2L, "B", 200L, "USD", "EXPENSE", 1L, date(2026, 6, 1)),   // Mon
+            txn(3L, "C", 50L, "USD", "EXPENSE", 2L, date(2026, 6, 3)),    // Wed
+        )
+        val out = StatisticsCalculator.dayOfWeekPattern(txns, "USD", emptyMap(), nowMs)
+        val monday = out.first { it.isoDayOfWeek == 1 }
+        val wednesday = out.first { it.isoDayOfWeek == 3 }
+        assertEquals(300L, monday.amountMinor)
+        assertEquals(50L, wednesday.amountMinor)
+    }
+
+    @Test
+    fun dayOfWeek_excludesIncome() {
+        val txns = listOf(
+            income(1L, 5_000L, date(2026, 6, 8)),
+        )
+        val out = StatisticsCalculator.dayOfWeekPattern(txns, "USD", emptyMap(), nowMs)
+        assertTrue(out.all { it.amountMinor == 0L })
+    }
+
+    @Test
+    fun dayOfWeek_usesHomeCurrency() {
+        val txns = listOf(
+            txn(1L, "A", 100_00L, "EUR", "EXPENSE", 1L, date(2026, 6, 8)),
+        )
+        val rates = mapOf("EUR_to_USD" to 1.10)
+        val out = StatisticsCalculator.dayOfWeekPattern(txns, "USD", rates, nowMs)
+        val monday = out.first { it.isoDayOfWeek == 1 }
+        assertEquals(11000L, monday.amountMinor)
+    }
+
+    @Test
+    fun dayOfWeek_respects90DayWindow() {
+        val txns = listOf(
+            txn(1L, "Old", 999L, "USD", "EXPENSE", 1L, date(2026, 2, 1)),   // > 90 days before Jun 17
+            txn(2L, "New", 500L, "USD", "EXPENSE", 1L, date(2026, 6, 1)),
+        )
+        val out = StatisticsCalculator.dayOfWeekPattern(txns, "USD", emptyMap(), nowMs)
+        assertTrue(out.all { it.amountMinor == 500L || it.amountMinor == 0L })
+    }
 }

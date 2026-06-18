@@ -172,7 +172,20 @@ object StatisticsCalculator {
         homeCurrency: String,
         fxRates: Map<String, Double>,
         nowMs: Long,
-    ): List<DayOfWeekBucket> = (1..7).map { DayOfWeekBucket(it, 0L) }
+    ): List<DayOfWeekBucket> {
+        val zone = ZoneId.systemDefault()
+        val windowStart = nowMs - 90L * 24L * 3600L * 1000L
+        val sums = LongArray(8) // index 1..7
+        for (row in txns) {
+            val t = row.transaction
+            if (t.type != TransactionType.EXPENSE.name) continue
+            if (t.occurredAtEpochMillis < windowStart || t.occurredAtEpochMillis > nowMs) continue
+            val dow = Instant.ofEpochMilli(t.occurredAtEpochMillis).atZone(zone).toLocalDate().dayOfWeek.value
+            val converted = FxConverter.convertMinor(t.amountMinor, t.currencyCode, homeCurrency, fxRates) ?: t.amountMinor
+            sums[dow] += converted
+        }
+        return (1..7).map { DayOfWeekBucket(it, sums[it]) }
+    }
 
     fun yearOverYear(
         txns: List<TransactionWithCategory>,
