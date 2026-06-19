@@ -108,7 +108,7 @@ data class AddReceiptUiState(
     val type: TransactionType = TransactionType.EXPENSE,
     val categoriesForType: List<CategoryEntity> = emptyList(),
     val selectedCategoryId: Long? = null,
-    val currency: String = "USD",
+    val currency: String = "",   // initialized from SettingsRepository.homeCurrency in VM init
     val note: String = "",
     val isLoaded: Boolean = false,
     val isSaving: Boolean = false,
@@ -127,6 +127,7 @@ class AddReceiptViewModel @Inject constructor(
     private val categoryRepository: CategoryRepository,
     private val receiptRepository: ReceiptRepository,
     private val receiptOcrProcessor: ReceiptOcrProcessor,
+    private val settingsRepository: SettingsRepository,
 ) : AndroidViewModel(application) {
     val state: StateFlow<AddReceiptUiState>
     fun onPhotoCaptured(uri: Uri)
@@ -294,11 +295,10 @@ This refactor matches the existing pure-vs-Android split:
 
 **Repository pattern preserved**: `AddReceiptViewModel` talks to repositories, not DAOs. No new DB schema changes — uses the existing `TransactionEntity` and `CategoryEntity`.
 
-## Open question for the user (will be resolved before plan)
+## Resolved design questions
 
-**Q: Should `AddReceiptScreen` support the same currency dropdown as AddEditTransaction, or default to a fixed currency (e.g., "USD" or the user's home currency from Settings)?**
-
-The MVP default: single currency dropdown matching AddEditTransaction's behavior. User can change. If the user wants a different default, this is a one-line change in the VM init.
+- **Currency on Add Receipt**: reuse the currency dropdown matching AddEditTransaction. Default to the user's home currency from `SettingsRepository.homeCurrency`. User can change before save.
+- **Tests**: `AddReceiptViewModelTest` will need a fake `SettingsRepository` (returns "USD" or whatever the test sets) to keep tests hermetic.
 
 ## Self-review
 
