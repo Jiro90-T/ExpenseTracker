@@ -33,6 +33,17 @@ import kotlinx.coroutines.launch
 /** Stable identifiers for each user-facing error, so the UI can map to a string resource. */
 enum class FormError { TITLE_REQUIRED, AMOUNT_INVALID, CATEGORY_REQUIRED, RECEIPT_SAVE_FAILED }
 
+/** Where a receipt's OCR text came from — drives the snackbar message. */
+enum class ReceiptKind { IMAGE, PDF }
+
+/** Bundles the data needed by the UI to pick the right OCR snackbar string. */
+data class OcrSnackbarMeta(
+    val kind: ReceiptKind,
+    val pagesScanned: Int,
+    val totalPages: Int,
+    val isComplete: Boolean,
+)
+
 data class AddEditTransactionUiState(
     val id: Long? = null,
     val title: String = "",
@@ -71,6 +82,7 @@ data class AddEditTransactionUiState(
      * then calls [consumeOcrSnackbar] to clear it.
      */
     val lastOcrFields: OcrFields? = null,
+    val lastOcrSnackbar: OcrSnackbarMeta? = null,
 
     /**
      * Set true when the user explicitly picks a date via the date picker. Used
@@ -191,13 +203,37 @@ class AddEditTransactionViewModel @Inject constructor(
             }
             _state.update { it.copy(receiptPath = newPath) }
 
-            // Run OCR only for image receipts (not PDFs — would need rasterization).
+            // Run OCR: image → extract(bitmap); PDF → extractFromPdf(path).
             if (newPath.endsWith(".jpg", ignoreCase = true) ||
                 newPath.endsWith(".jpeg", ignoreCase = true) ||
                 newPath.endsWith(".png", ignoreCase = true) ||
                 newPath.endsWith(".webp", ignoreCase = true)
             ) {
-                runOcrAndAutoFill(newPath)
+                val ocr = runImageOcr(newPath)
+                runOcrAndAutoFill(ocr)
+                if (ocr.hasAny) {
+                    _state.update {
+                        it.copy(lastOcrSnackbar = OcrSnackbarMeta(
+                            kind = ReceiptKind.IMAGE,
+                            pagesScanned = 1,
+                            totalPages = 1,
+                            isComplete = ocr.isComplete,
+                        ))
+                    }
+                }
+            } else if (newPath.endsWith(".pdf", ignoreCase = true)) {
+                val pdfResult = receiptOcrProcessor.extractFromPdf(newPath)
+                runOcrAndAutoFill(pdfResult.fields)
+                if (pdfResult.fields.hasAny) {
+                    _state.update {
+                        it.copy(lastOcrSnackbar = OcrSnackbarMeta(
+                            kind = ReceiptKind.PDF,
+                            pagesScanned = pdfResult.pagesScanned,
+                            totalPages = pdfResult.totalPages,
+                            isComplete = pdfResult.fields.isComplete,
+                        ))
+                    }
+                }
             }
         }
     }
@@ -211,23 +247,10 @@ class AddEditTransactionViewModel @Inject constructor(
     }
 
     fun consumeOcrSnackbar() {
-        _state.update { it.copy(lastOcrFields = null) }
+        _state.update { it.copy(lastOcrFields = null, lastOcrSnackbar = null) }
     }
 
-    private suspend fun runOcrAndAutoFill(receiptPath: String) {
-        val file = receiptRepository.absolutePath(receiptPath)
-        if (!file.isFile) return
-        val ocr = try {
-            val bitmap = ImageProcessor.decodeSampledBitmap(file, maxEdge = 2048)
-            try {
-                receiptOcrProcessor.extract(bitmap)
-            } finally {
-                bitmap.recycle()
-            }
-        } catch (e: Exception) {
-            // OCR failure isn't fatal; the receipt is still attached.
-            return
-        }
+    private suspend fun runOcrAndAutoFill(ocr: OcrFields) {
         if (!ocr.hasAny) return
 
         // Pristine-field check: only fill fields the user hasn't touched.
@@ -245,6 +268,22 @@ class AddEditTransactionViewModel @Inject constructor(
             lastOcrFields = ocr,
         )
         _state.update { s }
+    }
+
+    private suspend fun runImageOcr(receiptPath: String): OcrFields {
+        val file = receiptRepository.absolutePath(receiptPath)
+        if (!file.isFile) return OcrFields(null, 0f, null, 0f, null, 0f)
+        return try {
+            val bitmap = ImageProcessor.decodeSampledBitmap(file, maxEdge = 2048)
+            try {
+                receiptOcrProcessor.extract(bitmap)
+            } finally {
+                bitmap.recycle()
+            }
+        } catch (e: Exception) {
+            // OCR failure isn't fatal; the receipt is still attached.
+            OcrFields(null, 0f, null, 0f, null, 0f)
+        }
     }
 
     fun onRecurringToggle(enabled: Boolean) = _state.update {
