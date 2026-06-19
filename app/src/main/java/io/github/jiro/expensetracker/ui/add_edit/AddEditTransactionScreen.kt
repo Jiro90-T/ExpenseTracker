@@ -63,7 +63,7 @@ fun AddEditTransactionScreen(
     onBack: () -> Unit,
     onManageSeries: (String) -> Unit = {},
     onOpenReceipt: (String) -> Unit = {},
-    onOcrSnackbar: (ReceiptKind, Int, Int, Boolean) -> Unit = { _, _, _, _ -> },
+    onOcrSnackbar: () -> Unit = {},
     viewModel: AddEditTransactionViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -74,8 +74,8 @@ fun AddEditTransactionScreen(
     }
 
     LaunchedEffect(state.lastOcrSnackbar) {
-        val meta = state.lastOcrSnackbar ?: return@LaunchedEffect
-        onOcrSnackbar(meta.kind, meta.pagesScanned, meta.totalPages, meta.isComplete)
+        if (!state.lastOcrSnackbar) return@LaunchedEffect
+        onOcrSnackbar()
         viewModel.consumeOcrSnackbar()
     }
 

@@ -10,7 +10,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -21,7 +20,6 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import io.github.jiro.expensetracker.R
 import io.github.jiro.expensetracker.ui.add_edit.AddEditTransactionScreen
-import io.github.jiro.expensetracker.ui.add_edit.ReceiptKind
 import io.github.jiro.expensetracker.ui.add_edit.ReceiptSectionViewModel
 import io.github.jiro.expensetracker.ui.budget.BudgetScreen
 import io.github.jiro.expensetracker.ui.categories.CategoryManagementScreen
@@ -70,7 +68,6 @@ fun AppNavHost(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val snackbarScope = rememberCoroutineScope()
-    val context = LocalContext.current
     val ocrSnackbarMessage = stringResource(R.string.receipt_ocr_snackbar)
 
     Scaffold(
@@ -125,23 +122,9 @@ fun AppNavHost(
                     onOpenReceipt = { path ->
                         navController.navigate("receipts/viewer?path=$path")
                     },
-                    onOcrSnackbar = { kind, pagesScanned, totalPages, isComplete ->
+                    onOcrSnackbar = {
                         snackbarScope.launch {
-                            val message = when (kind) {
-                                ReceiptKind.IMAGE -> ocrSnackbarMessage
-                                ReceiptKind.PDF -> if (pagesScanned >= totalPages) {
-                                    if (isComplete)
-                                        context.getString(R.string.receipt_pdf_scanned)
-                                    else
-                                        context.getString(R.string.receipt_pdf_scanned_partial)
-                                } else {
-                                    if (isComplete)
-                                        context.getString(R.string.receipt_pdf_scanned_capped, pagesScanned, totalPages)
-                                    else
-                                        context.getString(R.string.receipt_pdf_scanned_capped_partial, pagesScanned, totalPages)
-                                }
-                            }
-                            snackbarHostState.showSnackbar(message)
+                            snackbarHostState.showSnackbar(ocrSnackbarMessage)
                         }
                     },
                 )

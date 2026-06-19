@@ -215,10 +215,6 @@
     <string name="receipt_no_receipt">No receipt attached</string>
     <string name="receipt_missing">Receipt file missing</string>
     <string name="receipt_ocr_snackbar">Receipt scanned. Fields filled.</string>
-    <string name="receipt_pdf_scanned">PDF scanned. Fields filled.</string>
-    <string name="receipt_pdf_scanned_partial">PDF scanned. Some fields filled.</string>
-    <string name="receipt_pdf_scanned_capped">PDF scanned (%1$d of %2$d pages). Fields filled.</string>
-    <string name="receipt_pdf_scanned_capped_partial">PDF scanned (%1$d of %2$d pages). Some fields filled.</string>
     <string name="receipt_pdf_badge">PDF</string>
     <string name="receipt_viewer_title">Receipt</string>
     <string name="receipt_viewer_image_missing">Could not load image</string>

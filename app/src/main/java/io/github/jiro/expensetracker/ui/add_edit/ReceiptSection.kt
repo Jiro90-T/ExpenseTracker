@@ -151,7 +151,7 @@ fun ReceiptSection(
                 TextButton(
                     onClick = {
                         showPicker = false
-                        fileLauncher.launch(arrayOf("image/*", "application/pdf"))
+                        fileLauncher.launch(arrayOf("image/*"))
                     },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                 ) { Text(stringResource(R.string.receipt_choose)) }

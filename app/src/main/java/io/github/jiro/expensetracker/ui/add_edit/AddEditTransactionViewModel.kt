@@ -33,17 +33,6 @@ import kotlinx.coroutines.launch
 /** Stable identifiers for each user-facing error, so the UI can map to a string resource. */
 enum class FormError { TITLE_REQUIRED, AMOUNT_INVALID, CATEGORY_REQUIRED, RECEIPT_SAVE_FAILED }
 
-/** Where a receipt's OCR text came from — drives the snackbar message. */
-enum class ReceiptKind { IMAGE, PDF }
-
-/** Bundles the data needed by the UI to pick the right OCR snackbar string. */
-data class OcrSnackbarMeta(
-    val kind: ReceiptKind,
-    val pagesScanned: Int,
-    val totalPages: Int,
-    val isComplete: Boolean,
-)
-
 data class AddEditTransactionUiState(
     val id: Long? = null,
     val title: String = "",
@@ -81,7 +70,7 @@ data class AddEditTransactionUiState(
      * one field was filled. The screen reads this to show a snackbar, then
      * calls [consumeOcrSnackbar] to clear it.
      */
-    val lastOcrSnackbar: OcrSnackbarMeta? = null,
+    val lastOcrSnackbar: Boolean = false,
 
     /**
      * Set true when the user explicitly picks a date via the date picker. Used
@@ -202,7 +191,7 @@ class AddEditTransactionViewModel @Inject constructor(
             }
             _state.update { it.copy(receiptPath = newPath) }
 
-            // Run OCR: image → extract(bitmap); PDF → extractFromPdf(path).
+            // Run OCR (image only — PDF path removed in Phase 2.15).
             runOcrForReceipt(newPath)
         }
     }
@@ -216,7 +205,7 @@ class AddEditTransactionViewModel @Inject constructor(
     }
 
     fun consumeOcrSnackbar() {
-        _state.update { it.copy(lastOcrSnackbar = null) }
+        _state.update { it.copy(lastOcrSnackbar = false) }
     }
 
     private suspend fun runOcrAndAutoFill(ocr: OcrFields) {
@@ -256,32 +245,11 @@ class AddEditTransactionViewModel @Inject constructor(
 
     private suspend fun runOcrForReceipt(path: String) {
         val ext = path.substringAfterLast('.', "").lowercase()
-        val (ocr, meta) = when (ext) {
-            "jpg", "jpeg", "png", "webp" -> {
-                val fields = runImageOcr(path)
-                fields to OcrSnackbarMeta(
-                    kind = ReceiptKind.IMAGE,
-                    pagesScanned = 1,
-                    totalPages = 1,
-                    isComplete = fields.amountMinor != null &&
-                        fields.occurredAtEpochMillis != null &&
-                        fields.merchant != null,
-                )
-            }
-            "pdf" -> {
-                // PDF OCR path removed in Phase 2.15; Task 4 will simplify runOcrForReceipt.
-                OcrFields(null, null, null) to OcrSnackbarMeta(
-                    kind = ReceiptKind.PDF,
-                    pagesScanned = 0,
-                    totalPages = 0,
-                    isComplete = false,
-                )
-            }
-            else -> return  // unknown extension: no OCR
-        }
+        if (ext !in setOf("jpg", "jpeg", "png", "webp")) return
+        val ocr = runImageOcr(path)
         runOcrAndAutoFill(ocr)
         if (ocr.hasAny) {
-            _state.update { it.copy(lastOcrSnackbar = meta) }
+            _state.update { it.copy(lastOcrSnackbar = true) }
         }
     }
 
