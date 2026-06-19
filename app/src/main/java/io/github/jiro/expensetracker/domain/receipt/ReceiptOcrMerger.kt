@@ -1,39 +1,27 @@
 package io.github.jiro.expensetracker.domain.receipt
 
 /**
- * Pure merger for multi-page OCR results. Picks the most-confident non-null
- * value per field across pages. Ties → first page wins.
+ * Pure merger for multi-page OCR results. Picks the first non-null value
+ * per field across pages. No Android types — fully JVM-testable.
  *
- * Note: a page with a non-null value but confidence 0f is still eligible —
- * the filter only checks for non-null. In practice the parser never produces
- * 0f alongside a non-null value, but the contract treats these as "valid input".
- *
- * No Android types — fully JVM-testable.
+ * Phase 2.15: confidence was dropped from OcrFields, so the merger now falls
+ * back to "first non-null" per field. Task 3 deletes this class entirely.
  */
 object ReceiptOcrMerger {
 
     fun merge(pages: List<OcrFields>): OcrFields {
         if (pages.isEmpty()) {
-            return OcrFields(null, 0f, null, 0f, null, 0f)
+            return OcrFields(null, null, null)
         }
 
-        val bestAmount = pages
-            .filter { it.amountMinor != null }
-            .maxByOrNull { it.amountConfidence }
-        val bestDate = pages
-            .filter { it.occurredAtEpochMillis != null }
-            .maxByOrNull { it.dateConfidence }
-        val bestMerchant = pages
-            .filter { it.merchant != null }
-            .maxByOrNull { it.merchantConfidence }
+        val firstAmount = pages.firstOrNull { it.amountMinor != null }
+        val firstDate = pages.firstOrNull { it.occurredAtEpochMillis != null }
+        val firstMerchant = pages.firstOrNull { it.merchant != null }
 
         return OcrFields(
-            amountMinor = bestAmount?.amountMinor,
-            amountConfidence = bestAmount?.amountConfidence ?: 0f,
-            occurredAtEpochMillis = bestDate?.occurredAtEpochMillis,
-            dateConfidence = bestDate?.dateConfidence ?: 0f,
-            merchant = bestMerchant?.merchant,
-            merchantConfidence = bestMerchant?.merchantConfidence ?: 0f,
+            amountMinor = firstAmount?.amountMinor,
+            occurredAtEpochMillis = firstDate?.occurredAtEpochMillis,
+            merchant = firstMerchant?.merchant,
         )
     }
 }

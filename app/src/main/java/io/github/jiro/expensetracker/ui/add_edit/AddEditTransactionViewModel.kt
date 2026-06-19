@@ -240,7 +240,7 @@ class AddEditTransactionViewModel @Inject constructor(
 
     private suspend fun runImageOcr(receiptPath: String): OcrFields {
         val file = receiptRepository.absolutePath(receiptPath)
-        if (!file.isFile) return OcrFields(null, 0f, null, 0f, null, 0f)
+        if (!file.isFile) return OcrFields(null, null, null)
         return try {
             val bitmap = ImageProcessor.decodeSampledBitmap(file, maxEdge = 2048)
             try {
@@ -250,7 +250,7 @@ class AddEditTransactionViewModel @Inject constructor(
             }
         } catch (e: Exception) {
             // OCR failure isn't fatal; the receipt is still attached.
-            OcrFields(null, 0f, null, 0f, null, 0f)
+            OcrFields(null, null, null)
         }
     }
 
@@ -263,7 +263,9 @@ class AddEditTransactionViewModel @Inject constructor(
                     kind = ReceiptKind.IMAGE,
                     pagesScanned = 1,
                     totalPages = 1,
-                    isComplete = fields.isComplete,
+                    isComplete = fields.amountMinor != null &&
+                        fields.occurredAtEpochMillis != null &&
+                        fields.merchant != null,
                 )
             }
             "pdf" -> {
@@ -272,7 +274,9 @@ class AddEditTransactionViewModel @Inject constructor(
                     kind = ReceiptKind.PDF,
                     pagesScanned = result.pagesScanned,
                     totalPages = result.totalPages,
-                    isComplete = result.fields.isComplete,
+                    isComplete = result.fields.amountMinor != null &&
+                        result.fields.occurredAtEpochMillis != null &&
+                        result.fields.merchant != null,
                 )
             }
             else -> return  // unknown extension: no OCR

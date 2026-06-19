@@ -70,7 +70,7 @@ class ReceiptOcrProcessor @Inject constructor(
             0
         }
         if (totalPages == 0) {
-            return@withContext PdfOcrResult(OcrFields(null, 0f, null, 0f, null, 0f), 0, 0)
+            return@withContext PdfOcrResult(OcrFields(null, null, null), 0, 0)
         }
 
         val pageCount = minOf(totalPages, maxPages)
