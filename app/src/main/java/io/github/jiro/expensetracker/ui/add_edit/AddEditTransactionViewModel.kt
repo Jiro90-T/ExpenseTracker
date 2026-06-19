@@ -77,11 +77,10 @@ data class AddEditTransactionUiState(
     // ---- Phase 2.4: receipts ----
     val receiptPath: String? = null,
     /**
-     * One-shot state: set when OCR runs after attaching an image receipt and
-     * at least one field was filled. The screen reads this to show a snackbar,
-     * then calls [consumeOcrSnackbar] to clear it.
+     * One-shot state: set when OCR runs after attaching a receipt and at least
+     * one field was filled. The screen reads this to show a snackbar, then
+     * calls [consumeOcrSnackbar] to clear it.
      */
-    val lastOcrFields: OcrFields? = null,
     val lastOcrSnackbar: OcrSnackbarMeta? = null,
 
     /**
@@ -204,50 +203,20 @@ class AddEditTransactionViewModel @Inject constructor(
             _state.update { it.copy(receiptPath = newPath) }
 
             // Run OCR: image → extract(bitmap); PDF → extractFromPdf(path).
-            if (newPath.endsWith(".jpg", ignoreCase = true) ||
-                newPath.endsWith(".jpeg", ignoreCase = true) ||
-                newPath.endsWith(".png", ignoreCase = true) ||
-                newPath.endsWith(".webp", ignoreCase = true)
-            ) {
-                val ocr = runImageOcr(newPath)
-                runOcrAndAutoFill(ocr)
-                if (ocr.hasAny) {
-                    _state.update {
-                        it.copy(lastOcrSnackbar = OcrSnackbarMeta(
-                            kind = ReceiptKind.IMAGE,
-                            pagesScanned = 1,
-                            totalPages = 1,
-                            isComplete = ocr.isComplete,
-                        ))
-                    }
-                }
-            } else if (newPath.endsWith(".pdf", ignoreCase = true)) {
-                val pdfResult = receiptOcrProcessor.extractFromPdf(newPath)
-                runOcrAndAutoFill(pdfResult.fields)
-                if (pdfResult.fields.hasAny) {
-                    _state.update {
-                        it.copy(lastOcrSnackbar = OcrSnackbarMeta(
-                            kind = ReceiptKind.PDF,
-                            pagesScanned = pdfResult.pagesScanned,
-                            totalPages = pdfResult.totalPages,
-                            isComplete = pdfResult.fields.isComplete,
-                        ))
-                    }
-                }
-            }
+            runOcrForReceipt(newPath)
         }
     }
 
     fun onReceiptRemoved() {
         val current = _state.value.receiptPath
-        _state.update { it.copy(receiptPath = null, lastOcrFields = null) }
+        _state.update { it.copy(receiptPath = null) }
         if (!current.isNullOrBlank()) {
             viewModelScope.launch { receiptRepository.delete(current) }
         }
     }
 
     fun consumeOcrSnackbar() {
-        _state.update { it.copy(lastOcrFields = null, lastOcrSnackbar = null) }
+        _state.update { it.copy(lastOcrSnackbar = null) }
     }
 
     private suspend fun runOcrAndAutoFill(ocr: OcrFields) {
@@ -265,7 +234,6 @@ class AddEditTransactionViewModel @Inject constructor(
             occurredAtEpochMillis = if (ocr.occurredAtEpochMillis != null && !current.dateTouched) {
                 ocr.occurredAtEpochMillis
             } else current.occurredAtEpochMillis,
-            lastOcrFields = ocr,
         )
         _state.update { s }
     }
@@ -283,6 +251,35 @@ class AddEditTransactionViewModel @Inject constructor(
         } catch (e: Exception) {
             // OCR failure isn't fatal; the receipt is still attached.
             OcrFields(null, 0f, null, 0f, null, 0f)
+        }
+    }
+
+    private suspend fun runOcrForReceipt(path: String) {
+        val ext = path.substringAfterLast('.', "").lowercase()
+        val (ocr, meta) = when (ext) {
+            "jpg", "jpeg", "png", "webp" -> {
+                val fields = runImageOcr(path)
+                fields to OcrSnackbarMeta(
+                    kind = ReceiptKind.IMAGE,
+                    pagesScanned = 1,
+                    totalPages = 1,
+                    isComplete = fields.isComplete,
+                )
+            }
+            "pdf" -> {
+                val result = receiptOcrProcessor.extractFromPdf(path)
+                result.fields to OcrSnackbarMeta(
+                    kind = ReceiptKind.PDF,
+                    pagesScanned = result.pagesScanned,
+                    totalPages = result.totalPages,
+                    isComplete = result.fields.isComplete,
+                )
+            }
+            else -> return  // unknown extension: no OCR
+        }
+        runOcrAndAutoFill(ocr)
+        if (ocr.hasAny) {
+            _state.update { it.copy(lastOcrSnackbar = meta) }
         }
     }
 
