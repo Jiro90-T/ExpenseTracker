@@ -4,6 +4,10 @@ package io.github.jiro.expensetracker.domain.receipt
  * Pure merger for multi-page OCR results. Picks the most-confident non-null
  * value per field across pages. Ties → first page wins.
  *
+ * Note: a page with a non-null value but confidence 0f is still eligible —
+ * the filter only checks for non-null. In practice the parser never produces
+ * 0f alongside a non-null value, but the contract treats these as "valid input".
+ *
  * No Android types — fully JVM-testable.
  */
 object ReceiptOcrMerger {
