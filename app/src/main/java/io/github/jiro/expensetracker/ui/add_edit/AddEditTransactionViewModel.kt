@@ -269,14 +269,12 @@ class AddEditTransactionViewModel @Inject constructor(
                 )
             }
             "pdf" -> {
-                val result = receiptOcrProcessor.extractFromPdf(path)
-                result.fields to OcrSnackbarMeta(
+                // PDF OCR path removed in Phase 2.15; Task 4 will simplify runOcrForReceipt.
+                OcrFields(null, null, null) to OcrSnackbarMeta(
                     kind = ReceiptKind.PDF,
-                    pagesScanned = result.pagesScanned,
-                    totalPages = result.totalPages,
-                    isComplete = result.fields.amountMinor != null &&
-                        result.fields.occurredAtEpochMillis != null &&
-                        result.fields.merchant != null,
+                    pagesScanned = 0,
+                    totalPages = 0,
+                    isComplete = false,
                 )
             }
             else -> return  // unknown extension: no OCR
