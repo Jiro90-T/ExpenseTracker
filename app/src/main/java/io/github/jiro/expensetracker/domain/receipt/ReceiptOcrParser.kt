@@ -8,11 +8,18 @@ package io.github.jiro.expensetracker.domain.receipt
  */
 data class OcrFields(
     val amountMinor: Long?,
+    val amountConfidence: Float,        // 0f when amountMinor == null, else 0.6f..1.0f
     val occurredAtEpochMillis: Long?,
+    val dateConfidence: Float,          // 0f when occurredAtEpochMillis == null, else 0.6f..1.0f
     val merchant: String?,
+    val merchantConfidence: Float,      // 0f when merchant == null, else 0.7f..1.0f
 ) {
     val hasAny: Boolean
         get() = amountMinor != null || occurredAtEpochMillis != null || merchant != null
+
+    /** True iff all three fields are non-null. */
+    val isComplete: Boolean
+        get() = amountMinor != null && occurredAtEpochMillis != null && merchant != null
 }
 
 /**
@@ -32,16 +39,22 @@ object ReceiptOcrParser {
      */
     fun parse(text: String): OcrFields {
         val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
-        val amountMinor = parseAmount(lines)
-        val date = parseDate(text)
-        val merchant = pickMerchant(lines)
-        return OcrFields(amountMinor, date, merchant)
+        val (amount, amountConf) = parseAmount(lines)
+        val (date, dateConf) = parseDate(text)
+        val (merchant, merchantConf) = pickMerchant(lines)
+        return OcrFields(
+            amountMinor = amount,
+            amountConfidence = amountConf,
+            occurredAtEpochMillis = date,
+            dateConfidence = dateConf,
+            merchant = merchant,
+            merchantConfidence = merchantConf,
+        )
     }
 
-    /** Find a plausible total. Prefer lines containing a total keyword; otherwise
-     *  the largest value in the receipt. Skip percentages. */
-    private fun parseAmount(lines: List<String>): Long? {
-        val candidates = mutableListOf<Pair<String, Long>>()  // (lineText, minorUnits)
+    /** Returns (value, confidence). Confidence is 0f when value is null. */
+    private fun parseAmount(lines: List<String>): Pair<Long?, Float> {
+        val candidates = mutableListOf<Pair<String, Long>>()
 
         val currencyRegex = Regex("""\$?\s?(\d{1,6}(?:[.,]\d{2}))""")
         for (line in lines) {
@@ -55,32 +68,31 @@ object ReceiptOcrParser {
             }
         }
 
-        // Skip lines that look like percentages (digits followed by %).
         val nonPct = candidates.filterNot { (line, _) ->
             Regex("""\d+\s*%""").containsMatchIn(line)
         }
-        if (nonPct.isEmpty()) return null
+        if (nonPct.isEmpty()) return null to 0f
 
         val withKeyword = nonPct.filter { (line, _) ->
             TOTAL_KEYWORDS.any { kw -> line.contains(kw) }
         }
-        val chosen = withKeyword.maxByOrNull { it.second }
-            ?: nonPct.maxByOrNull { it.second }
-        return chosen?.second
+        return if (withKeyword.isNotEmpty()) {
+            withKeyword.maxBy { it.second }.second to 1.0f
+        } else {
+            nonPct.maxBy { it.second }.second to 0.6f
+        }
     }
 
-    /** Try common date formats. The first parseable match wins. */
-    private fun parseDate(text: String): Long? {
-        // ISO: 2026-06-09
+    /** Returns (value, confidence). Confidence is 0f when value is null. */
+    private fun parseDate(text: String): Pair<Long?, Float> {
         val iso = Regex("""\b(\d{4})-(\d{2})-(\d{2})\b""").find(text)
         if (iso != null) {
             val cal = java.util.Calendar.getInstance()
             cal.set(iso.groupValues[1].toInt(), iso.groupValues[2].toInt() - 1, iso.groupValues[3].toInt(), 0, 0, 0)
             cal.set(java.util.Calendar.MILLISECOND, 0)
-            return cal.timeInMillis
+            return cal.timeInMillis to 1.0f
         }
 
-        // European dot: 09.06.2026  (DD.MM.YYYY)
         val eu = Regex("""\b(\d{2})\.(\d{2})\.(\d{4})\b""").find(text)
         if (eu != null) {
             val day = eu.groupValues[1].toInt()
@@ -90,44 +102,43 @@ object ReceiptOcrParser {
                 val cal = java.util.Calendar.getInstance()
                 cal.set(year, mon - 1, day, 0, 0, 0)
                 cal.set(java.util.Calendar.MILLISECOND, 0)
-                return cal.timeInMillis
+                return cal.timeInMillis to 0.9f
             }
         }
 
-        // Slash, ambiguous; assume US MM/DD/YYYY first, fall back to DD/MM/YYYY
         val slash = Regex("""\b(\d{1,2})/(\d{1,2})/(\d{4})\b""").find(text)
         if (slash != null) {
             val a = slash.groupValues[1].toInt()
             val b = slash.groupValues[2].toInt()
             val year = slash.groupValues[3].toInt()
-            // Try US: MM/DD/YYYY
             if (a in 1..12 && b in 1..31) {
                 val cal = java.util.Calendar.getInstance()
                 cal.set(year, a - 1, b, 0, 0, 0)
                 cal.set(java.util.Calendar.MILLISECOND, 0)
-                return cal.timeInMillis
+                return cal.timeInMillis to 0.7f
             }
-            // Fall back to DD/MM/YYYY
             if (b in 1..12 && a in 1..31) {
                 val cal = java.util.Calendar.getInstance()
                 cal.set(year, b - 1, a, 0, 0, 0)
                 cal.set(java.util.Calendar.MILLISECOND, 0)
-                return cal.timeInMillis
+                return cal.timeInMillis to 0.6f
             }
         }
-        return null
+        return null to 0f
     }
 
-    /** First non-trivial line that isn't a known header word. */
-    private fun pickMerchant(lines: List<String>): String? {
+    /** Returns (value, confidence). Confidence is 0f when value is null. */
+    private fun pickMerchant(lines: List<String>): Pair<String?, Float> {
         for (raw in lines) {
             val line = raw.trim()
             if (line.isEmpty()) continue
             if (line.length < 3) continue
             if (line.all { it.isDigit() || it.isWhitespace() || it == '$' || it == '.' || it == ',' }) continue
             if (SKIP_HEADERS.any { line.equals(it, ignoreCase = true) }) continue
-            return line.take(60)
+            val kept = line.take(60)
+            val confidence = if (line.length >= 10 && line.any { it.isLetter() }) 1.0f else 0.7f
+            return kept to confidence
         }
-        return null
+        return null to 0f
     }
 }

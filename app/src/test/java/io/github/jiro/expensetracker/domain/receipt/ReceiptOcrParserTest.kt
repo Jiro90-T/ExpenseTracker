@@ -1,6 +1,7 @@
 package io.github.jiro.expensetracker.domain.receipt
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -135,5 +136,74 @@ class ReceiptOcrParserTest {
         assertEquals(2026, java.util.Calendar.getInstance().apply {
             timeInMillis = f.occurredAtEpochMillis!!
         }.get(java.util.Calendar.YEAR))
+    }
+
+    // ---- confidence scores (Phase 2.14) ----
+
+    @Test
+    fun parseAmount_totalKeyword_hasConfidence1() {
+        val out = ReceiptOcrParser.parse(
+            "Subtotal: \$5.00\nTax: \$0.40\nTotal: \$5.40"
+        )
+        assertEquals(540L, out.amountMinor)
+        assertEquals(1.0f, out.amountConfidence, 0.0001f)
+    }
+
+    @Test
+    fun parseAmount_fallbackLargest_hasConfidence06() {
+        val out = ReceiptOcrParser.parse("Item 1 \$2.00\nItem 2 \$8.00\nItem 3 \$3.00")
+        assertEquals(800L, out.amountMinor)
+        assertEquals(0.6f, out.amountConfidence, 0.0001f)
+    }
+
+    @Test
+    fun parseAmount_percentageOnly_returnsNullWithZeroConfidence() {
+        val out = ReceiptOcrParser.parse("Discount 10%")
+        assertNull(out.amountMinor)
+        assertEquals(0f, out.amountConfidence, 0.0001f)
+    }
+
+    @Test
+    fun parseDate_iso_hasConfidence1() {
+        val out = ReceiptOcrParser.parse("Date: 2026-06-09")
+        assertNotNull(out.occurredAtEpochMillis)
+        assertEquals(1.0f, out.dateConfidence, 0.0001f)
+    }
+
+    @Test
+    fun parseDate_euDot_hasConfidence09() {
+        val out = ReceiptOcrParser.parse("Date: 09.06.2026")
+        assertNotNull(out.occurredAtEpochMillis)
+        assertEquals(0.9f, out.dateConfidence, 0.0001f)
+    }
+
+    @Test
+    fun parseDate_usSlash_hasConfidence07() {
+        val out = ReceiptOcrParser.parse("Date: 06/09/2026")
+        assertNotNull(out.occurredAtEpochMillis)
+        assertEquals(0.7f, out.dateConfidence, 0.0001f)
+    }
+
+    @Test
+    fun parseDate_ddmmSlashFallback_hasConfidence06() {
+        // 20/06/2026 — a=20 is not a valid month in MM/DD, b=6 is valid MM in DD/MM
+        val out = ReceiptOcrParser.parse("Date: 20/06/2026")
+        assertNotNull(out.occurredAtEpochMillis)
+        assertEquals(0.6f, out.dateConfidence, 0.0001f)
+    }
+
+    @Test
+    fun pickMerchant_longHasLetters_hasConfidence1() {
+        val out = ReceiptOcrParser.parse("Coffee & Co Downtown\n\$4.50")
+        assertEquals("Coffee & Co Downtown", out.merchant)
+        assertEquals(1.0f, out.merchantConfidence, 0.0001f)
+    }
+
+    @Test
+    fun pickMerchant_shortButAcceptable_hasConfidence07() {
+        // 4 chars (>= 3 minimum, < 10 high-confidence threshold) and has letters
+        val out = ReceiptOcrParser.parse("Nana\n\$4.50")
+        assertEquals("Nana", out.merchant)
+        assertEquals(0.7f, out.merchantConfidence, 0.0001f)
     }
 }
