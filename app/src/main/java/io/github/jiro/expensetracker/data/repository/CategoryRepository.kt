@@ -8,12 +8,12 @@ import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 
 @Singleton
-class CategoryRepository @Inject constructor(
+open class CategoryRepository @Inject constructor(
     private val dao: CategoryDao,
 ) {
     fun observeAll(): Flow<List<CategoryEntity>> = dao.observeAll()
 
-    fun observeByType(type: TransactionType): Flow<List<CategoryEntity>> =
+    open fun observeByType(type: TransactionType): Flow<List<CategoryEntity>> =
         dao.observeByType(type.name)
 
     suspend fun count(): Int = dao.count()

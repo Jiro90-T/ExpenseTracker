@@ -50,6 +50,14 @@ android {
         }
     }
 
+    testOptions {
+        // Make unmocked Android framework calls return defaults instead of
+        // throwing RuntimeException. Required for fakes of Hilt-injected
+        // classes whose constructors touch Context.filesDir /
+        // SharedPreferences (ReceiptRepository, SettingsRepository).
+        unitTests.isReturnDefaultValues = true
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

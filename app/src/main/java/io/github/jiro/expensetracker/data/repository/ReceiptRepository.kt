@@ -60,12 +60,18 @@ object ReceiptPaths {
  * free of Android dependencies and JVM-testable.
  */
 @Singleton
-class ReceiptRepository @Inject constructor(
+open class ReceiptRepository @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
-    val receiptsDir: File = File(context.filesDir, "receipts").apply { mkdirs() }
+    /**
+     * Lazily computed so the constructor doesn't touch Android IO. Test-only
+     * subclasses can override this entirely (it's an open property).
+     */
+    open val receiptsDir: File by lazy {
+        File(context.filesDir, "receipts").apply { mkdirs() }
+    }
 
-    fun absolutePath(relativePath: String): File = ReceiptPaths.absolutePath(receiptsDir, relativePath)
+    open fun absolutePath(relativePath: String): File = ReceiptPaths.absolutePath(receiptsDir, relativePath)
     fun exists(relativePath: String): Boolean = ReceiptPaths.exists(receiptsDir, relativePath)
     suspend fun delete(relativePath: String): Boolean = withContext(Dispatchers.IO) {
         ReceiptPaths.delete(receiptsDir, relativePath)
@@ -75,7 +81,7 @@ class ReceiptRepository @Inject constructor(
      * Copy a receipt from a content [Uri] into our internal storage. Returns
      * the relative path the caller should persist on the [TransactionEntity].
      */
-    suspend fun saveFromUri(context: Context, src: Uri): String = withContext(Dispatchers.IO) {
+    open suspend fun saveFromUri(context: Context, src: Uri): String = withContext(Dispatchers.IO) {
         val mime = context.contentResolver.getType(src) ?: ""
         when {
             mime == "application/pdf" -> copyBytesAsIs(src, context, ext = "pdf")

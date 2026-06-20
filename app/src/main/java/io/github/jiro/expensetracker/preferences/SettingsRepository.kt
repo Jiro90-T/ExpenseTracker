@@ -14,13 +14,22 @@ import kotlinx.coroutines.flow.asStateFlow
 enum class ThemePreference { SYSTEM, LIGHT, DARK }
 
 @Singleton
-class SettingsRepository @Inject constructor(
-    @ApplicationContext context: Context,
+open class SettingsRepository @Inject constructor(
+    @ApplicationContext private val context: Context,
 ) {
-    private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    /**
+     * Lazily resolves the SharedPreferences. The property is `open` so
+     * test-only subclasses can override it to skip Android IO during JVM
+     * unit tests (where `context.getSharedPreferences` returns null under
+     * `unitTests.isReturnDefaultValues = true`).
+     */
+    protected open val prefsLazy: android.content.SharedPreferences by lazy {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    }
+    private val prefs: android.content.SharedPreferences get() = prefsLazy
 
-    private val _theme = MutableStateFlow(loadTheme())
-    val theme: StateFlow<ThemePreference> = _theme.asStateFlow()
+    private val _theme: MutableStateFlow<ThemePreference> by lazy { MutableStateFlow(loadTheme()) }
+    val theme: StateFlow<ThemePreference> by lazy { _theme.asStateFlow() }
 
     fun setTheme(value: ThemePreference) {
         prefs.edit { putString(KEY_THEME, value.name) }
@@ -38,10 +47,10 @@ class SettingsRepository @Inject constructor(
      * The currency that dashboard and chart totals are denominated in.
      * Defaults to USD until the user picks something else.
      */
-    private val _homeCurrency = MutableStateFlow(loadHomeCurrency())
-    val homeCurrency: StateFlow<String> = _homeCurrency.asStateFlow()
+    private val _homeCurrency: MutableStateFlow<String> by lazy { MutableStateFlow(loadHomeCurrency()) }
+    open val homeCurrency: StateFlow<String> by lazy { _homeCurrency.asStateFlow() }
 
-    fun setHomeCurrency(code: String) {
+    open fun setHomeCurrency(code: String) {
         prefs.edit { putString(KEY_HOME_CURRENCY, code) }
         _homeCurrency.value = code
     }
@@ -54,8 +63,8 @@ class SettingsRepository @Inject constructor(
      * Persisted as a single "key=value;..." string for SharedPreferences round-trip.
      * Empty when the user hasn't entered any rates (UI will show a warning).
      */
-    private val _fxRates = MutableStateFlow(loadFxRates())
-    val fxRates: StateFlow<Map<String, Double>> = _fxRates.asStateFlow()
+    private val _fxRates: MutableStateFlow<Map<String, Double>> by lazy { MutableStateFlow(loadFxRates()) }
+    val fxRates: StateFlow<Map<String, Double>> by lazy { _fxRates.asStateFlow() }
 
     fun setFxRate(from: String, to: String, rate: Double) {
         if (from.isBlank() || to.isBlank() || rate < 0.0) return

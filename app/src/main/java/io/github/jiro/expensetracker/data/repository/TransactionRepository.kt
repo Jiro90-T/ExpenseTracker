@@ -15,7 +15,7 @@ import kotlinx.coroutines.withContext
  * not in the ViewModels.
  */
 @Singleton
-class TransactionRepository @Inject constructor(
+open class TransactionRepository @Inject constructor(
     private val dao: TransactionDao,
     private val receiptRepository: ReceiptRepository,
 ) {
@@ -26,7 +26,7 @@ class TransactionRepository @Inject constructor(
 
     suspend fun findById(id: Long): TransactionEntity? = dao.findById(id)
 
-    suspend fun add(transaction: TransactionEntity): Long = dao.insert(transaction)
+    open suspend fun add(transaction: TransactionEntity): Long = dao.insert(transaction)
 
     suspend fun update(transaction: TransactionEntity) = dao.update(transaction)
 

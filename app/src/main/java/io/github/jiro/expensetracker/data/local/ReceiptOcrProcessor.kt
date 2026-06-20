@@ -16,16 +16,18 @@ import kotlinx.coroutines.suspendCancellableCoroutine
  * into [ReceiptOcrParser]. On-device, no API key, ~1s for a typical receipt.
  */
 @Singleton
-class ReceiptOcrProcessor @Inject constructor() {
+open class ReceiptOcrProcessor @Inject constructor() {
 
-    private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+    private val recognizer by lazy {
+        TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+    }
 
     /**
      * Run OCR on [bitmap]. Returns parsed fields; any field may be null if
      * the parser couldn't find a confident match. Throws on unrecoverable
      * ML Kit failure (caller catches and shows a snackbar).
      */
-    suspend fun extract(bitmap: Bitmap): OcrFields = suspendCancellableCoroutine { cont ->
+    open suspend fun extract(bitmap: Bitmap): OcrFields = suspendCancellableCoroutine { cont ->
         val image = InputImage.fromBitmap(bitmap, 0)
         recognizer.process(image)
             .addOnSuccessListener { result ->
