@@ -225,7 +225,6 @@
     <string name="add_receipt_save">Save transaction</string>
     <string name="add_receipt_cancel">Cancel</string>
     <string name="add_receipt_ocr_in_progress">Reading receipt…</string>
-    <string name="add_receipt_no_text_found">No text found. Fill the fields manually.</string>
     <string name="add_receipt_error_title_required">Title is required</string>
     <string name="add_receipt_error_amount_invalid">Amount must be greater than zero</string>
     <string name="add_receipt_error_category_required">Pick a category</string>
