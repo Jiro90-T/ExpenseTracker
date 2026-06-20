@@ -6,7 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.jiro.expensetracker.data.local.CategoryEntity
-import io.github.jiro.expensetracker.data.local.ImageProcessor
+import io.github.jiro.expensetracker.di.IoDispatcher
 import io.github.jiro.expensetracker.data.local.MoneyFormat
 import io.github.jiro.expensetracker.data.local.ReceiptOcrProcessor
 import io.github.jiro.expensetracker.data.local.TransactionEntity
@@ -15,8 +15,11 @@ import io.github.jiro.expensetracker.data.repository.ReceiptRepository
 import io.github.jiro.expensetracker.data.repository.TransactionRepository
 import io.github.jiro.expensetracker.domain.model.TransactionType
 import io.github.jiro.expensetracker.domain.receipt.OcrFields
+import io.github.jiro.expensetracker.domain.receipt.ReceiptReviewPipeline
 import io.github.jiro.expensetracker.preferences.SettingsRepository
 import javax.inject.Inject
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -50,33 +53,20 @@ data class AddReceiptUiState(
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
-open class AddReceiptViewModel @Inject constructor(
+class AddReceiptViewModel @Inject constructor(
     application: Application,
     private val transactionRepository: TransactionRepository,
     private val categoryRepository: CategoryRepository,
     private val receiptRepository: ReceiptRepository,
     private val receiptOcrProcessor: ReceiptOcrProcessor,
     private val settingsRepository: SettingsRepository,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : AndroidViewModel(application) {
 
-    /**
-     * Exposed as `protected` (not `private`) so the test-only
-     * [TestableAddReceiptViewModel] subclass can bypass the bitmap decode
-     * pipeline (which can't run under JVM unit tests because
-     * `BitmapFactory.decodeFile` is stubbed). The class itself is `open`
-     * for the same reason.
-     */
-    protected val _state: MutableStateFlow<AddReceiptUiState> = MutableStateFlow(
+    private val _state = MutableStateFlow(
         AddReceiptUiState(currency = settingsRepository.homeCurrency.value)
     )
     val state: StateFlow<AddReceiptUiState> = _state.asStateFlow()
-
-    /**
-     * The OCR processor the VM uses. `protected` (not `private`) so the
-     * test-only subclass can call it directly without going through the
-     * bitmap decode step.
-     */
-    protected val ocrProcessor: ReceiptOcrProcessor = receiptOcrProcessor
 
     init {
         // Categories follow the currently selected type. Re-fetches on every type change.
@@ -113,37 +103,21 @@ open class AddReceiptViewModel @Inject constructor(
                 ) }
                 return@launch
             }
-
-            onReceiptSaved(path)
+            onPhotoSaved(path)
         }
     }
 
     /**
-     * OCR + state-update pipeline once a receipt path is known. Split out of
-     * [onPhotoCaptured] so tests can drive the state machine via a path
-     * string without needing to construct a real Android [Uri]. `open` so
-     * test-only subclasses can bypass the bitmap decode (which can't run
-     * under `unitTests.isReturnDefaultValues` because
-     * `BitmapFactory.decodeFile` returns null).
+     * Resume the OCR review pipeline after a receipt has been saved to disk.
+     * Public so tests (which can't easily construct an Android [Uri] under
+     * JVM unit tests) can drive the state machine directly with a relative
+     * path string. Not a test seam — production callers can also use this
+     * if they already have a saved path (e.g. re-opening a draft).
      */
-    open fun onReceiptSaved(path: String) {
+    fun onPhotoSaved(path: String) {
         viewModelScope.launch {
-            val ocr = try {
-                val file = receiptRepository.absolutePath(path)
-                if (!file.isFile) {
-                    OcrFields(null, null, null)
-                } else {
-                    val bitmap = ImageProcessor.decodeSampledBitmap(file, maxEdge = 2048)
-                    try {
-                        receiptOcrProcessor.extract(bitmap)
-                    } finally {
-                        bitmap.recycle()
-                    }
-                }
-            } catch (e: Exception) {
-                OcrFields(null, null, null)
-            }
-
+            val file = receiptRepository.absolutePath(path)
+            val ocr = ReceiptReviewPipeline.review(file, receiptOcrProcessor, ioDispatcher)
             _state.update {
                 it.copy(
                     mode = AddReceiptMode.Review,

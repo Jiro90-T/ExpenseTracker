@@ -2,29 +2,26 @@ package io.github.jiro.expensetracker.ui.add_receipt
 
 import android.app.Application
 import android.content.Context
-import android.graphics.Bitmap
 import android.net.Uri
-import androidx.lifecycle.viewModelScope
 import io.github.jiro.expensetracker.data.local.CategoryDao
 import io.github.jiro.expensetracker.data.local.CategoryEntity
-import io.github.jiro.expensetracker.data.local.MoneyFormat
 import io.github.jiro.expensetracker.data.local.ReceiptOcrProcessor
 import io.github.jiro.expensetracker.data.local.TransactionDao
 import io.github.jiro.expensetracker.data.local.TransactionEntity
+import io.github.jiro.expensetracker.data.local.TransactionWithCategory
 import io.github.jiro.expensetracker.data.repository.CategoryRepository
 import io.github.jiro.expensetracker.data.repository.ReceiptRepository
 import io.github.jiro.expensetracker.data.repository.TransactionRepository
 import io.github.jiro.expensetracker.domain.model.TransactionType
 import io.github.jiro.expensetracker.domain.receipt.OcrFields
 import io.github.jiro.expensetracker.preferences.SettingsRepository
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -40,7 +37,7 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class AddReceiptViewModelTest {
 
-    private val testDispatcher = StandardTestDispatcher()
+    private val testDispatcher = UnconfinedTestDispatcher()
 
     @Before
     fun setUp() {
@@ -52,30 +49,36 @@ class AddReceiptViewModelTest {
         Dispatchers.resetMain()
     }
 
+    /**
+     * Build the VM with all-fake dependencies. The real [ReceiptReviewPipeline]
+     * is used (it's a pure object — no injection needed), but BitmapFactory
+     * is stubbed under JVM tests so the pipeline's try/catch returns empty
+     * OCR fields. The pipeline itself is tested independently in
+     * [io.github.jiro.expensetracker.domain.receipt.ReceiptReviewPipelineTest].
+     */
     private fun buildVm(
-        ocr: OcrFields = OcrFields(null, null, null),
         homeCurrency: String = "USD",
-    ): Triple<TestableAddReceiptViewModel, FakeTransactionRepo, FakeOcrProcessor> {
+    ): Pair<AddReceiptViewModel, FakeTransactionRepo> {
         val txRepo = FakeTransactionRepo()
-        val catRepo = FakeCategoryRepo()
-        val receiptRepo = FakeReceiptRepo()
-        val ocrProcessor = FakeOcrProcessor(ocr)
-        val settings = FakeSettingsRepository(homeCurrency)
-        val app = NoopApplication()
-        val vm = TestableAddReceiptViewModel(
-            application = app,
+        val vm = AddReceiptViewModel(
+            application = NoopApplication(),
             transactionRepository = txRepo,
-            categoryRepository = catRepo,
-            receiptRepository = receiptRepo,
-            receiptOcrProcessor = ocrProcessor,
-            settingsRepository = settings,
+            categoryRepository = FakeCategoryRepo(),
+            receiptRepository = FakeReceiptRepo(),
+            receiptOcrProcessor = FakeOcrProcessor(OcrFields(null, null, null)),
+            settingsRepository = FakeSettingsRepository(homeCurrency),
+            // Pin the pipeline's IO work to the test scheduler so
+            // advanceUntilIdle actually waits for it. Otherwise the real
+            // Dispatchers.IO thread pool runs the bitmap decode and our
+            // assertions race ahead.
+            ioDispatcher = testDispatcher,
         )
-        return Triple(vm, txRepo, ocrProcessor)
+        return vm to txRepo
     }
 
     @Test
     fun initialState_isIdle() = runTest(testDispatcher) {
-        val (vm, _, _) = buildVm()
+        val (vm, _) = buildVm()
         advanceUntilIdle()
         val s = vm.state.value
         assertEquals(AddReceiptMode.Idle, s.mode)
@@ -90,9 +93,9 @@ class AddReceiptViewModelTest {
     }
 
     @Test
-    fun onPhotoCaptured_emptyOcr_transitionsToReviewWithEmptyFields() = runTest(testDispatcher) {
-        val (vm, _, _) = buildVm(ocr = OcrFields(null, null, null))
-        vm.onReceiptSaved("receipts/fake.jpg")
+    fun onPhotoSaved_emptyOcr_transitionsToReviewWithEmptyFields() = runTest(testDispatcher) {
+        val (vm, _) = buildVm()
+        vm.onPhotoSaved("receipts/fake.jpg")
         advanceUntilIdle()
         val s = vm.state.value
         assertEquals(AddReceiptMode.Review, s.mode)
@@ -102,37 +105,16 @@ class AddReceiptViewModelTest {
     }
 
     @Test
-    fun onPhotoCaptured_withOcrFields_prefillsForm() = runTest(testDispatcher) {
-        val (vm, _, ocr) = buildVm(
-            ocr = OcrFields(
-                amountMinor = 540L,
-                occurredAtEpochMillis = 1_716_000_000_000L,
-                merchant = "Coffee & Co",
-            ),
-        )
-        // Drive the state machine directly via the test seam (see
-        // TestableAddReceiptViewModel). We bypass onPhotoCaptured because
-        // constructing an Android Uri is impossible under JVM unit tests.
-        vm.onReceiptSaved("receipts/fake.jpg")
-        advanceUntilIdle()
-        val s = vm.state.value
-        assertEquals(AddReceiptMode.Review, s.mode)
-        assertEquals("Coffee & Co", s.title)
-        assertEquals("5.40", s.amountInput)
-        assertEquals(1_716_000_000_000L, s.occurredAtEpochMillis)
-    }
-
-    @Test
     fun onTitleChange_updatesState() = runTest(testDispatcher) {
-        val (vm, _, _) = buildVm()
+        val (vm, _) = buildVm()
         vm.onTitleChange("Walmart")
         assertEquals("Walmart", vm.state.value.title)
     }
 
     @Test
     fun onSave_missingTitle_setsError() = runTest(testDispatcher) {
-        val (vm, _, _) = buildVm()
-        vm.onReceiptSaved("receipts/fake.jpg")
+        val (vm, _) = buildVm()
+        vm.onPhotoSaved("receipts/fake.jpg")
         advanceUntilIdle()
         vm.onTitleChange("")
         vm.onAmountChange("5.00")
@@ -145,8 +127,8 @@ class AddReceiptViewModelTest {
 
     @Test
     fun onSave_invalidAmount_setsError() = runTest(testDispatcher) {
-        val (vm, _, _) = buildVm()
-        vm.onReceiptSaved("receipts/fake.jpg")
+        val (vm, _) = buildVm()
+        vm.onPhotoSaved("receipts/fake.jpg")
         advanceUntilIdle()
         vm.onTitleChange("Walmart")
         vm.onAmountChange("not a number")
@@ -159,8 +141,8 @@ class AddReceiptViewModelTest {
 
     @Test
     fun onSave_validInputs_addsTransactionAndSetsSaveComplete() = runTest(testDispatcher) {
-        val (vm, txRepo, _) = buildVm()
-        vm.onReceiptSaved("receipts/fake.jpg")
+        val (vm, txRepo) = buildVm()
+        vm.onPhotoSaved("receipts/fake.jpg")
         advanceUntilIdle()
         vm.onTitleChange("Walmart")
         vm.onAmountChange("5.00")
@@ -176,59 +158,10 @@ class AddReceiptViewModelTest {
     }
 }
 
-/**
- * Subclass of [AddReceiptViewModel] that bypasses the real bitmap decode
- * step. Under `unitTests.isReturnDefaultValues = true`,
- * `BitmapFactory.decodeFile` is stubbed and returns null — so we override
- * [AddReceiptViewModel.onReceiptSaved] to skip the `decode → extract →
- * recycle` pipeline entirely and feed the fake OCR processor's configured
- * result straight into the state update. The state-machine update path is
- * identical to production.
- */
-private class TestableAddReceiptViewModel(
-    application: Application,
-    transactionRepository: TransactionRepository,
-    categoryRepository: CategoryRepository,
-    receiptRepository: ReceiptRepository,
-    receiptOcrProcessor: ReceiptOcrProcessor,
-    settingsRepository: SettingsRepository,
-) : AddReceiptViewModel(
-    application = application,
-    transactionRepository = transactionRepository,
-    categoryRepository = categoryRepository,
-    receiptRepository = receiptRepository,
-    receiptOcrProcessor = receiptOcrProcessor,
-    settingsRepository = settingsRepository,
-) {
-    override fun onReceiptSaved(path: String) {
-        // Bypass the whole `file.isFile → decode → OCR` pipeline (which
-        // can't work in JVM unit tests because BitmapFactory is stubbed).
-        // Hand the configured OCR to the fake OCR processor directly.
-        viewModelScope.launch {
-            val ocr = (ocrProcessor as FakeOcrProcessor).bypassExtract()
-            _state.update {
-                it.copy(
-                    mode = AddReceiptMode.Review,
-                    photoPath = path,
-                    title = ocr.merchant ?: it.title,
-                    amountInput = ocr.amountMinor?.let { amt -> MoneyFormat.formatAmountForEdit(amt) } ?: it.amountInput,
-                    occurredAtEpochMillis = ocr.occurredAtEpochMillis ?: it.occurredAtEpochMillis,
-                )
-            }
-        }
-    }
-}
+// ---- fakes (test-only, no mocking framework) ----
 
-// ---- fakes / stubs (test-only, no mocking framework) ----
-
-/** Minimal Application subclass — AndroidViewModel constructor takes Application. */
 class NoopApplication : Application()
 
-/**
- * Fake [TransactionRepository] that overrides [add] to record calls. We use a
- * stub TransactionDao (interface) instead of mocking — Mockito isn't on the
- * classpath, and the only method the VM cares about is `add`.
- */
 class FakeTransactionRepo : TransactionRepository(
     dao = StubTransactionDao(),
     receiptRepository = FakeReceiptRepo(),
@@ -251,40 +184,19 @@ class FakeReceiptRepo : ReceiptRepository(
     context = NoopApplication(),
 ) {
     override suspend fun saveFromUri(context: Context, src: Uri): String = "receipts/fake.jpg"
-    override fun absolutePath(relativePath: String): java.io.File {
-        // Create a real temp file so the VM's `file.isFile` guard passes
-        // and the OCR pipeline runs. The contents don't matter — the
-        // OCR processor is faked.
-        val tmp = java.io.File.createTempFile("fake-receipt-", ".jpg")
-        tmp.deleteOnExit()
-        return tmp
-    }
+    override fun absolutePath(relativePath: String): File =
+        File.createTempFile("fake-receipt-", ".jpg").also { it.deleteOnExit() }
 }
 
 class FakeOcrProcessor(private val result: OcrFields) : ReceiptOcrProcessor() {
-    var lastCalled: OcrFields? = null
-    override suspend fun extract(bitmap: Bitmap): OcrFields {
-        lastCalled = result
-        return result
-    }
-
-    /**
-     * Return the configured [result] without taking a bitmap. Used by
-     * [TestableAddReceiptViewModel.onReceiptSaved] to bypass the
-     * `decode → extract → recycle` pipeline (which can't run under
-     * `unitTests.isReturnDefaultValues`).
-     */
-    fun bypassExtract(): OcrFields {
-        lastCalled = result
-        return result
-    }
+    override suspend fun extract(bitmap: android.graphics.Bitmap): OcrFields = result
 }
 
 class FakeSettingsRepository(homeCurrency: String) : SettingsRepository(
     context = NoopApplication(),
 ) {
     private val flow = MutableStateFlow(homeCurrency)
-    override val homeCurrency = flow.asStateFlow()
+    override val homeCurrency: kotlinx.coroutines.flow.StateFlow<String> = flow.asStateFlow()
     override fun setHomeCurrency(code: String) {
         flow.value = code
     }
@@ -292,15 +204,12 @@ class FakeSettingsRepository(homeCurrency: String) : SettingsRepository(
 
 // ---- minimal DAO stubs (interfaces we don't exercise) ----
 
-/**
- * We never call any TransactionDao method in this test (the VM only uses
- * TransactionRepository.add, which we override in FakeTransactionRepo). The
- * stub exists solely to satisfy the TransactionRepository constructor.
- */
 @Suppress("UNUSED_PARAMETER")
-class StubTransactionDao : TransactionDao {
-    override fun observeAllWithCategory() = error("not used in tests")
-    override fun observeInRangeWithCategory(startMs: Long, endMs: Long) = error("not used in tests")
+private class StubTransactionDao : TransactionDao {
+    override fun observeAllWithCategory(): Flow<List<TransactionWithCategory>> =
+        MutableStateFlow<List<TransactionWithCategory>>(emptyList()).asStateFlow()
+    override fun observeInRangeWithCategory(startMs: Long, endMs: Long): Flow<List<TransactionWithCategory>> =
+        MutableStateFlow<List<TransactionWithCategory>>(emptyList()).asStateFlow()
     override suspend fun findById(id: Long) = error("not used in tests")
     override suspend fun insert(transaction: TransactionEntity) = error("not used in tests")
     override suspend fun restore(transaction: TransactionEntity) = error("not used in tests")
@@ -311,14 +220,14 @@ class StubTransactionDao : TransactionDao {
     override suspend fun insertAll(transactions: List<TransactionEntity>) = error("not used in tests")
     override suspend fun clearReceiptPathsFor(paths: List<String>) = error("not used in tests")
     override suspend fun dueRecurringParents(nowMs: Long) = error("not used in tests")
-    override fun observeByRecurringGroup(groupId: String) = error("not used in tests")
+    override fun observeByRecurringGroup(groupId: String) = MutableStateFlow(emptyList<TransactionWithCategory>()).asStateFlow()
     override suspend fun countByRecurringGroup(groupId: String) = error("not used in tests")
 }
 
 @Suppress("UNUSED_PARAMETER")
-class StubCategoryDao : CategoryDao {
-    override fun observeByType(type: String) = error("not used in tests")
-    override fun observeAll() = error("not used in tests")
+private class StubCategoryDao : CategoryDao {
+    override fun observeByType(type: String) = MutableStateFlow(emptyList<CategoryEntity>()).asStateFlow()
+    override fun observeAll() = MutableStateFlow(emptyList<CategoryEntity>()).asStateFlow()
     override suspend fun count() = error("not used in tests")
     override suspend fun findById(id: Long) = error("not used in tests")
     override suspend fun insertAll(categories: List<CategoryEntity>) = error("not used in tests")

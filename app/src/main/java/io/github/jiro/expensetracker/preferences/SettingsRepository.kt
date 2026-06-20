@@ -15,21 +15,18 @@ enum class ThemePreference { SYSTEM, LIGHT, DARK }
 
 @Singleton
 open class SettingsRepository @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @ApplicationContext context: Context,
 ) {
-    /**
-     * Lazily resolves the SharedPreferences. The property is `open` so
-     * test-only subclasses can override it to skip Android IO during JVM
-     * unit tests (where `context.getSharedPreferences` returns null under
-     * `unitTests.isReturnDefaultValues = true`).
-     */
-    protected open val prefsLazy: android.content.SharedPreferences by lazy {
+    // Lazily resolved so the constructor doesn't touch Android IO. JVM
+    // tests can construct SettingsRepository with a stub Context (which
+    // would throw on `getSharedPreferences`) without triggering the
+    // preferences lookup.
+    private val prefs: android.content.SharedPreferences by lazy {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
-    private val prefs: android.content.SharedPreferences get() = prefsLazy
 
     private val _theme: MutableStateFlow<ThemePreference> by lazy { MutableStateFlow(loadTheme()) }
-    val theme: StateFlow<ThemePreference> by lazy { _theme.asStateFlow() }
+    open val theme: StateFlow<ThemePreference> by lazy { _theme.asStateFlow() }
 
     fun setTheme(value: ThemePreference) {
         prefs.edit { putString(KEY_THEME, value.name) }

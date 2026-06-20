@@ -63,10 +63,11 @@ object ReceiptPaths {
 open class ReceiptRepository @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
-    /**
-     * Lazily computed so the constructor doesn't touch Android IO. Test-only
-     * subclasses can override this entirely (it's an open property).
-     */
+    // Lazily computed so the constructor doesn't touch Android IO. JVM
+    // tests can construct ReceiptRepository with a stub Context (which
+    // would throw on `context.filesDir`) without triggering the directory
+    // lookup — and the test fake overrides `saveFromUri` / `absolutePath`
+    // so it never reads this property.
     open val receiptsDir: File by lazy {
         File(context.filesDir, "receipts").apply { mkdirs() }
     }

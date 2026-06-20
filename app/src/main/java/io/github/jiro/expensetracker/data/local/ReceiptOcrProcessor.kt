@@ -18,7 +18,10 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 @Singleton
 open class ReceiptOcrProcessor @Inject constructor() {
 
-    private val recognizer by lazy {
+    // Lazily resolved so the constructor doesn't touch ML Kit (which fails
+    // in JVM unit tests because MlKitContext isn't initialised there). Test
+    // subclasses override [extract] and never invoke the recognizer.
+    private val recognizer: com.google.mlkit.vision.text.TextRecognizer by lazy {
         TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
     }
 
