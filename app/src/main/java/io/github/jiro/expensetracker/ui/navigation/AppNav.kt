@@ -21,6 +21,7 @@ import androidx.navigation.navArgument
 import io.github.jiro.expensetracker.R
 import io.github.jiro.expensetracker.ui.add_edit.AddEditTransactionScreen
 import io.github.jiro.expensetracker.ui.add_edit.ReceiptSectionViewModel
+import io.github.jiro.expensetracker.ui.add_receipt.AddReceiptScreen
 import io.github.jiro.expensetracker.ui.budget.BudgetScreen
 import io.github.jiro.expensetracker.ui.categories.CategoryManagementScreen
 import io.github.jiro.expensetracker.ui.home.HomeScreen
@@ -45,6 +46,7 @@ object Routes {
     const val MORE = "more"
     const val CATEGORIES = "categories"
     const val SETTINGS = "settings"
+    const val ADD_RECEIPT = "add_receipt"
     const val MANAGE_SERIES = "manage_series/{groupId}"
     const val MANAGE_SERIES_ARG_GROUP_ID = "groupId"
     const val RECEIPT_VIEWER = "receipts/viewer?path={path}"
@@ -159,6 +161,7 @@ fun AppNavHost(
                 MoreScreen(
                     onManageCategories = { navController.navigate(Routes.CATEGORIES) },
                     onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                    onAddReceipt = { navController.navigate(Routes.ADD_RECEIPT) },
                 )
             }
             composable(Routes.CATEGORIES) {
@@ -168,6 +171,11 @@ fun AppNavHost(
             }
             composable(Routes.SETTINGS) {
                 SettingsScreen(
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable(Routes.ADD_RECEIPT) {
+                AddReceiptScreen(
                     onBack = { navController.popBackStack() },
                 )
             }

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -38,8 +39,14 @@ private data class MoreItem(
 fun MoreScreen(
     onManageCategories: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    onAddReceipt: () -> Unit = {},
 ) {
     val items = listOf(
+        MoreItem(
+            title = stringResource(R.string.action_add_receipt),
+            icon = Icons.Filled.PhotoCamera,
+            onClick = onAddReceipt,
+        ),
         MoreItem(
             title = stringResource(R.string.action_manage_categories),
             icon = Icons.Filled.Category,
