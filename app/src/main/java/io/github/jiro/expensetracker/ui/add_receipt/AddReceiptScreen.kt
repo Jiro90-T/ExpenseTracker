@@ -6,6 +6,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -86,6 +87,12 @@ fun AddReceiptScreen(
         }
     }
 
+    val fileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) viewModel.onPhotoCaptured(uri)
+    }
+
     LaunchedEffect(pendingCameraUri) {
         val uri = pendingCameraUri ?: return@LaunchedEffect
         cameraLauncher.launch(uri)
@@ -118,6 +125,9 @@ fun AddReceiptScreen(
                             cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
                         }
                     },
+                    onPickPhoto = {
+                        fileLauncher.launch(arrayOf("image/*"))
+                    },
                 )
                 AddReceiptMode.OcrInProgress -> OcrProgressView()
                 AddReceiptMode.Review -> ReviewForm(
@@ -141,6 +151,7 @@ fun AddReceiptScreen(
 private fun IdleView(
     cameraDenied: Boolean,
     onTakePhoto: () -> Unit,
+    onPickPhoto: () -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -160,11 +171,22 @@ private fun IdleView(
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(24.dp))
-        Button(
-            onClick = onTakePhoto,
+        Row(
             modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(stringResource(R.string.add_receipt_take_photo))
+            Button(
+                onClick = onTakePhoto,
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(stringResource(R.string.add_receipt_take_photo))
+            }
+            OutlinedButton(
+                onClick = onPickPhoto,
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(stringResource(R.string.receipt_choose))
+            }
         }
         if (cameraDenied) {
             Spacer(Modifier.height(16.dp))
