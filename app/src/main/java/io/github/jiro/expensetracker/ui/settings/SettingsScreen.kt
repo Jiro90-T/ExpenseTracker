@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -449,7 +451,7 @@ private fun HomeCurrencyDialog(
             }
         },
         text = {
-            Column {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 Text(
                     text = stringResource(R.string.settings_currency_section),
                     style = MaterialTheme.typography.titleSmall,
@@ -522,7 +524,7 @@ private fun AddRateDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_dialog_cancel)) }
         },
         text = {
-            Column {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 // From picker
                 Text(
                     stringResource(R.string.settings_fx_from),
