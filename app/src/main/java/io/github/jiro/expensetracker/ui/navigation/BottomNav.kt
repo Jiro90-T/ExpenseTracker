@@ -61,8 +61,8 @@ internal fun AppBottomBar(
     val currentDestination = backStackEntry?.destination
 
     NavigationBar {
-        // Left side: Home, Transactions
-        BottomTab.entries.take(2).forEach { tab ->
+        // Left side: Home, Transactions, Budget
+        BottomTab.entries.take(3).forEach { tab ->
             val isCurrent = currentDestination?.hierarchy?.any { it.route == tab.route } == true
             NavigationBarItem(
                 selected = isCurrent,
@@ -112,8 +112,8 @@ internal fun AppBottomBar(
             ),
         )
 
-        // Right side: Budget, Trends, More
-        BottomTab.entries.drop(2).forEach { tab ->
+        // Right side: Trends, Statistics, More
+        BottomTab.entries.drop(3).forEach { tab ->
             val isCurrent = currentDestination?.hierarchy?.any { it.route == tab.route } == true
             NavigationBarItem(
                 selected = isCurrent,
