@@ -18,6 +18,7 @@ import io.github.jiro.expensetracker.data.repository.ReceiptRepository
 import io.github.jiro.expensetracker.data.repository.TransactionRepository
 import io.github.jiro.expensetracker.domain.model.TransactionType
 import io.github.jiro.expensetracker.domain.receipt.OcrFields
+import io.github.jiro.expensetracker.preferences.SettingsRepository
 import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -92,6 +93,7 @@ class AddEditTransactionViewModel @Inject constructor(
     private val categoryRepository: CategoryRepository,
     private val receiptRepository: ReceiptRepository,
     private val receiptOcrProcessor: ReceiptOcrProcessor,
+    private val settingsRepository: SettingsRepository,
 ) : AndroidViewModel(application) {
 
     private val transactionId: Long? = savedStateHandle
@@ -99,7 +101,12 @@ class AddEditTransactionViewModel @Inject constructor(
         ?.takeIf { it >= 0 }
 
     private val _state = MutableStateFlow(
-        AddEditTransactionUiState(id = transactionId)
+        AddEditTransactionUiState(
+            id = transactionId,
+            // Default new transactions to the user's home currency. Editing
+            // an existing row overrides this with its own currencyCode below.
+            currency = if (transactionId == null) settingsRepository.homeCurrency.value else "USD",
+        )
     )
     val state: StateFlow<AddEditTransactionUiState> = _state.asStateFlow()
 
