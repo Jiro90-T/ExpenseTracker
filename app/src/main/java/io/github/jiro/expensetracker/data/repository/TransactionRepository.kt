@@ -50,4 +50,7 @@ open class TransactionRepository @Inject constructor(
     /** All rows in a recurring series (parent + materialised instances). */
     fun observeGroup(groupId: String): Flow<List<TransactionWithCategory>> =
         dao.observeByRecurringGroup(groupId)
+
+    fun observeByAccount(accountId: Long): Flow<List<TransactionWithCategory>> =
+        dao.observeByAccount(accountId)
 }
