@@ -40,6 +40,8 @@ fun computeMonthlyTotals(
             when (TransactionType.fromStorage(r.transaction.type)) {
                 TransactionType.INCOME -> income += r.transaction.amountMinor
                 TransactionType.EXPENSE -> expense += r.transaction.amountMinor
+                // TRANSFER and ADJUSTMENT don't contribute to income/expense totals.
+                else -> Unit
             }
         }
         months.add(

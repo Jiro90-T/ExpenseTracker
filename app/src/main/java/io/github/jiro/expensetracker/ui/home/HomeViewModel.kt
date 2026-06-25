@@ -296,6 +296,9 @@ fun computeDashboardSummary(
                     )
                 }
             }
+            // TRANSFER and ADJUSTMENT don't contribute to income/expense totals
+            // or category breakdowns. Handled in dedicated screens (Task 16+).
+            else -> Unit
         }
     }
 
