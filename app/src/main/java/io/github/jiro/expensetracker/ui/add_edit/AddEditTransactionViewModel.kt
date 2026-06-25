@@ -7,12 +7,14 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.jiro.expensetracker.data.RecurrenceKind
+import io.github.jiro.expensetracker.data.local.AccountEntity
 import io.github.jiro.expensetracker.data.local.CategoryEntity
 import io.github.jiro.expensetracker.data.local.ImageProcessor
 import io.github.jiro.expensetracker.data.local.MoneyFormat
 import io.github.jiro.expensetracker.data.local.ReceiptOcrProcessor
 import io.github.jiro.expensetracker.data.local.TransactionEntity
 import io.github.jiro.expensetracker.data.nextOccurrence
+import io.github.jiro.expensetracker.data.repository.AccountRepository
 import io.github.jiro.expensetracker.data.repository.CategoryRepository
 import io.github.jiro.expensetracker.data.repository.ReceiptRepository
 import io.github.jiro.expensetracker.data.repository.TransactionRepository
@@ -32,7 +34,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /** Stable identifiers for each user-facing error, so the UI can map to a string resource. */
-enum class FormError { TITLE_REQUIRED, AMOUNT_INVALID, CATEGORY_REQUIRED, RECEIPT_SAVE_FAILED }
+enum class FormError { TITLE_REQUIRED, AMOUNT_INVALID, CATEGORY_REQUIRED, RECEIPT_SAVE_FAILED, ACCOUNT_REQUIRED, TRANSFER_ACCOUNTS_MUST_DIFFER }
 
 data class AddEditTransactionUiState(
     val id: Long? = null,
@@ -79,6 +81,12 @@ data class AddEditTransactionUiState(
      * override a date the user already chose.
      */
     val dateTouched: Boolean = false,
+
+    // ---- Phase 2.16: per-tx account ----
+    val accounts: List<AccountEntity> = emptyList(),
+    val selectedAccountId: Long? = null,
+    /** TRANSFER only: the destination account. null for EXPENSE/INCOME/ADJUSTMENT. */
+    val selectedTransferAccountId: Long? = null,
 )
 
 /** Phase 2.1: the "end" picker on the recurring section. */
@@ -91,6 +99,7 @@ class AddEditTransactionViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val transactionRepository: TransactionRepository,
     private val categoryRepository: CategoryRepository,
+    private val accountRepository: AccountRepository,
     private val receiptRepository: ReceiptRepository,
     private val receiptOcrProcessor: ReceiptOcrProcessor,
     private val settingsRepository: SettingsRepository,
@@ -132,6 +141,21 @@ class AddEditTransactionViewModel @Inject constructor(
                 }
         }
 
+        // Accounts list — observable for the dropdown. Refreshes the valid
+        // id set so a deleted account doesn't keep its selection stuck.
+        viewModelScope.launch {
+            accountRepository.observeActive().collect { accounts ->
+                _state.update { current ->
+                    val validIds = accounts.map { it.id }.toSet()
+                    current.copy(
+                        accounts = accounts,
+                        selectedAccountId = current.selectedAccountId?.takeIf { it in validIds },
+                        selectedTransferAccountId = current.selectedTransferAccountId?.takeIf { it in validIds },
+                    )
+                }
+            }
+        }
+
         // If editing, prefill the form from the existing row.
         if (transactionId != null) {
             viewModelScope.launch {
@@ -142,6 +166,8 @@ class AddEditTransactionViewModel @Inject constructor(
                         amountInput = MoneyFormat.formatAmountForEdit(existing.amountMinor),
                         type = TransactionType.fromStorage(existing.type),
                         selectedCategoryId = existing.categoryId,
+                        selectedAccountId = existing.accountId,
+                        selectedTransferAccountId = existing.transferAccountId,
                         occurredAtEpochMillis = existing.occurredAtEpochMillis,
                         note = existing.note.orEmpty(),
                         isRecurring = existing.recurringGroupId != null,
@@ -168,10 +194,22 @@ class AddEditTransactionViewModel @Inject constructor(
     fun onAmountChange(value: String) = _state.update { it.copy(amountInput = value, error = null) }
     fun onNoteChange(value: String) = _state.update { it.copy(note = value) }
     fun onTypeChange(value: TransactionType) = _state.update {
-        it.copy(type = value, selectedCategoryId = null, error = null)
+        it.copy(
+            type = value,
+            selectedCategoryId = null,
+            // Clear transfer account when type is no longer TRANSFER.
+            selectedTransferAccountId = if (value == TransactionType.TRANSFER) it.selectedTransferAccountId else null,
+            error = null,
+        )
     }
     fun onCategoryChange(value: Long) = _state.update {
         it.copy(selectedCategoryId = value, error = null)
+    }
+    fun onAccountChange(value: Long) = _state.update {
+        it.copy(selectedAccountId = value, error = null)
+    }
+    fun onTransferAccountChange(value: Long) = _state.update {
+        it.copy(selectedTransferAccountId = value, error = null)
     }
     fun onCurrencyChange(value: String) = _state.update {
         it.copy(currency = value)
@@ -294,8 +332,18 @@ class AddEditTransactionViewModel @Inject constructor(
             _state.update { it.copy(error = FormError.AMOUNT_INVALID) }
             return
         }
+        val accountId = s.selectedAccountId
+        if (accountId == null) {
+            _state.update { it.copy(error = FormError.ACCOUNT_REQUIRED) }
+            return
+        }
+        val transferTo = s.selectedTransferAccountId
+        if (s.type == TransactionType.TRANSFER && (transferTo == null || transferTo == accountId)) {
+            _state.update { it.copy(error = FormError.TRANSFER_ACCOUNTS_MUST_DIFFER) }
+            return
+        }
         val categoryId = s.selectedCategoryId
-        if (categoryId == null) {
+        if (s.type != TransactionType.TRANSFER && categoryId == null) {
             _state.update { it.copy(error = FormError.CATEGORY_REQUIRED) }
             return
         }
@@ -330,9 +378,11 @@ class AddEditTransactionViewModel @Inject constructor(
                 currencyCode = s.currency,
                 type = s.type.name,
                 categoryId = categoryId,
+                accountId = accountId,
+                transferAccountId = if (s.type == TransactionType.TRANSFER) transferTo else null,
                 occurredAtEpochMillis = s.occurredAtEpochMillis,
                 note = s.note.trim().ifEmpty { null },
-                createdAtEpochMillis = if (s.id == null) now else now,
+                createdAtEpochMillis = now,
                 recurringGroupId = groupId,
                 recurrenceKind = kind?.name,
                 recurrenceInterval = interval,

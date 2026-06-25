@@ -223,6 +223,8 @@ private class StubTransactionDao : TransactionDao {
     override fun observeByRecurringGroup(groupId: String) = MutableStateFlow(emptyList<TransactionWithCategory>()).asStateFlow()
     override suspend fun countByRecurringGroup(groupId: String) = error("not used in tests")
     override suspend fun countForAccount(accountId: Long) = error("not used in tests")
+    override fun observeByAccount(accountId: Long): Flow<List<TransactionWithCategory>> =
+        MutableStateFlow<List<TransactionWithCategory>>(emptyList()).asStateFlow()
 }
 
 @Suppress("UNUSED_PARAMETER")
