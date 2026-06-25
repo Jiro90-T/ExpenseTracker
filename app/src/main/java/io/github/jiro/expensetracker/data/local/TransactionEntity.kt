@@ -10,8 +10,8 @@ import androidx.room.PrimaryKey
  *
  * `amountMinor` is stored in the currency's minor unit (e.g. cents) to avoid floating-point
  * drift. `type` is stored as a String column (matching
- * [io.github.jiro.expensetracker.domain.model.TransactionType.name]) for forward-compatibility
- * if a third type (TRANSFER) is added later.
+ * [io.github.jiro.expensetracker.domain.model.TransactionType.name]) so the schema can
+ * survive future enum additions (e.g. a new type) without a migration.
  *
  * `categoryId` is a foreign key into [CategoryEntity] with RESTRICT on delete: you can't drop
  * a category while transactions still reference it.

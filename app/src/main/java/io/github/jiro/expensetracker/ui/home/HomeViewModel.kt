@@ -296,9 +296,7 @@ fun computeDashboardSummary(
                     )
                 }
             }
-            // TRANSFER and ADJUSTMENT don't contribute to income/expense totals
-            // or category breakdowns. Handled in dedicated screens (Task 16+).
-            else -> Unit
+            TransactionType.TRANSFER, TransactionType.ADJUSTMENT -> Unit  // excluded from headline totals
         }
     }
 
