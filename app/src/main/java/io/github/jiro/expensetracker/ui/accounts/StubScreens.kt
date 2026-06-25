@@ -8,15 +8,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 
 @Composable
-fun AccountsListScreen(
-    onBack: () -> Unit,
-    onAddAccount: () -> Unit,
-    onAccountClick: (Long) -> Unit,
-) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Accounts (TODO)") }
-}
-
-@Composable
 fun AccountDetailScreen(
     onBack: () -> Unit,
     onEditAccount: (Long) -> Unit,
