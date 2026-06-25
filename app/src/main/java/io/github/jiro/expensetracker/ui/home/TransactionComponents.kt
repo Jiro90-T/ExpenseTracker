@@ -56,6 +56,37 @@ internal fun TransactionRow(
     searchQuery: String? = null,
 ) {
     val txn = row.transaction
+    val type = TransactionType.fromStorage(txn.type)
+    val trimmed = searchQuery?.trim().orEmpty()
+    val highlightStyle = SpanStyle(
+        color = MaterialTheme.colorScheme.primary,
+        fontWeight = FontWeight.Bold,
+    )
+
+    when (type) {
+        TransactionType.TRANSFER -> TransferRow(
+            row = row,
+            onClick = onClick,
+            searchQuery = trimmed,
+            highlightStyle = highlightStyle,
+        )
+        else -> StandardRow(
+            row = row,
+            onClick = onClick,
+            searchQuery = trimmed,
+            highlightStyle = highlightStyle,
+        )
+    }
+}
+
+@Composable
+private fun StandardRow(
+    row: TransactionWithCategory,
+    onClick: () -> Unit,
+    searchQuery: String,
+    highlightStyle: SpanStyle,
+) {
+    val txn = row.transaction
     val category = row.category
     val type = TransactionType.fromStorage(txn.type)
     val sign = if (type == TransactionType.EXPENSE) "-" else "+"
@@ -64,11 +95,6 @@ internal fun TransactionRow(
     } else {
         IncomeGreen
     }
-    val trimmed = searchQuery?.trim().orEmpty()
-    val highlightStyle = SpanStyle(
-        color = MaterialTheme.colorScheme.primary,
-        fontWeight = FontWeight.Bold,
-    )
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -82,7 +108,7 @@ internal fun TransactionRow(
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = highlightMatches(txn.title, trimmed, highlightStyle),
+                    text = highlightMatches(txn.title, searchQuery, highlightStyle),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )
@@ -103,11 +129,48 @@ internal fun TransactionRow(
             )
             if (!txn.note.isNullOrBlank()) {
                 Text(
-                    text = highlightMatches(txn.note, trimmed, highlightStyle),
+                    text = highlightMatches(txn.note, searchQuery, highlightStyle),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun TransferRow(
+    row: TransactionWithCategory,
+    onClick: () -> Unit,
+    searchQuery: String,
+    highlightStyle: SpanStyle,
+) {
+    val txn = row.transaction
+    val amountText = "${txn.amountMinor / 100}.${"%02d".format(txn.amountMinor % 100)} ${txn.currencyCode}"
+    val destLabel = txn.transferAccountId?.let { "acct#$it" } ?: "—"
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+    ) {
+        CategoryIconBadge(name = "↔", size = 40)
+        Spacer(Modifier.padding(start = 12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = highlightMatches(txn.title, searchQuery, highlightStyle),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            // TODO(Phase 2.16+): extend TransactionWithCategory to embed the
+            // destination account entity for TRANSFER rows so we can render the
+            // account name instead of the id.
+            Text(
+                text = "→ $destLabel · $amountText",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
