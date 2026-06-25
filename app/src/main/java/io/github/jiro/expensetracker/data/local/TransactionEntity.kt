@@ -8,21 +8,20 @@ import androidx.room.PrimaryKey
 /**
  * Single source of truth for a personal-finance transaction.
  *
- * `amountMinor` is stored in the currency's minor unit (e.g. cents) to avoid floating-point
- * drift. `type` is stored as a String column (matching
- * [io.github.jiro.expensetracker.domain.model.TransactionType.name]) so the schema can
- * survive future enum additions (e.g. a new type) without a migration.
+ * `amountMinor` is stored in the currency's minor unit (e.g. cents) to avoid
+ * floating-point drift. `type` is stored as a String column (matching
+ * [io.github.jiro.expensetracker.domain.model.TransactionType.name]) so adding
+ * a new type (TRANSFER, ADJUSTMENT) doesn't require a migration.
  *
- * `categoryId` is a foreign key into [CategoryEntity] with RESTRICT on delete: you can't drop
- * a category while transactions still reference it.
+ * **Accounts (Phase 2.16):** every row has `accountId`. TRANSFER rows also
+ * reference `transferAccountId` (the destination); all other types leave it
+ * null. `categoryId` is now nullable because TRANSFER and ADJUSTMENT have no
+ * category.
  *
- * **Recurring transactions**: a row is part of a recurring series when
- * [recurringGroupId] is non-null. All rows in the same series share that id. The
- * "parent" — the row that drives the schedule — is the one with
+ * **Recurring transactions:** a row is part of a recurring series when
+ * [recurringGroupId] is non-null. All rows in the same series share that id.
+ * The "parent" — the row that drives the schedule — is the one with
  * [recurrenceNextAt] set; materialised instances have `recurrenceNextAt = null`.
- * The materialisation worker (see `RecurringTransactionWorker`) finds parents whose
- * `recurrenceNextAt <= now`, clones them as a new instance, and advances the
- * parent's `recurrenceNextAt` (or nulls it when the end condition is met).
  */
 @Entity(
     tableName = "transactions",
@@ -33,9 +32,23 @@ import androidx.room.PrimaryKey
             childColumns = ["categoryId"],
             onDelete = ForeignKey.RESTRICT,
         ),
+        ForeignKey(
+            entity = AccountEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["accountId"],
+            onDelete = ForeignKey.RESTRICT,
+        ),
+        ForeignKey(
+            entity = AccountEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["transferAccountId"],
+            onDelete = ForeignKey.RESTRICT,
+        ),
     ],
     indices = [
         Index("categoryId"),
+        Index("accountId"),
+        Index("transferAccountId"),
         Index("recurringGroupId"),
     ],
 )
@@ -45,7 +58,11 @@ data class TransactionEntity(
     val amountMinor: Long,
     val currencyCode: String,
     val type: String,
-    val categoryId: Long,
+    val categoryId: Long? = null,
+    /** Every transaction belongs to one account (Phase 2.16). Default = seeded "Cash wallet" (id=1). */
+    val accountId: Long = 1L,
+    /** TRANSFER only: the destination account. null for all other types. */
+    val transferAccountId: Long? = null,
     val occurredAtEpochMillis: Long,
     val note: String? = null,
     val createdAtEpochMillis: Long,
