@@ -146,7 +146,7 @@ private fun AddEditForm(
             }
         }
 
-        // Account picker (between Type and Title per Phase 2.16 spec)
+        // Account picker (between Type and Category per Phase 2.16 spec)
         AccountDropdown(
             state = state,
             onAccountChange = viewModel::onAccountChange,
