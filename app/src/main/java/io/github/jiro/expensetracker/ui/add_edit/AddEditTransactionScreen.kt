@@ -130,18 +130,34 @@ private fun AddEditForm(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        // Type toggle
+        // Type toggle — now includes Transfer
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            SegmentedButton(
-                selected = state.type == TransactionType.EXPENSE,
-                onClick = { viewModel.onTypeChange(TransactionType.EXPENSE) },
-                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-            ) { Text(stringResource(R.string.type_expense)) }
-            SegmentedButton(
-                selected = state.type == TransactionType.INCOME,
-                onClick = { viewModel.onTypeChange(TransactionType.INCOME) },
-                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-            ) { Text(stringResource(R.string.type_income)) }
+            val typeOptions = listOf(
+                TransactionType.EXPENSE to R.string.type_expense,
+                TransactionType.INCOME to R.string.type_income,
+                TransactionType.TRANSFER to R.string.type_transfer,
+            )
+            typeOptions.forEachIndexed { index, (type, labelRes) ->
+                SegmentedButton(
+                    selected = state.type == type,
+                    onClick = { viewModel.onTypeChange(type) },
+                    shape = SegmentedButtonDefaults.itemShape(index = index, count = typeOptions.size),
+                ) { Text(stringResource(labelRes)) }
+            }
+        }
+
+        // Account picker (between Type and Title per Phase 2.16 spec)
+        AccountDropdown(
+            state = state,
+            onAccountChange = viewModel::onAccountChange,
+        )
+
+        // To-account picker — TRANSFER only
+        if (state.type == TransactionType.TRANSFER) {
+            TransferAccountDropdown(
+                state = state,
+                onTransferAccountChange = viewModel::onTransferAccountChange,
+            )
         }
 
         // Title
@@ -412,6 +428,102 @@ private fun CategoryDropdown(
                         },
                     )
                 }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AccountDropdown(
+    state: AddEditTransactionUiState,
+    onAccountChange: (Long) -> Unit,
+) {
+    val isError = state.error == FormError.ACCOUNT_REQUIRED
+    if (state.accounts.size == 1) {
+        // Single-account static label mode (matches the spec).
+        val acc = state.accounts.first()
+        OutlinedTextField(
+            value = "${acc.icon}  ${acc.name}",
+            onValueChange = {},
+            readOnly = true,
+            enabled = false,
+            label = { Text(stringResource(R.string.field_account)) },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        return
+    }
+    var expanded by remember { mutableStateOf(false) }
+    val selected = state.accounts.firstOrNull { it.id == state.selectedAccountId }
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+    ) {
+        OutlinedTextField(
+            value = selected?.let { "${it.icon}  ${it.name}" } ?: "",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.field_account)) },
+            placeholder = { Text(stringResource(R.string.account_select_placeholder)) },
+            isError = isError,
+            supportingText = {
+                if (isError) Text(stringResource(R.string.error_account_name_required))
+            },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier.menuAnchor().fillMaxWidth(),
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            state.accounts.forEach { acc ->
+                DropdownMenuItem(
+                    text = { Text("${acc.icon}  ${acc.name}") },
+                    onClick = {
+                        onAccountChange(acc.id)
+                        expanded = false
+                    },
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TransferAccountDropdown(
+    state: AddEditTransactionUiState,
+    onTransferAccountChange: (Long) -> Unit,
+) {
+    val isError = state.error == FormError.TRANSFER_ACCOUNTS_MUST_DIFFER
+    var expanded by remember { mutableStateOf(false) }
+    val selected = state.accounts.firstOrNull { it.id == state.selectedTransferAccountId }
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+    ) {
+        OutlinedTextField(
+            value = selected?.let { "${it.icon}  ${it.name}" } ?: "",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.account_to_account)) },
+            isError = isError,
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier.menuAnchor().fillMaxWidth(),
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            state.accounts.forEach { acc ->
+                DropdownMenuItem(
+                    text = { Text("${acc.icon}  ${acc.name}") },
+                    enabled = acc.id != state.selectedAccountId,
+                    onClick = {
+                        onTransferAccountChange(acc.id)
+                        expanded = false
+                    },
+                )
             }
         }
     }
