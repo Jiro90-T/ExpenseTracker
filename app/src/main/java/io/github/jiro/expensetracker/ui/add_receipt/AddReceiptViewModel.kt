@@ -5,11 +5,13 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.jiro.expensetracker.data.local.AccountEntity
 import io.github.jiro.expensetracker.data.local.CategoryEntity
 import io.github.jiro.expensetracker.di.IoDispatcher
 import io.github.jiro.expensetracker.data.local.MoneyFormat
 import io.github.jiro.expensetracker.data.local.ReceiptOcrProcessor
 import io.github.jiro.expensetracker.data.local.TransactionEntity
+import io.github.jiro.expensetracker.data.repository.AccountRepository
 import io.github.jiro.expensetracker.data.repository.CategoryRepository
 import io.github.jiro.expensetracker.data.repository.ReceiptRepository
 import io.github.jiro.expensetracker.data.repository.TransactionRepository
@@ -32,7 +34,7 @@ import kotlinx.coroutines.launch
 
 enum class AddReceiptMode { Idle, OcrInProgress, Review }
 
-enum class AddReceiptError { TITLE_REQUIRED, AMOUNT_INVALID, CATEGORY_REQUIRED, RECEIPT_SAVE_FAILED }
+enum class AddReceiptError { TITLE_REQUIRED, AMOUNT_INVALID, CATEGORY_REQUIRED, RECEIPT_SAVE_FAILED, ACCOUNT_REQUIRED }
 
 data class AddReceiptUiState(
     val mode: AddReceiptMode = AddReceiptMode.Idle,
@@ -43,6 +45,8 @@ data class AddReceiptUiState(
     val type: TransactionType = TransactionType.EXPENSE,
     val categoriesForType: List<CategoryEntity> = emptyList(),
     val selectedCategoryId: Long? = null,
+    val accounts: List<AccountEntity> = emptyList(),
+    val selectedAccountId: Long? = null,
     val currency: String = "",
     val note: String = "",
     val isLoaded: Boolean = false,
@@ -57,6 +61,7 @@ class AddReceiptViewModel @Inject constructor(
     application: Application,
     private val transactionRepository: TransactionRepository,
     private val categoryRepository: CategoryRepository,
+    private val accountRepository: AccountRepository,
     private val receiptRepository: ReceiptRepository,
     private val receiptOcrProcessor: ReceiptOcrProcessor,
     private val settingsRepository: SettingsRepository,
@@ -87,6 +92,13 @@ class AddReceiptViewModel @Inject constructor(
                         )
                     }
                 }
+        }
+
+        // Active accounts list — used by the AddReceipt review form.
+        viewModelScope.launch {
+            accountRepository.observeActive().collect { accounts ->
+                _state.update { it.copy(accounts = accounts) }
+            }
         }
     }
 
@@ -136,6 +148,7 @@ class AddReceiptViewModel @Inject constructor(
     fun onDateChange(epochMillis: Long) = _state.update { it.copy(occurredAtEpochMillis = epochMillis) }
     fun onTypeChange(value: TransactionType) = _state.update { it.copy(type = value, selectedCategoryId = null, error = null) }
     fun onCategoryChange(value: Long) = _state.update { it.copy(selectedCategoryId = value, error = null) }
+    fun onAccountChange(value: Long) = _state.update { it.copy(selectedAccountId = value, error = null) }
     fun onCurrencyChange(value: String) = _state.update { it.copy(currency = value) }
 
     fun onSave() {
@@ -148,6 +161,11 @@ class AddReceiptViewModel @Inject constructor(
         val amountMinor = MoneyFormat.parseAmountToMinor(s.amountInput)
         if (amountMinor == null || amountMinor <= 0) {
             _state.update { it.copy(error = AddReceiptError.AMOUNT_INVALID) }
+            return
+        }
+        val accountId = s.selectedAccountId
+        if (accountId == null) {
+            _state.update { it.copy(error = AddReceiptError.ACCOUNT_REQUIRED) }
             return
         }
         val categoryId = s.selectedCategoryId
@@ -171,6 +189,7 @@ class AddReceiptViewModel @Inject constructor(
                 currencyCode = s.currency.ifEmpty { settingsRepository.homeCurrency.value },
                 type = s.type.name,
                 categoryId = categoryId,
+                accountId = accountId,
                 occurredAtEpochMillis = s.occurredAtEpochMillis,
                 note = s.note.trim().ifEmpty { null },
                 createdAtEpochMillis = now,

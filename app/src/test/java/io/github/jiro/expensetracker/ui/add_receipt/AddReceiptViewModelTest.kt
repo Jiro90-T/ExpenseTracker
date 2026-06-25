@@ -3,12 +3,15 @@ package io.github.jiro.expensetracker.ui.add_receipt
 import android.app.Application
 import android.content.Context
 import android.net.Uri
+import io.github.jiro.expensetracker.data.local.AccountDao
+import io.github.jiro.expensetracker.data.local.AccountEntity
 import io.github.jiro.expensetracker.data.local.CategoryDao
 import io.github.jiro.expensetracker.data.local.CategoryEntity
 import io.github.jiro.expensetracker.data.local.ReceiptOcrProcessor
 import io.github.jiro.expensetracker.data.local.TransactionDao
 import io.github.jiro.expensetracker.data.local.TransactionEntity
 import io.github.jiro.expensetracker.data.local.TransactionWithCategory
+import io.github.jiro.expensetracker.data.repository.AccountRepository
 import io.github.jiro.expensetracker.data.repository.CategoryRepository
 import io.github.jiro.expensetracker.data.repository.ReceiptRepository
 import io.github.jiro.expensetracker.data.repository.TransactionRepository
@@ -64,6 +67,7 @@ class AddReceiptViewModelTest {
             application = NoopApplication(),
             transactionRepository = txRepo,
             categoryRepository = FakeCategoryRepo(),
+            accountRepository = FakeAccountRepo(),
             receiptRepository = FakeReceiptRepo(),
             receiptOcrProcessor = FakeOcrProcessor(OcrFields(null, null, null)),
             settingsRepository = FakeSettingsRepository(homeCurrency),
@@ -147,6 +151,7 @@ class AddReceiptViewModelTest {
         vm.onTitleChange("Walmart")
         vm.onAmountChange("5.00")
         vm.onCategoryChange(1L)
+        vm.onAccountChange(1L)
         vm.onSave()
         advanceUntilIdle()
         assertEquals(1, txRepo.added.size)
@@ -179,6 +184,10 @@ class FakeCategoryRepo : CategoryRepository(
     override fun observeByType(type: TransactionType): Flow<List<CategoryEntity>> =
         MutableStateFlow(listOf<CategoryEntity>()).asStateFlow()
 }
+
+class FakeAccountRepo : AccountRepository(
+    dao = StubAccountDao(),
+)
 
 class FakeReceiptRepo : ReceiptRepository(
     context = NoopApplication(),
@@ -240,4 +249,19 @@ private class StubCategoryDao : CategoryDao {
     override suspend fun deleteById(id: Long) = error("not used in tests")
     override suspend fun deleteAllNonBuiltIn() = error("not used in tests")
     override suspend fun observeAllOnce() = error("not used in tests")
+}
+
+@Suppress("UNUSED_PARAMETER")
+private class StubAccountDao : AccountDao {
+    override fun observeActive(): Flow<List<AccountEntity>> =
+        MutableStateFlow(emptyList<AccountEntity>()).asStateFlow()
+    override suspend fun listActiveOnce(): List<AccountEntity> = emptyList()
+    override suspend fun findById(id: Long): AccountEntity? = null
+    override suspend fun findDefault(): AccountEntity? = null
+    override suspend fun insert(account: AccountEntity): Long = 0L
+    override suspend fun update(account: AccountEntity): Int = 0
+    override suspend fun updateDefaultCurrency(code: String): Int = 0
+    override suspend fun countActive(): Int = 0
+    override fun observeBalances(): Flow<List<io.github.jiro.expensetracker.data.local.AccountBalanceRow>> =
+        MutableStateFlow(emptyList<io.github.jiro.expensetracker.data.local.AccountBalanceRow>()).asStateFlow()
 }

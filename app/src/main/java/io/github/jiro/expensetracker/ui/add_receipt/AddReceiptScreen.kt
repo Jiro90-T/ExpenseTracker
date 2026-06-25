@@ -48,6 +48,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import io.github.jiro.expensetracker.R
+import io.github.jiro.expensetracker.data.local.AccountEntity
 import io.github.jiro.expensetracker.domain.model.TransactionType
 import java.io.File
 import java.text.DateFormat
@@ -137,6 +138,7 @@ fun AddReceiptScreen(
                     onDateChange = viewModel::onDateChange,
                     onTypeChange = viewModel::onTypeChange,
                     onCategoryChange = viewModel::onCategoryChange,
+                    onAccountChange = viewModel::onAccountChange,
                     onCurrencyChange = viewModel::onCurrencyChange,
                     onNoteChange = viewModel::onNoteChange,
                     onSave = viewModel::onSave,
@@ -222,6 +224,7 @@ private fun ReviewForm(
     onDateChange: (Long) -> Unit,
     onTypeChange: (TransactionType) -> Unit,
     onCategoryChange: (Long) -> Unit,
+    onAccountChange: (Long) -> Unit,
     onCurrencyChange: (String) -> Unit,
     onNoteChange: (String) -> Unit,
     onSave: () -> Unit,
@@ -335,6 +338,15 @@ private fun ReviewForm(
         }
         Spacer(Modifier.height(8.dp))
 
+        // Account picker (Phase 2.16)
+        AccountPickerRow(
+            accounts = state.accounts,
+            selectedAccountId = state.selectedAccountId,
+            error = state.error,
+            onChange = onAccountChange,
+        )
+        Spacer(Modifier.height(8.dp))
+
         // Currency text field (free-form to match AddEditTransaction)
         OutlinedTextField(
             value = state.currency,
@@ -365,6 +377,59 @@ private fun ReviewForm(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(stringResource(R.string.add_receipt_cancel))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AccountPickerRow(
+    accounts: List<AccountEntity>,
+    selectedAccountId: Long?,
+    error: AddReceiptError?,
+    onChange: (Long) -> Unit,
+) {
+    if (accounts.size == 1) {
+        val acc = accounts.first()
+        OutlinedTextField(
+            value = "${acc.icon}  ${acc.name}",
+            onValueChange = {},
+            readOnly = true,
+            enabled = false,
+            label = { Text(stringResource(R.string.field_account)) },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        return
+    }
+    var expanded by remember { mutableStateOf(false) }
+    val selected = accounts.firstOrNull { it.id == selectedAccountId }
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+    ) {
+        OutlinedTextField(
+            value = selected?.let { "${it.icon}  ${it.name}" } ?: "",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.field_account)) },
+            placeholder = { Text(stringResource(R.string.account_select_placeholder)) },
+            isError = error == AddReceiptError.ACCOUNT_REQUIRED,
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier.menuAnchor().fillMaxWidth(),
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            accounts.forEach { acc ->
+                DropdownMenuItem(
+                    text = { Text("${acc.icon}  ${acc.name}") },
+                    onClick = {
+                        onChange(acc.id)
+                        expanded = false
+                    },
+                )
+            }
         }
     }
 }
