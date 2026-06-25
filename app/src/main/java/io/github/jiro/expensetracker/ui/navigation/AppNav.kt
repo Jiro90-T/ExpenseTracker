@@ -19,6 +19,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import io.github.jiro.expensetracker.R
+import io.github.jiro.expensetracker.ui.accounts.AccountDetailScreen
+import io.github.jiro.expensetracker.ui.accounts.AccountsListScreen
+import io.github.jiro.expensetracker.ui.accounts.AddEditAccountScreen
 import io.github.jiro.expensetracker.ui.add_edit.AddEditTransactionScreen
 import io.github.jiro.expensetracker.ui.add_edit.ReceiptSectionViewModel
 import io.github.jiro.expensetracker.ui.add_receipt.AddReceiptScreen
@@ -51,6 +54,12 @@ object Routes {
     const val MANAGE_SERIES_ARG_GROUP_ID = "groupId"
     const val RECEIPT_VIEWER = "receipts/viewer?path={path}"
     const val RECEIPT_VIEWER_ARG_PATH = "path"
+    const val ACCOUNTS_LIST = "accounts_list"
+    const val ACCOUNT_DETAIL = "account_detail/{accountId}"
+    const val ACCOUNT_DETAIL_ARG_ID = "accountId"
+    const val ACCOUNT_EDIT = "account_edit"
+    const val ACCOUNT_EDIT_WITH_ID = "account_edit/{accountId}"
+    const val ACCOUNT_EDIT_ARG_ID = "accountId"
 }
 
 fun addEditRoute(transactionId: Long? = null): String =
@@ -157,6 +166,36 @@ fun AppNavHost(
             composable(Routes.BUDGET) { BudgetScreen() }
             composable(Routes.TRENDS) { TrendsScreen() }
             composable(Routes.STATISTICS) { StatisticsScreen() }
+            composable(Routes.ACCOUNTS_LIST) {
+                AccountsListScreen(
+                    onBack = { navController.popBackStack() },
+                    onAddAccount = { navController.navigate(Routes.ACCOUNT_EDIT) },
+                    onAccountClick = { id -> navController.navigate("account_detail/$id") },
+                )
+            }
+            composable(
+                route = Routes.ACCOUNT_DETAIL,
+                arguments = listOf(
+                    navArgument(Routes.ACCOUNT_DETAIL_ARG_ID) { type = NavType.LongType },
+                ),
+            ) {
+                AccountDetailScreen(
+                    onBack = { navController.popBackStack() },
+                    onEditAccount = { id -> navController.navigate("account_edit/$id") },
+                    onTransactionClick = { txnId -> navController.navigate(addEditRoute(txnId)) },
+                )
+            }
+            composable(Routes.ACCOUNT_EDIT) {
+                AddEditAccountScreen(onBack = { navController.popBackStack() })
+            }
+            composable(
+                route = Routes.ACCOUNT_EDIT_WITH_ID,
+                arguments = listOf(
+                    navArgument(Routes.ACCOUNT_EDIT_ARG_ID) { type = NavType.LongType },
+                ),
+            ) {
+                AddEditAccountScreen(onBack = { navController.popBackStack() })
+            }
             composable(Routes.MORE) {
                 MoreScreen(
                     onManageCategories = { navController.navigate(Routes.CATEGORIES) },
