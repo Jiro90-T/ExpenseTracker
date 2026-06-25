@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Settings
@@ -37,11 +38,17 @@ private data class MoreItem(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoreScreen(
+    onManageAccounts: () -> Unit = {},
     onManageCategories: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onAddReceipt: () -> Unit = {},
 ) {
     val items = listOf(
+        MoreItem(
+            title = stringResource(R.string.action_manage_accounts),
+            icon = Icons.Filled.AccountBalance,
+            onClick = onManageAccounts,
+        ),
         MoreItem(
             title = stringResource(R.string.action_add_receipt),
             icon = Icons.Filled.PhotoCamera,

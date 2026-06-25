@@ -198,6 +198,7 @@ fun AppNavHost(
             }
             composable(Routes.MORE) {
                 MoreScreen(
+                    onManageAccounts = { navController.navigate(Routes.ACCOUNTS_LIST) },
                     onManageCategories = { navController.navigate(Routes.CATEGORIES) },
                     onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                     onAddReceipt = { navController.navigate(Routes.ADD_RECEIPT) },
