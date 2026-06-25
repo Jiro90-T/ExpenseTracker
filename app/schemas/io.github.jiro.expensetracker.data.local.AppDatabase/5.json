@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 5,
-    "identityHash": "53934d01b2c944fe571d5cb15dd7ea16",
+    "identityHash": "a3b86aa6c2d1d6d8e761250bd42cc1dc",
     "entities": [
       {
         "tableName": "transactions",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `amountMinor` INTEGER NOT NULL, `currencyCode` TEXT NOT NULL, `type` TEXT NOT NULL, `categoryId` INTEGER NOT NULL, `occurredAtEpochMillis` INTEGER NOT NULL, `note` TEXT, `createdAtEpochMillis` INTEGER NOT NULL, `recurringGroupId` TEXT, `recurrenceKind` TEXT, `recurrenceInterval` INTEGER NOT NULL, `recurrenceEndAt` INTEGER, `recurrenceMaxOccurrences` INTEGER, `recurrenceNextAt` INTEGER, `receiptPath` TEXT, FOREIGN KEY(`categoryId`) REFERENCES `categories`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `amountMinor` INTEGER NOT NULL, `currencyCode` TEXT NOT NULL, `type` TEXT NOT NULL, `categoryId` INTEGER, `accountId` INTEGER NOT NULL, `transferAccountId` INTEGER, `occurredAtEpochMillis` INTEGER NOT NULL, `note` TEXT, `createdAtEpochMillis` INTEGER NOT NULL, `recurringGroupId` TEXT, `recurrenceKind` TEXT, `recurrenceInterval` INTEGER NOT NULL, `recurrenceEndAt` INTEGER, `recurrenceMaxOccurrences` INTEGER, `recurrenceNextAt` INTEGER, `receiptPath` TEXT, FOREIGN KEY(`categoryId`) REFERENCES `categories`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`accountId`) REFERENCES `accounts`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`transferAccountId`) REFERENCES `accounts`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
         "fields": [
           {
             "fieldPath": "id",
@@ -42,7 +42,19 @@
             "fieldPath": "categoryId",
             "columnName": "categoryId",
             "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "accountId",
+            "columnName": "accountId",
+            "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "transferAccountId",
+            "columnName": "transferAccountId",
+            "affinity": "INTEGER",
+            "notNull": false
           },
           {
             "fieldPath": "occurredAtEpochMillis",
@@ -122,6 +134,24 @@
             "createSql": "CREATE INDEX IF NOT EXISTS `index_transactions_categoryId` ON `${TABLE_NAME}` (`categoryId`)"
           },
           {
+            "name": "index_transactions_accountId",
+            "unique": false,
+            "columnNames": [
+              "accountId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_transactions_accountId` ON `${TABLE_NAME}` (`accountId`)"
+          },
+          {
+            "name": "index_transactions_transferAccountId",
+            "unique": false,
+            "columnNames": [
+              "transferAccountId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_transactions_transferAccountId` ON `${TABLE_NAME}` (`transferAccountId`)"
+          },
+          {
             "name": "index_transactions_recurringGroupId",
             "unique": false,
             "columnNames": [
@@ -138,6 +168,28 @@
             "onUpdate": "NO ACTION",
             "columns": [
               "categoryId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "accounts",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "accountId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "accounts",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "transferAccountId"
             ],
             "referencedColumns": [
               "id"
@@ -254,12 +306,96 @@
             ]
           }
         ]
+      },
+      {
+        "tableName": "accounts",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `type` TEXT NOT NULL, `icon` TEXT NOT NULL, `color` INTEGER NOT NULL, `currencyCode` TEXT NOT NULL, `openingBalanceMinor` INTEGER NOT NULL, `createdAtEpochMillis` INTEGER NOT NULL, `archived` INTEGER NOT NULL, `sortOrder` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "icon",
+            "columnName": "icon",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "color",
+            "columnName": "color",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "currencyCode",
+            "columnName": "currencyCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "openingBalanceMinor",
+            "columnName": "openingBalanceMinor",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "createdAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "archived",
+            "columnName": "archived",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sortOrder",
+            "columnName": "sortOrder",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_accounts_name",
+            "unique": true,
+            "columnNames": [
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_accounts_name` ON `${TABLE_NAME}` (`name`)"
+          }
+        ],
+        "foreignKeys": []
       }
     ],
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '53934d01b2c944fe571d5cb15dd7ea16')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a3b86aa6c2d1d6d8e761250bd42cc1dc')"
     ]
   }
 }

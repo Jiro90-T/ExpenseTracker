@@ -86,7 +86,8 @@ object StatisticsCalculator {
                 missingRateCount++
             }
             val contribution = converted ?: t.amountMinor
-            byCategory[t.categoryId] = (byCategory[t.categoryId] ?: 0L) + contribution
+            val cid = t.categoryId ?: continue
+            byCategory[cid] = (byCategory[cid] ?: 0L) + contribution
         }
 
         val sorted = byCategory.entries.sortedByDescending { it.value }

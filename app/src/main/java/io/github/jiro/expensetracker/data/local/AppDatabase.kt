@@ -6,7 +6,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [TransactionEntity::class, CategoryEntity::class, BudgetEntity::class],
+    entities = [TransactionEntity::class, CategoryEntity::class, BudgetEntity::class, AccountEntity::class],
     version = 5,
     exportSchema = true,
 )

@@ -34,7 +34,8 @@ fun computeSpentByCategory(
                 missing += 1
                 t.amountMinor
             }
-        byCategory[t.categoryId] = (byCategory[t.categoryId] ?: 0L) + converted
+        val cid = t.categoryId ?: continue
+        byCategory[cid] = (byCategory[cid] ?: 0L) + converted
     }
     return SpentSummary(byCategory, missing)
 }

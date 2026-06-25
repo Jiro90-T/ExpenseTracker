@@ -283,15 +283,16 @@ fun computeDashboardSummary(
             TransactionType.INCOME -> income += converted
             TransactionType.EXPENSE -> {
                 expense += converted
-                val existing = byCategory[t.categoryId]
+                val cid = t.categoryId ?: continue
+                val existing = byCategory[cid]
                 if (existing == null) {
-                    byCategory[t.categoryId] = CategoryBreakdown(
-                        categoryId = t.categoryId,
+                    byCategory[cid] = CategoryBreakdown(
+                        categoryId = cid,
                         categoryName = row.category.name,
                         amountMinor = converted,
                     )
                 } else {
-                    byCategory[t.categoryId] = existing.copy(
+                    byCategory[cid] = existing.copy(
                         amountMinor = existing.amountMinor + converted,
                     )
                 }

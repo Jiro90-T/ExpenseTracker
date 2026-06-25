@@ -72,7 +72,7 @@ internal fun computeSpentByCategory(
     fxRates: Map<String, Double>,
 ): Map<Long, Long> = rows
     .filter { TransactionType.fromStorage(it.transaction.type) == TransactionType.EXPENSE }
-    .groupBy { it.transaction.categoryId }
+    .groupBy { it.transaction.categoryId ?: 0L }
     .mapValues { (_, rows) ->
         rows.sumOf { row ->
             val t = row.transaction
