@@ -16,14 +16,14 @@ Out of scope (intentional, deferred): account-level reconciliation ("set expecte
 - 2-column grid of compact tiles: icon + name + balance. ~80dp per tile. Handles 10–20 accounts with one screen + half of scroll.
 - Header card: net balance in home currency + count ("across 12 accounts"). Conversion uses existing FX rates from `SettingsRepository.fxRates`.
 - Tap a tile → account detail (transactions filtered by `accountId`).
-- Long-press → edit / delete menu (delete is currently disabled with a "coming soon" toast — see Risks).
+- Long-press a tile → "Edit" (no delete option in this phase; see Out of scope).
 - FAB (+) → Add Account.
 
 ### Add / Edit Account
 - Single scrollable form: name, type (preset + custom), icon picker (8 emojis), color picker (8 swatches), currency (locked on Edit), opening balance (Add only; Edit uses "Adjust balance").
 - Currency field is locked after first save. On Edit it shows disabled with a hint: *"Currency cannot be changed — create a new account if you need a different currency."*
 - Icon and color are always editable, no restrictions.
-- "Adjust balance" (Edit only) opens a small dialog that creates a TRANSFER-like ADJUSTMENT row against a chosen account, never silently mutating the opening balance. (See Risks — the ADJUSTMENT type is implemented minimally in this phase: stored as a TRANSFER row with a special `note` like "Opening balance adjustment" and a sentinel `transferAccountId = accountId` to satisfy the NOT-NULL FK; net effect on balance is zero, opening balance stays the source of truth.)
+- "Adjust balance" (Edit only, shown when ≥1 transaction exists against the account) opens a dialog where the user enters the new target balance; the app computes the delta and creates a new `ADJUSTMENT` transaction row. Never silently mutates the opening balance; the audit trail is preserved. (See Risks — ADJUSTMENT is a new transaction type introduced in this phase, stored like EXPENSE/INCOME but with no category and no transferAccountId; `amountMinor` can be positive or negative.)
 
 ### Add / Edit Transaction & Add Receipt review
 - New "Account" dropdown between Type and Category.
@@ -73,6 +73,10 @@ data class TransactionEntity(
     val transferAccountId: Long? = null,  // NEW, NULL except for TRANSFER, FK accounts(id)
     val categoryId: Long? = null,         // CHANGED: was NOT NULL, now nullable (TRANSFER has no category)
 )
+
+// TransactionType enum gains two new values:
+//   TRANSFER  — money moved between two accounts
+//   ADJUSTMENT — manual balance correction (created only via the Adjust balance dialog)
 ```
 
 ## Migration v5 → v6
@@ -160,7 +164,7 @@ Computed in the repository as a Room `@Query` returning a map of `accountId → 
 SELECT a.id AS accountId,
        a.openingBalanceMinor
        + COALESCE((SELECT SUM(amountMinor) FROM transactions
-                   WHERE accountId = a.id AND type IN ('INCOME','EXPENSE')), 0)
+                   WHERE accountId = a.id AND type IN ('INCOME','EXPENSE','ADJUSTMENT')), 0)
        - COALESCE((SELECT SUM(amountMinor) FROM transactions
                    WHERE accountId = a.id AND type = 'TRANSFER'), 0)
        + COALESCE((SELECT SUM(amountMinor) FROM transactions
@@ -188,6 +192,22 @@ CREDIT_CARD balances display as negative when owed (`−RM 432` = "you owe RM 43
 - `categoryId == null`
 - `amountMinor > 0`
 
+## ADJUSTMENT mechanics
+
+A new transaction type introduced in this phase. Stored like EXPENSE/INCOME but with no category and no transferAccountId:
+- `type = 'ADJUSTMENT'`
+- `accountId = <target account>`
+- `transferAccountId = null`
+- `categoryId = null`
+- `amountMinor` can be positive or negative (it's a delta against the current balance)
+- `note = "Balance adjustment: <X> → <Y>"` (auto-filled; user can't override)
+
+**Created by:** the "Adjust balance" action on Edit Account. The user enters a new target balance; the app computes `delta = target - currentBalance` and creates one ADJUSTMENT row.
+
+**Effect on balance:** added directly via the formula (`type IN ('INCOME','EXPENSE','ADJUSTMENT')`). The opening balance field on the account remains untouched.
+
+**Not user-creatable** through the normal Add Transaction flow — only via the dedicated Adjust balance dialog. The Type picker on Add Transaction shows EXPENSE / INCOME / TRANSFER only.
+
 ## UI layer
 
 ### Screens
@@ -201,7 +221,7 @@ CREDIT_CARD balances display as negative when owed (`−RM 432` = "you owe RM 43
 ### ViewModels
 - `AccountsListViewModel` — exposes `state: StateFlow<AccountsListUiState>` with `accounts`, `netBalanceInHome`, `isLoading`.
 - `AddEditAccountViewModel` — handles form state, save, validation (unique name, currency lock on edit, opening balance only on add).
-- `AddEditTransactionViewModel` — gains `accountId`, `transferAccountId` in state; new `onAccountChange`, `onTransferAccountChange` handlers; save() validation extended.
+- `AddEditTransactionViewModel` — gains `accountId`, `transferAccountId` in state; new `onAccountChange`, `onTransferAccountChange` handlers; save() validation extended. The Type picker exposes EXPENSE / INCOME / TRANSFER only (ADJUSTMENT is never user-selectable on this screen).
 - `AddReceiptViewModel` — gains the same Account fields; the OCR auto-fill does NOT touch the account (it's a user-pick, not OCR-extractable).
 
 ### Navigation
