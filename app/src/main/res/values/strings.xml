@@ -291,4 +291,39 @@
     <string name="filter_sort_field_category">Category</string>
     <string name="filter_sort_direction_asc">Sort ascending</string>
     <string name="filter_sort_direction_desc">Sort descending</string>
+
+    <!-- Accounts (Phase 2.16) -->
+    <string name="accounts_title">Accounts</string>
+    <string name="action_manage_accounts">Manage accounts</string>
+    <string name="account_add_title">New account</string>
+    <string name="account_edit_title">Edit account</string>
+    <string name="field_account_name">Account name</string>
+    <string name="field_account_type">Type</string>
+    <string name="field_account_icon">Icon</string>
+    <string name="field_account_color">Color</string>
+    <string name="field_account_currency">Currency</string>
+    <string name="field_account_opening_balance">Opening balance</string>
+    <string name="field_account_opening_balance_hint">Pre-existing balance as of account creation. Optional — leave 0 if starting fresh.</string>
+    <string name="field_account">Account</string>
+    <string name="hint_account_currency_locked">Currency cannot be changed — create a new account if you need a different currency.</string>
+    <string name="action_adjust_balance">Adjust balance</string>
+    <string name="action_adjust_balance_dialog_title">Adjust balance</string>
+    <string name="action_adjust_balance_dialog_body">Current balance: %1$s\nNew balance:</string>
+    <string name="action_adjust_balance_dialog_confirm">Adjust</string>
+    <string name="account_type_cash">Cash</string>
+    <string name="account_type_bank">Bank</string>
+    <string name="account_type_credit_card">Credit card</string>
+    <string name="account_type_ewallet">e-Wallet</string>
+    <string name="account_type_other">Other</string>
+    <string name="account_type_custom">Custom</string>
+    <string name="error_account_name_required">Name is required</string>
+    <string name="error_account_name_duplicate">An account with this name already exists</string>
+    <string name="error_account_currency_required">Currency is required</string>
+    <string name="accounts_header_balance">Net balance (home)</string>
+    <string name="accounts_header_count">across %1$d accounts</string>
+    <string name="account_select_placeholder">Select an account</string>
+    <string name="account_to_account">To account</string>
+    <string name="type_transfer">Transfer</string>
+    <string name="account_color_default_blue">#1976D2</string>
+    <string name="account_balance_adjustment_note">Balance adjustment: %1$s → %2$s</string>
 </resources>

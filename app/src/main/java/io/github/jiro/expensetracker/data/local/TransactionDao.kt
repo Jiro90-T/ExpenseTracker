@@ -84,4 +84,9 @@ interface TransactionDao {
 
     @Query("SELECT COUNT(*) FROM transactions WHERE recurringGroupId = :groupId")
     suspend fun countByRecurringGroup(groupId: String): Int
+
+    // ---- Accounts (Phase 2.16) ----
+
+    @Query("SELECT COUNT(*) FROM transactions WHERE accountId = :accountId")
+    suspend fun countForAccount(accountId: Long): Int
 }

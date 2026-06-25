@@ -26,6 +26,9 @@ open class TransactionRepository @Inject constructor(
 
     suspend fun findById(id: Long): TransactionEntity? = dao.findById(id)
 
+    suspend fun countForAccount(accountId: Long): Int =
+        dao.countForAccount(accountId)
+
     open suspend fun add(transaction: TransactionEntity): Long = dao.insert(transaction)
 
     suspend fun update(transaction: TransactionEntity) = dao.update(transaction)
