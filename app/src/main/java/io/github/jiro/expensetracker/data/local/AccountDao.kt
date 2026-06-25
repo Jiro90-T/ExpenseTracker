@@ -46,7 +46,8 @@ interface AccountDao {
     @Query("""
         SELECT a.id AS accountId,
                a.openingBalanceMinor
-               + COALESCE((SELECT SUM(amountMinor) FROM transactions
+               + COALESCE((SELECT SUM(CASE WHEN type = 'EXPENSE' THEN -amountMinor ELSE amountMinor END)
+                           FROM transactions
                            WHERE accountId = a.id AND type IN ('INCOME','EXPENSE','ADJUSTMENT')), 0)
                - COALESCE((SELECT SUM(amountMinor) FROM transactions
                            WHERE accountId = a.id AND type = 'TRANSFER'), 0)

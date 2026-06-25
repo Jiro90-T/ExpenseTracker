@@ -50,9 +50,16 @@ class AccountBalanceFormulaTest {
     ): Long {
         val account = accounts.first { it.id == targetId }
         val opening = account.openingBalanceMinor
-        val onAccount = txns.filter {
-            it.accountId == targetId && it.type in setOf("INCOME", "EXPENSE", "ADJUSTMENT")
+        val income = txns.filter {
+            it.accountId == targetId && it.type == "INCOME"
         }.sumOf { it.amountMinor }
+        val expense = txns.filter {
+            it.accountId == targetId && it.type == "EXPENSE"
+        }.sumOf { it.amountMinor }
+        val adjustment = txns.filter {
+            it.accountId == targetId && it.type == "ADJUSTMENT"
+        }.sumOf { it.amountMinor }
+        val onAccount = income - expense + adjustment
         val out = txns.filter {
             it.accountId == targetId && it.type == "TRANSFER"
         }.sumOf { it.amountMinor }
