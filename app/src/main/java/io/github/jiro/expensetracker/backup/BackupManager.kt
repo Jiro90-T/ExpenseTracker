@@ -63,6 +63,8 @@ class BackupManager @Inject constructor(
                             amountMinor = t.amountMinor,
                             currencyCode = t.currencyCode,
                             type = t.type,
+                            // TRANSFER/ADJUSTMENT rows have no category; coerced to 0 for legacy export shape.
+                            // TODO: bump backup format and persist null + new accountId/transferAccountId.
                             categoryId = t.categoryId ?: 0L,
                             occurredAtEpochMillis = t.occurredAtEpochMillis,
                             note = t.note,
@@ -192,6 +194,8 @@ class BackupManager @Inject constructor(
                             amountMinor = t.amountMinor,
                             currencyCode = t.currencyCode,
                             type = t.type,
+                            // TRANSFER/ADJUSTMENT rows have no category; coerced to 0 for legacy export shape.
+                            // TODO: bump backup format and persist null + new accountId/transferAccountId.
                             categoryId = t.categoryId ?: 0L,
                             occurredAtEpochMillis = t.occurredAtEpochMillis,
                             note = t.note,
@@ -275,6 +279,8 @@ class BackupManager @Inject constructor(
                             amountMinor = t.amountMinor,
                             currencyCode = t.currencyCode,
                             type = t.type,
+                            // TRANSFER/ADJUSTMENT rows have no category; coerced to 0 for legacy export shape.
+                            // TODO: bump backup format and persist null + new accountId/transferAccountId.
                             categoryId = t.categoryId ?: 0L,
                             occurredAtEpochMillis = t.occurredAtEpochMillis,
                             note = t.note,
