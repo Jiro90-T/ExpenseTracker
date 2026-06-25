@@ -9,6 +9,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import dagger.hilt.android.HiltAndroidApp
+import io.github.jiro.expensetracker.data.local.AccountSeeder
 import io.github.jiro.expensetracker.data.local.CategorySeeder
 import io.github.jiro.expensetracker.work.RecurringTransactionWorker
 import java.util.concurrent.TimeUnit
@@ -22,6 +23,7 @@ import kotlinx.coroutines.launch
 class ExpenseTrackerApp : Application(), Configuration.Provider {
 
     @Inject lateinit var categorySeeder: CategorySeeder
+    @Inject lateinit var accountSeeder: AccountSeeder
     @Inject lateinit var workerFactory: HiltWorkerFactory
 
     override val workManagerConfiguration: Configuration
@@ -34,7 +36,10 @@ class ExpenseTrackerApp : Application(), Configuration.Provider {
         super.onCreate()
         // Run the seeder on a background scope so first-launch doesn't block.
         val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-        appScope.launch { categorySeeder.seedIfEmpty() }
+        appScope.launch {
+            categorySeeder.seedIfEmpty()
+            accountSeeder.syncDefaultCurrency()
+        }
         scheduleRecurringTransactionJob()
         triggerRecurringTransactionCheckOnLaunch()
     }
