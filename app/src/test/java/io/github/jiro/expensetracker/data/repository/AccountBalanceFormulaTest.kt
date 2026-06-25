@@ -99,11 +99,15 @@ class AccountBalanceFormulaTest {
         assertEquals(200L, balanceOf(2, a, t))
     }
 
-    @Test fun `transfer out and in net to opening`() {
+    @Test fun `transfer shifts source and destination balances`() {
         val a = listOf(acct(1, opening = 500L), acct(2, opening = 500L))
         val t = listOf(txn(TransactionType.TRANSFER, 1, 100L, transferAccountId = 2))
-        assertEquals(500L, balanceOf(1, a, t))
-        assertEquals(500L, balanceOf(2, a, t))
+        // Source: 500 - 100 = 400
+        assertEquals(400L, balanceOf(1, a, t))
+        // Destination: 500 + 100 = 600
+        assertEquals(600L, balanceOf(2, a, t))
+        // Net: 400 + 600 = 1000 = opening total (conservation).
+        assertEquals(1000L, balanceOf(1, a, t) + balanceOf(2, a, t))
     }
 
     @Test fun `adjustment adds directly to balance`() {
