@@ -326,4 +326,11 @@
     <string name="type_transfer">Transfer</string>
     <string name="account_color_default_blue">#1976D2</string>
     <string name="account_balance_adjustment_note">Balance adjustment: %1$s → %2$s</string>
+
+    <!-- Accounts (Phase 2.17 — Delete account) -->
+    <string name="account_delete">Delete</string>
+    <string name="account_delete_confirm_title">Delete account?</string>
+    <string name="account_delete_confirm_message">Delete account \'%1$s\'? This cannot be undone.</string>
+    <string name="account_delete_blocked_title">Account has transactions</string>
+    <string name="account_delete_blocked_message">Account \'%1$s\' has %2$d transactions referencing it. Delete them first or move them to another account.</string>
 </resources>
