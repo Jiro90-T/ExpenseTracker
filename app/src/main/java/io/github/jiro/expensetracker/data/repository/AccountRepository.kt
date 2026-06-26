@@ -34,6 +34,8 @@ open class AccountRepository @Inject constructor(
         dao.update(account)
     }
 
+    open suspend fun delete(id: Long): Int = dao.delete(id)
+
     /** Stream of all non-archived accounts joined with their computed balances. */
     fun observeWithBalances(): Flow<List<AccountWithBalance>> =
         combine(dao.observeActive(), dao.observeBalances()) { accounts, balances ->

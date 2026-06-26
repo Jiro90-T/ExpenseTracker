@@ -28,6 +28,9 @@ interface AccountDao {
     @Update
     suspend fun update(account: AccountEntity): Int
 
+    @Query("DELETE FROM accounts WHERE id = :id")
+    suspend fun delete(id: Long): Int
+
     @Query("UPDATE accounts SET currencyCode = :code WHERE id = 1")
     suspend fun updateDefaultCurrency(code: String): Int
 

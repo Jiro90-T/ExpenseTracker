@@ -261,6 +261,7 @@ private class StubAccountDao : AccountDao {
     override suspend fun findDefault(): AccountEntity? = null
     override suspend fun insert(account: AccountEntity): Long = 0L
     override suspend fun update(account: AccountEntity): Int = 0
+    override suspend fun delete(id: Long): Int = 0
     override suspend fun updateDefaultCurrency(code: String): Int = 0
     override suspend fun countActive(): Int = 0
     override fun observeBalances(): Flow<List<io.github.jiro.expensetracker.data.local.AccountBalanceRow>> =
