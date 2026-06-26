@@ -288,7 +288,7 @@ fun computeDashboardSummary(
                 if (existing == null) {
                     byCategory[cid] = CategoryBreakdown(
                         categoryId = cid,
-                        categoryName = row.category.name,
+                        categoryName = row.category?.name ?: "—",
                         amountMinor = converted,
                     )
                 } else {

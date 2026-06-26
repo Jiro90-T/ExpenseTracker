@@ -95,6 +95,7 @@ private fun StandardRow(
     } else {
         IncomeGreen
     }
+    val displayCategoryName = category?.name ?: stringResource(R.string.type_transfer)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -103,7 +104,7 @@ private fun StandardRow(
             .clickable(onClick = onClick)
             .padding(vertical = 8.dp),
     ) {
-        CategoryIconBadge(name = category.name, size = 40)
+        CategoryIconBadge(name = displayCategoryName, size = 40)
         Spacer(Modifier.padding(start = 12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -122,7 +123,7 @@ private fun StandardRow(
                 }
             }
             Text(
-                text = "${category.name} · ${txn.currencyCode} " +
+                text = "$displayCategoryName · ${txn.currencyCode} " +
                     "$sign${txn.amountMinor / 100}.${"%02d".format(txn.amountMinor % 100)}",
                 style = MaterialTheme.typography.bodySmall,
                 color = amountColor,

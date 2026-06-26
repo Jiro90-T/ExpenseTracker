@@ -28,7 +28,7 @@ object CsvExporter {
             val amount = "%d.%02d".format(t.amountMinor / 100, t.amountMinor % 100)
             append(csvEscape(date)).append(',')
             append(csvEscape(type)).append(',')
-            append(csvEscape(row.category.name)).append(',')
+            append(csvEscape(row.category?.name.orEmpty())).append(',')
             append(csvEscape(t.title)).append(',')
             append(amount).append(',')
             append(csvEscape(t.currencyCode)).append(',')
