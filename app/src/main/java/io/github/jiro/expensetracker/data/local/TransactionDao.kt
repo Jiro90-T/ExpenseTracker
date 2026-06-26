@@ -90,6 +90,12 @@ interface TransactionDao {
     @Query("SELECT COUNT(*) FROM transactions WHERE accountId = :accountId")
     suspend fun countForAccount(accountId: Long): Int
 
+    @Query(
+        "SELECT COUNT(*) FROM transactions " +
+            "WHERE accountId = :id OR transferAccountId = :id"
+    )
+    suspend fun countReferencingAccount(id: Long): Int
+
     @Transaction
     @Query("SELECT * FROM transactions WHERE accountId = :accountId ORDER BY occurredAtEpochMillis DESC")
     fun observeByAccount(accountId: Long): Flow<List<TransactionWithCategory>>
