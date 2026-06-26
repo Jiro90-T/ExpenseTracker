@@ -80,7 +80,7 @@ class AddEditAccountViewModel @Inject constructor(
 ) : AndroidViewModel(application) {
 
     private val accountId: Long? = savedStateHandle
-        .get<Long>("id")
+        .get<Long>("accountId")
         ?.takeIf { it >= 0 }
 
     private val _state = MutableStateFlow(AddEditAccountUiState(isEdit = accountId != null))
