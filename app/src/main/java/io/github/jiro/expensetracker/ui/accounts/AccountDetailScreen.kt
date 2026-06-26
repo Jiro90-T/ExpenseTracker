@@ -12,15 +12,19 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,6 +62,15 @@ fun AccountDetailScreen(
                 },
                 actions = {
                     if (aw != null) {
+                        if (aw.account.id != 1L) {
+                            IconButton(onClick = viewModel::onDeleteClick) {
+                                Icon(
+                                    Icons.Filled.Delete,
+                                    contentDescription = stringResource(R.string.account_delete),
+                                    tint = MaterialTheme.colorScheme.error,
+                                )
+                            }
+                        }
                         IconButton(onClick = { onEditAccount(aw.account.id) }) {
                             Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.action_edit))
                         }
@@ -85,6 +98,42 @@ fun AccountDetailScreen(
             items(state.transactions, key = { it.transaction.id }) { row ->
                 TransactionRow(row = row, onClick = { onTransactionClick(row.transaction.id) })
             }
+        }
+    }
+
+    LaunchedEffect(state.deleted) {
+        if (state.deleted) onBack()
+    }
+
+    if (state.showDeleteConfirm) {
+        val account = state.accountWithBalance?.account
+        when (state.deleteGuard) {
+            DeleteGuard.ALLOW -> AlertDialog(
+                onDismissRequest = viewModel::onDeleteDismiss,
+                title = { Text(stringResource(R.string.account_delete_confirm_title)) },
+                text = { Text(stringResource(R.string.account_delete_confirm_message, account?.name.orEmpty())) },
+                confirmButton = {
+                    TextButton(onClick = viewModel::onDeleteConfirm) {
+                        Text(stringResource(R.string.account_delete), color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = viewModel::onDeleteDismiss) {
+                        Text(stringResource(R.string.action_cancel))
+                    }
+                },
+            )
+            DeleteGuard.BLOCK_TRANSACTIONS_EXIST -> AlertDialog(
+                onDismissRequest = viewModel::onDeleteDismiss,
+                title = { Text(stringResource(R.string.account_delete_blocked_title)) },
+                text = { Text(stringResource(R.string.account_delete_blocked_message, account?.name.orEmpty(), state.referenceCount)) },
+                confirmButton = {
+                    TextButton(onClick = viewModel::onDeleteDismiss) {
+                        Text(stringResource(R.string.action_ok))
+                    }
+                },
+            )
+            null -> Unit // defensive: dialog shouldn't show in this state
         }
     }
 }
