@@ -21,6 +21,11 @@ data class AccountDetailUiState(
     val isLoading: Boolean = true,
 )
 
+enum class DeleteGuard { ALLOW, BLOCK_TRANSACTIONS_EXIST }
+
+fun evaluateDelete(referenceCount: Int): DeleteGuard =
+    if (referenceCount == 0) DeleteGuard.ALLOW else DeleteGuard.BLOCK_TRANSACTIONS_EXIST
+
 @HiltViewModel
 class AccountDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
