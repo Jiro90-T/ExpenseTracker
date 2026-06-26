@@ -11,6 +11,7 @@ import io.github.jiro.expensetracker.data.repository.AccountRepository
 import io.github.jiro.expensetracker.data.repository.AccountWithBalance
 import io.github.jiro.expensetracker.data.repository.TransactionRepository
 import io.github.jiro.expensetracker.domain.model.TransactionType
+import io.github.jiro.expensetracker.preferences.SettingsRepository
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -75,6 +76,7 @@ class AddEditAccountViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val accountRepository: AccountRepository,
     private val transactionRepository: TransactionRepository,
+    private val settingsRepository: SettingsRepository,
 ) : AndroidViewModel(application) {
 
     private val accountId: Long? = savedStateHandle
@@ -105,7 +107,12 @@ class AddEditAccountViewModel @Inject constructor(
                 }
             }
         } else {
-            _state.update { it.copy(isLoaded = true) }
+            _state.update {
+                it.copy(
+                    currency = settingsRepository.homeCurrency.value,
+                    isLoaded = true,
+                )
+            }
         }
     }
 
