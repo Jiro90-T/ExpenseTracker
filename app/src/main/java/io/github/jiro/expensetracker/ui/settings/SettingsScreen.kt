@@ -3,6 +3,7 @@ package io.github.jiro.expensetracker.ui.settings
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -21,10 +23,13 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -50,16 +55,23 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.jiro.expensetracker.BuildConfig
 import io.github.jiro.expensetracker.R
 import io.github.jiro.expensetracker.backup.BackupFormat
+import io.github.jiro.expensetracker.data.accountimport.AccountTypeDefaults
+import io.github.jiro.expensetracker.data.accountimport.ImportPreview
+import io.github.jiro.expensetracker.data.accountimport.ImportStatus
+import io.github.jiro.expensetracker.data.accountimport.ResolvedImportRow
+import io.github.jiro.expensetracker.data.local.MoneyFormat
 import io.github.jiro.expensetracker.preferences.SUPPORTED_CURRENCIES
 import io.github.jiro.expensetracker.preferences.ThemePreference
 import io.github.jiro.expensetracker.preferences.parseRates
@@ -86,6 +98,15 @@ fun SettingsScreen(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri ->
         if (uri != null) pendingRestoreUri = uri
+    }
+
+    val pendingImportPreview by viewModel.pendingImportPreview.collectAsStateWithLifecycle()
+    val importInFlight by viewModel.importInFlight.collectAsStateWithLifecycle()
+
+    val importCsvPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) viewModel.onImportCsvPicked(uri)
     }
 
     if (pendingRestoreUri != null) {
@@ -176,6 +197,50 @@ fun SettingsScreen(
                     restorePicker.launch(arrayOf("application/json", "application/zip", "*/*"))
                 },
             )
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+            // --- Import accounts from CSV ---
+            SettingsSectionHeader(stringResource(R.string.import_csv_section_title))
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.import_csv_section_subtitle),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Button(
+                        onClick = {
+                            importCsvPicker.launch(
+                                arrayOf(
+                                    "text/csv",
+                                    "text/comma-separated-values",
+                                    "application/vnd.ms-excel",
+                                    "text/*",
+                                ),
+                            )
+                        },
+                        enabled = !importInFlight,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.FileUpload,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.size(8.dp))
+                        Text(stringResource(R.string.import_csv_button))
+                    }
+                }
+            }
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
             // ---- Home currency section ----
@@ -276,6 +341,15 @@ fun SettingsScreen(
                 viewModel.addFxRate(from, to, rate)
                 showAddRateDialog = false
             },
+        )
+    }
+
+    pendingImportPreview?.let { preview ->
+        ImportPreviewDialog(
+            preview = preview,
+            inFlight = importInFlight,
+            onDismiss = { viewModel.onImportDismiss() },
+            onConfirm = { viewModel.onImportConfirm() },
         )
     }
 }
@@ -599,4 +673,127 @@ private fun AddRateDialog(
             }
         },
     )
+}
+
+@Composable
+private fun ImportPreviewDialog(
+    preview: ImportPreview,
+    inFlight: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    val willCreateCount = preview.rows.count { it.status is ImportStatus.WillCreate }
+    val willUpdateCount = preview.rows.count { it.status is ImportStatus.WillUpdate }
+    val rejectedCount = preview.rows.count { it.status is ImportStatus.Rejected }
+    val applyCount = willCreateCount + willUpdateCount
+    val allRejected = applyCount == 0
+
+    AlertDialog(
+        onDismissRequest = { if (!inFlight) onDismiss() },
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+        title = {
+            Text(
+                text = stringResource(
+                    R.string.import_csv_preview_title,
+                    preview.rows.size,
+                    preview.fileName,
+                ),
+            )
+        },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = stringResource(
+                        R.string.import_csv_summary,
+                        willCreateCount,
+                        willUpdateCount,
+                        rejectedCount,
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                if (allRejected) {
+                    Spacer(Modifier.size(8.dp))
+                    Text(
+                        text = stringResource(R.string.import_csv_all_rejected),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                Spacer(Modifier.size(12.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 400.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    preview.rows.forEach { row ->
+                        ImportRowItem(row = row)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                enabled = !inFlight && applyCount > 0,
+            ) {
+                Text(stringResource(R.string.import_csv_apply, applyCount))
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !inFlight,
+            ) {
+                Text(stringResource(R.string.import_csv_cancel))
+            }
+        },
+    )
+    if (inFlight) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.2f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            CircularProgressIndicator()
+        }
+    }
+}
+
+@Composable
+private fun ImportRowItem(row: ResolvedImportRow) {
+    val status = row.status
+    val raw = row.raw
+    val (bgColor, label) = when (status) {
+        is ImportStatus.WillCreate -> Color(0x1A43A047) to "🟢"
+        is ImportStatus.WillUpdate -> Color(0x1A1976D2) to "🔵"
+        is ImportStatus.Rejected -> Color(0x1AC62828) to "🔴"
+    }
+    val detailText = when (status) {
+        is ImportStatus.WillCreate -> {
+            val icon = AccountTypeDefaults.iconFor(raw.type)
+            val balance = MoneyFormat.formatForDisplay(raw.balanceMinor)
+            "$icon ${raw.name} (${raw.type}, ${raw.currency}) → $balance"
+        }
+        is ImportStatus.WillUpdate -> {
+            val balance = MoneyFormat.formatForDisplay(raw.balanceMinor)
+            "$label ${raw.name} (existing) → new opening balance: $balance"
+        }
+        is ImportStatus.Rejected -> {
+            "$label ${stringResource(R.string.import_csv_status_rejected, status.reason)}"
+        }
+    }
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = bgColor,
+        shape = MaterialTheme.shapes.small,
+    ) {
+        Text(
+            text = detailText,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+        )
+    }
 }
