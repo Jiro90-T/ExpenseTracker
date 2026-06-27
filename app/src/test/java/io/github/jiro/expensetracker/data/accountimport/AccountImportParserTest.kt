@@ -59,6 +59,37 @@ class AccountImportParserTest {
         assertEquals("He said \"hi\"", ok.rows[1].name)
     }
 
+    @Test fun parse_unbalancedQuote_mentionsQuoteInRejection() {
+        val csv = """
+            name,type,currency,balance
+            Bad,"unclosed,CASH,USD,1.00
+        """.trimIndent()
+        val result = parse(csv.toByteArray())
+        assertTrue("expected Ok, got $result", result is ParseResult.Ok)
+        val ok = result as ParseResult.Ok
+        assertEquals(0, ok.rows.size)
+        assertEquals(1, ok.rejected.size)
+        assertEquals(2, ok.rejected[0].first)
+        assertTrue(
+            "rejection should mention unbalanced quote, got: ${ok.rejected[0].second}",
+            ok.rejected[0].second.contains("unbalanced", ignoreCase = true),
+        )
+    }
+
+    @Test fun parse_balancedQuotedFieldCountIsCorrect() {
+        val csv = """
+            name,type,currency,balance
+            "Cash, daily",CASH,USD,250.00
+        """.trimIndent()
+        val result = parse(csv.toByteArray())
+        assertTrue("expected Ok, got $result", result is ParseResult.Ok)
+        val ok = result as ParseResult.Ok
+        assertEquals(1, ok.rows.size)
+        assertEquals(0, ok.rejected.size)
+        assertEquals("Cash, daily", ok.rows[0].name)
+        assertEquals(25_000L, ok.rows[0].balanceMinor)
+    }
+
     @Test fun parse_skipsBlankLines() {
         val csv = """
             name,type,currency,balance

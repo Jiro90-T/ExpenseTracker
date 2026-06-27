@@ -32,7 +32,7 @@ object AccountImportParser {
         if (lines.isEmpty()) return ParseResult.Failed("File is empty.")
 
         val header = tokenize(lines[0])
-        if (!headerMatches(header)) {
+        if (!headerMatches(header.fields)) {
             return ParseResult.Failed(
                 "Header must be: ${EXPECTED_HEADER.joinToString(",")}",
             )
@@ -41,9 +41,13 @@ object AccountImportParser {
         val rows = mutableListOf<RawImportRow>()
         val rejected = mutableListOf<Pair<Int, String>>()
         for (i in 1 until lines.size) {
-            val fields = tokenize(lines[i])
+            val tokenized = tokenize(lines[i])
             val lineNumber = i + 1
-            validateAndAdd(fields, lineNumber, rows, rejected)
+            if (tokenized.unbalanced) {
+                rejected.add(lineNumber to "line $lineNumber: unbalanced quote in row")
+                continue
+            }
+            validateAndAdd(tokenized.fields, lineNumber, rows, rejected)
         }
         return ParseResult.Ok(rows, rejected)
     }
@@ -57,11 +61,21 @@ object AccountImportParser {
         header.size == EXPECTED_HEADER.size &&
             header.map { it.lowercase() } == EXPECTED_HEADER
 
+    /** Result of tokenizing a single CSV line. */
+    internal data class TokenizedLine(
+        val fields: List<String>,
+        val unbalanced: Boolean,
+    )
+
     /**
      * Tokenize a single CSV line per RFC 4180. Handles `"`-quoted fields
      * with `""` as the escape for a literal quote, and commas inside quotes.
+     *
+     * Returns the parsed fields along with an `unbalanced` flag — when true,
+     * the line ended with an open quote (e.g. `Bad,"unclosed,CASH,...`).
+     * The caller should treat this as a row-level rejection.
      */
-    internal fun tokenize(line: String): List<String> {
+    internal fun tokenize(line: String): TokenizedLine {
         val out = mutableListOf<String>()
         val sb = StringBuilder()
         var inQuotes = false
@@ -80,7 +94,7 @@ object AccountImportParser {
             }
         }
         out.add(sb.toString())
-        return out
+        return TokenizedLine(out, inQuotes)
     }
 
     private fun validateAndAdd(
