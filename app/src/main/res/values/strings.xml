@@ -333,4 +333,22 @@
     <string name="account_delete_confirm_message">Delete account \'%1$s\'? This cannot be undone.</string>
     <string name="account_delete_blocked_title">Account has transactions</string>
     <string name="account_delete_blocked_message">Account \'%1$s\' has %2$d transactions referencing it. Delete them first or move them to another account.</string>
+
+    <!-- Accounts (Phase 2.18 — CSV Balance Import) -->
+    <string name="import_csv_section_title">Import accounts from CSV</string>
+    <string name="import_csv_section_subtitle">Bulk-create accounts or update opening balances from a 4-column CSV file.</string>
+    <string name="import_csv_button">Choose CSV file</string>
+    <string name="import_csv_preview_title">Import %1$d rows from %2$s</string>
+    <string name="import_csv_summary">%1$d new accounts, %2$d updates, %3$d rejected</string>
+    <string name="import_csv_status_will_create">Will create</string>
+    <string name="import_csv_status_will_update">Will update</string>
+    <string name="import_csv_status_rejected">Rejected — %1$s</string>
+    <string name="import_csv_apply">Apply %1$d rows</string>
+    <string name="import_csv_cancel">Cancel</string>
+    <string name="import_csv_all_rejected">All rows were rejected; fix your CSV and try again.</string>
+    <string name="import_csv_read_error">Couldn\'t read file.</string>
+    <string name="import_csv_header_error">Header must be: name,type,currency,balance</string>
+    <string name="import_csv_empty_error">File is empty.</string>
+    <string name="import_csv_done">Imported %1$d accounts, updated %2$d.</string>
+    <string name="import_csv_failed">Import failed: %1$s</string>
 </resources>
