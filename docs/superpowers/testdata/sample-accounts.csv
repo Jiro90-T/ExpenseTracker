@@ -1,0 +1,4 @@
+name,type,currency,balance
+Cash,CASH,USD,250.00
+BPI Savings,BANK,PHP,15000.00
+AmEx Credit,CREDIT_CARD,USD,-120.50
