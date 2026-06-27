@@ -3,6 +3,7 @@ package io.github.jiro.expensetracker.data.repository
 import io.github.jiro.expensetracker.data.local.AccountBalanceRow
 import io.github.jiro.expensetracker.data.local.AccountDao
 import io.github.jiro.expensetracker.data.local.AccountEntity
+import io.github.jiro.expensetracker.data.accountimport.ResolvedImportRow
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
@@ -35,6 +36,10 @@ open class AccountRepository @Inject constructor(
     }
 
     open suspend fun delete(id: Long): Int = dao.delete(id)
+
+    /** Applies a batch of resolved CSV import rows in one Room transaction. */
+    open suspend fun applyAccountImport(rows: List<ResolvedImportRow>, nowEpochMs: Long) =
+        dao.applyAccountImport(rows, nowEpochMs)
 
     /** Stream of all non-archived accounts joined with their computed balances. */
     fun observeWithBalances(): Flow<List<AccountWithBalance>> =

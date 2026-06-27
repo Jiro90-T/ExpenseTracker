@@ -266,4 +266,10 @@ private class StubAccountDao : AccountDao {
     override suspend fun countActive(): Int = 0
     override fun observeBalances(): Flow<List<io.github.jiro.expensetracker.data.local.AccountBalanceRow>> =
         MutableStateFlow(emptyList<io.github.jiro.expensetracker.data.local.AccountBalanceRow>()).asStateFlow()
+    override suspend fun maxSortOrder(): Int = 0
+    override suspend fun updateOpeningBalanceByName(name: String, balance: Long): Int = 0
+    override suspend fun applyAccountImport(
+        rows: List<io.github.jiro.expensetracker.data.accountimport.ResolvedImportRow>,
+        nowEpochMs: Long,
+    ) = Unit
 }
