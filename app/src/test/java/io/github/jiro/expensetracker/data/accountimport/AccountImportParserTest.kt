@@ -94,7 +94,7 @@ class AccountImportParserTest {
         assertEquals(2, ok.rows.size)
         assertEquals(1, ok.rejected.size)
         assertEquals(3, ok.rejected[0].first)
-        assertTrue(ok.rejected[0].second.contains("3 columns"))
+        assertTrue(ok.rejected[0].second.contains("expected 4 columns, got 3"))
     }
 
     @Test fun parse_blankName_marksRowRejected() {

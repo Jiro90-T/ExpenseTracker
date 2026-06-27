@@ -90,7 +90,7 @@ object AccountImportParser {
         rejected: MutableList<Pair<Int, String>>,
     ) {
         if (fields.size != 4) {
-            rejected.add(lineNumber to "${fields.size} columns (expected 4)")
+            rejected.add(lineNumber to "line $lineNumber: expected 4 columns, got ${fields.size}")
             return
         }
         val name = fields[0].trim()
@@ -99,14 +99,14 @@ object AccountImportParser {
         val balanceStr = fields[3].trim()
 
         if (name.isEmpty()) {
-            rejected.add(lineNumber to "name is required"); return
+            rejected.add(lineNumber to "line $lineNumber: name is required"); return
         }
         if (!currency.matches(Regex("^[A-Z]{3}$"))) {
-            rejected.add(lineNumber to "currency must be a 3-letter code"); return
+            rejected.add(lineNumber to "line $lineNumber: currency must be a 3-letter code"); return
         }
         val balanceMinor = MoneyFormat.parseSignedAmountToMinor(balanceStr)
         if (balanceMinor == null) {
-            rejected.add(lineNumber to "balance is not a valid amount"); return
+            rejected.add(lineNumber to "line $lineNumber: balance is not a valid amount"); return
         }
         rows.add(RawImportRow(lineNumber, name, type, currency, balanceMinor))
     }
