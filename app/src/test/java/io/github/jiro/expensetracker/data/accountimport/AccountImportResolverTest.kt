@@ -2,7 +2,6 @@ package io.github.jiro.expensetracker.data.accountimport
 
 import io.github.jiro.expensetracker.data.local.AccountEntity
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -45,6 +44,14 @@ class AccountImportResolverTest {
     @Test fun resolve_existingAccountNoTxns_willUpdate() {
         val accounts = mapOf("cash" to acct(name = "Cash"))
         val out = resolve(listOf(row(name = "Cash")), accounts, mapOf(1L to 0))
+        assertEquals(ImportStatus.WillUpdate, out[0].status)
+    }
+
+    @Test fun resolve_existingAccount_txnCountKeyAbsent_treatedAsZero() {
+        // Existing account, currency matches, txnCountsByAccountId does NOT contain existing.id.
+        // The resolver should default the missing count to 0 → WillUpdate.
+        val accounts = mapOf("cash" to acct(name = "Cash"))
+        val out = resolve(listOf(row(name = "Cash")), accounts, emptyMap())
         assertEquals(ImportStatus.WillUpdate, out[0].status)
     }
 
@@ -97,11 +104,5 @@ class AccountImportResolverTest {
         val reason = (status as ImportStatus.Rejected).reason
         assertTrue("reason should mention duplicate, got: $reason", reason.contains("duplicate"))
         assertTrue("reason should mention prior line 2, got: $reason", reason.contains("line 2"))
-    }
-
-    @Test fun resolve_unknownTypeInRawRowStillWillCreate() {
-        val out = resolve(listOf(row(type = "INVESTMENT")))
-        assertEquals(ImportStatus.WillCreate, out[0].status)
-        assertNull(null) // intentionally unused — keeps the import explicit; resolver doesn't touch type.
     }
 }

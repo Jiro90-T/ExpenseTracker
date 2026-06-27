@@ -29,9 +29,14 @@ object AccountImportResolver {
             existing == null -> ImportStatus.WillCreate
             existing.currencyCode != raw.currency ->
                 ImportStatus.Rejected("currency mismatch: account is ${existing.currencyCode}, CSV says ${raw.currency}")
-            (txnCountsByAccountId[existing.id] ?: 0) > 0 ->
-                ImportStatus.Rejected("account has ${txnCountsByAccountId[existing.id]} transactions; delete them first")
-            else -> ImportStatus.WillUpdate
+            else -> {
+                val txnCount = txnCountsByAccountId[existing.id] ?: 0
+                if (txnCount > 0) {
+                    ImportStatus.Rejected("account has $txnCount transactions; delete them first")
+                } else {
+                    ImportStatus.WillUpdate
+                }
+            }
         }
         seenNames[key] = raw.lineNumber
         return ResolvedImportRow(raw, status)
