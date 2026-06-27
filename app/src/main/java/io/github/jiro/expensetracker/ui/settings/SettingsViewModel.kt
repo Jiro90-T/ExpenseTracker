@@ -11,6 +11,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.jiro.expensetracker.BuildConfig
 import io.github.jiro.expensetracker.R
 import io.github.jiro.expensetracker.backup.BackupManager
+import io.github.jiro.expensetracker.data.accountimport.AccountImportRepository
+import io.github.jiro.expensetracker.data.accountimport.ImportApplyResult
+import io.github.jiro.expensetracker.data.accountimport.ImportPreview
 import io.github.jiro.expensetracker.preferences.SettingsRepository
 import io.github.jiro.expensetracker.preferences.ThemePreference
 import io.github.jiro.expensetracker.preferences.addRate
@@ -18,6 +21,7 @@ import io.github.jiro.expensetracker.preferences.parseRates
 import io.github.jiro.expensetracker.preferences.removeRate
 import java.io.File
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -39,6 +43,7 @@ class SettingsViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context,
     private val backupManager: BackupManager,
     private val settingsRepository: SettingsRepository,
+    private val accountImportRepository: AccountImportRepository,
 ) : ViewModel() {
 
     val theme: StateFlow<ThemePreference> = settingsRepository.theme
@@ -70,6 +75,87 @@ class SettingsViewModel @Inject constructor(
 
     private val _message = MutableStateFlow<SettingsMessage?>(null)
     val message: StateFlow<SettingsMessage?> = _message.asStateFlow()
+
+    private val _pendingImportPreview = MutableStateFlow<ImportPreview?>(null)
+    val pendingImportPreview: StateFlow<ImportPreview?> = _pendingImportPreview.asStateFlow()
+
+    private val _importInFlight = MutableStateFlow(false)
+    val importInFlight: StateFlow<Boolean> = _importInFlight.asStateFlow()
+
+    private val _importAppliedResult = MutableStateFlow<ImportApplyResult?>(null)
+    val importAppliedResult: StateFlow<ImportApplyResult?> = _importAppliedResult.asStateFlow()
+
+    fun onImportCsvPicked(uri: Uri) {
+        _importInFlight.value = true
+        viewModelScope.launch {
+            try {
+                val preview = accountImportRepository.preview(uri)
+                _pendingImportPreview.value = preview
+                _importInFlight.value = false
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _importInFlight.value = false
+                _message.value = SettingsMessage(
+                    appContext.getString(snackResForPreviewError(e.message)),
+                    isError = true,
+                )
+            }
+        }
+    }
+
+    fun onImportConfirm() {
+        val preview = _pendingImportPreview.value ?: return
+        _importInFlight.value = true
+        viewModelScope.launch {
+            try {
+                val result = accountImportRepository.apply(preview)
+                _pendingImportPreview.value = null
+                _importAppliedResult.value = result
+                _importInFlight.value = false
+                _message.value = SettingsMessage(
+                    appContext.getString(
+                        R.string.import_csv_done,
+                        result.created,
+                        result.updated,
+                    ),
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _importInFlight.value = false
+                _message.value = SettingsMessage(
+                    appContext.getString(
+                        R.string.import_csv_failed,
+                        e.message ?: e.javaClass.simpleName,
+                    ),
+                    isError = true,
+                )
+            }
+        }
+    }
+
+    fun onImportDismiss() {
+        _pendingImportPreview.value = null
+    }
+
+    fun consumeImportAppliedResult() {
+        _importAppliedResult.value = null
+    }
+
+    /**
+     * The parser's `ParseResult.Failed` reason strings are stable enough to
+     * match on, so map them to the more specific snackbar resources added in
+     * Task 7. Anything else falls through to the generic read error.
+     */
+    private fun snackResForPreviewError(message: String?): Int {
+        val m = message.orEmpty()
+        return when {
+            m.startsWith("File is empty") -> R.string.import_csv_empty_error
+            m.startsWith("Header must be") -> R.string.import_csv_header_error
+            else -> R.string.import_csv_read_error
+        }
+    }
 
     fun prepareExport() {
         viewModelScope.launch {
