@@ -45,8 +45,13 @@ interface AccountDao {
     suspend fun maxSortOrder(): Int
 
     /**
-     * Overwrites an existing account's opening balance by case-insensitive
-     * name match. Used by the CSV import apply path. No `nowEpochMs` column
+     * Update opening balance for the account whose name matches [name]
+     * case-insensitively. Note: SQLite LOWER() is ASCII-only; non-Latin
+     * names may not match across the resolver (Unicode `.lowercase()`) and
+     * this query (ASCII LOWER). Acceptable for the common case; documented
+     * as a known limitation.
+     *
+     * Used by the CSV import apply path. No `nowEpochMs` column
      * on [AccountEntity], so the timestamp is intentionally omitted.
      */
     @Query("UPDATE accounts SET openingBalanceMinor = :balance WHERE LOWER(name) = LOWER(:name)")
@@ -93,19 +98,24 @@ interface AccountDao {
         for (row in rows) {
             when (row.status) {
                 ImportStatus.WillCreate -> {
-                    insert(
+                    val icon = AccountTypeDefaults.iconFor(row.raw.type)
+                    val color = AccountTypeDefaults.colorFor(row.raw.type)
+                    val newId = insert(
                         AccountEntity(
                             id = 0,
                             name = row.raw.name,
                             type = row.raw.type,
-                            icon = AccountTypeDefaults.iconFor(row.raw.type),
-                            color = AccountTypeDefaults.colorFor(row.raw.type),
+                            icon = icon,
+                            color = color,
                             currencyCode = row.raw.currency,
                             openingBalanceMinor = row.raw.balanceMinor,
                             createdAtEpochMillis = nowEpochMs,
                             sortOrder = nextSortOrder++,
                         )
                     )
+                    if (newId == -1L) {
+                        throw IllegalStateException("Account insert returned -1 for name='${row.raw.name}' (conflict on unique index)")
+                    }
                 }
                 is ImportStatus.WillUpdate -> {
                     updateOpeningBalanceByName(row.raw.name, row.raw.balanceMinor)
