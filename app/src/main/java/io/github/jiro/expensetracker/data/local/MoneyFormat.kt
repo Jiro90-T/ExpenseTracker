@@ -28,6 +28,28 @@ object MoneyFormat {
         return whole * 100 + fraction
     }
 
+    /**
+     * Parse a signed amount (allows a leading `-`), for account opening balance
+     * and adjust-balance dialogs. A credit card starting with $50 of debt becomes
+     * `-50.00` here and `-5000` minor. Transactions/budgets/transaction-list
+     * filters continue to use [parseAmountToMinor] which still rejects negatives.
+     */
+    fun parseSignedAmountToMinor(input: String): Long? {
+        val cleaned = input.trim()
+        if (cleaned.isEmpty()) return null
+        val negative = cleaned.startsWith("-")
+        val body = if (negative) cleaned.substring(1) else cleaned
+        val parts = body.split('.')
+        if (parts.size > 2) return null
+        val absWhole = parts[0].toLongOrNull() ?: return null
+        if (absWhole > MAX_AMOUNT_WHOLE) return null
+        val fractionStr = if (parts.size == 2) parts[1].padEnd(2, '0').take(2) else "00"
+        if (fractionStr.length > 2) return null
+        val fraction = fractionStr.toLongOrNull() ?: return null
+        val absMinor = absWhole * 100 + fraction
+        return if (negative) -absMinor else absMinor
+    }
+
     /** Format a minor-unit value back to a user-facing string with two-decimal fraction. */
     fun formatAmountForEdit(minor: Long): String {
         val whole = minor / 100

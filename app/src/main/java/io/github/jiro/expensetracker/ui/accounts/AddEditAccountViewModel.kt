@@ -153,7 +153,7 @@ class AddEditAccountViewModel @Inject constructor(
     fun confirmAdjustBalance() {
         val id = accountId ?: return
         val dialog = _state.value.adjustDialog ?: return
-        val newBalance = MoneyFormat.parseAmountToMinor(dialog.newBalanceInput)
+        val newBalance = MoneyFormat.parseSignedAmountToMinor(dialog.newBalanceInput)
         if (newBalance == null) return
         val delta = newBalance - _state.value.currentBalanceMinor
         if (delta == 0L) {
@@ -193,7 +193,7 @@ class AddEditAccountViewModel @Inject constructor(
             _state.update { it.copy(error = AccountFormError.CURRENCY_REQUIRED) }
             return
         }
-        val opening = MoneyFormat.parseAmountToMinor(s.openingBalanceInput) ?: 0L
+        val opening = MoneyFormat.parseSignedAmountToMinor(s.openingBalanceInput) ?: 0L
 
         _state.update { it.copy(isSaving = true, error = null) }
         viewModelScope.launch {

@@ -41,6 +41,34 @@ class MoneyFormatTest {
         assertNull(MoneyFormat.parseAmountToMinor("-5"))
     }
 
+    @Test fun parseSigned_negativeWhole() {
+        assertEquals(-5_000L, MoneyFormat.parseSignedAmountToMinor("-50"))
+        assertEquals(-50_000L, MoneyFormat.parseSignedAmountToMinor("-500"))
+    }
+
+    @Test fun parseSigned_negativeWithDecimals() {
+        assertEquals(-5_025L, MoneyFormat.parseSignedAmountToMinor("-50.25"))
+        assertEquals(-50_000L, MoneyFormat.parseSignedAmountToMinor("-500.00"))
+    }
+
+    @Test fun parseSigned_positiveWorks() {
+        assertEquals(2_500L, MoneyFormat.parseSignedAmountToMinor("25"))
+        assertEquals(2_550L, MoneyFormat.parseSignedAmountToMinor("25.5"))
+    }
+
+    @Test fun parseSigned_emptyOrBad_returnsNull() {
+        assertNull(MoneyFormat.parseSignedAmountToMinor(""))
+        assertNull(MoneyFormat.parseSignedAmountToMinor("   "))
+        assertNull(MoneyFormat.parseSignedAmountToMinor("abc"))
+        assertNull(MoneyFormat.parseSignedAmountToMinor("-"))
+        assertNull(MoneyFormat.parseSignedAmountToMinor("-1.2.3"))
+    }
+
+    @Test fun parseSigned_aboveMax_returnsNull() {
+        assertNull(MoneyFormat.parseSignedAmountToMinor("10000000000"))
+        assertNull(MoneyFormat.parseSignedAmountToMinor("-10000000000"))
+    }
+
     @Test fun parseAmount_nonNumeric_returnsNull() {
         assertNull(MoneyFormat.parseAmountToMinor("abc"))
     }
