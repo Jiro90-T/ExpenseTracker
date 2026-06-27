@@ -36,6 +36,35 @@ object MoneyFormat {
     }
 
     /**
+     * Format a minor-unit value for display (lists, cards, balance headers).
+     * Includes a thousands separator on the whole portion so 1_000_00 displays
+     * as "1,000.00". Use [formatAmountForEdit] for text fields where the user
+     * is typing — reformatting there would fight cursor position.
+     */
+    fun formatForDisplay(minor: Long): String {
+        val isNegative = minor < 0
+        val absMinor = if (isNegative) -minor else minor
+        val whole = absMinor / 100
+        val fraction = absMinor % 100
+        val grouped = groupThousands(whole)
+        val sign = if (isNegative) "-" else ""
+        return "$sign$grouped.%02d".format(fraction)
+    }
+
+    private fun groupThousands(value: Long): String {
+        if (value < 1000) return value.toString()
+        val sb = StringBuilder()
+        var v = value
+        while (v >= 1000) {
+            val rem = (v % 1000).toInt()
+            sb.insert(0, ",%03d".format(rem))
+            v /= 1000
+        }
+        sb.insert(0, v.toString())
+        return sb.toString()
+    }
+
+    /**
      * Pure: strips thousands separators (`,`, ASCII space, U+202F narrow
      * no-break space, U+00A0 non-breaking space) from a user-typed search
      * string and lowercases it. "1,200", "1 200", "1200" all normalize to

@@ -153,9 +153,9 @@ private fun AccountTile(
         Spacer(Modifier.height(4.dp))
         Text(
             text = if (isNegative) {
-                "−${MoneyFormat.formatAmountForEdit(-balance)} ${account.currencyCode}"
+                "−${MoneyFormat.formatForDisplay(-balance)} ${account.currencyCode}"
             } else {
-                "${MoneyFormat.formatAmountForEdit(balance)} ${account.currencyCode}"
+                "${MoneyFormat.formatForDisplay(balance)} ${account.currencyCode}"
             },
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,

@@ -285,7 +285,7 @@ private fun AddEditAccountForm(
                     Text(
                         text = stringResource(
                             R.string.action_adjust_balance_dialog_body,
-                            MoneyFormat.formatAmountForEdit(state.currentBalanceMinor),
+                            MoneyFormat.formatForDisplay(state.currentBalanceMinor),
                         ),
                     )
                     Spacer(Modifier.height(8.dp))

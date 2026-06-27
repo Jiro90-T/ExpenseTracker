@@ -152,17 +152,17 @@ private fun DetailPanel(month: MonthlyTrend, onClear: () -> Unit) {
                 )
                 Spacer(Modifier.size(8.dp))
                 Text(
-                    text = stringResource(R.string.trends_detail_income, MoneyFormat.formatAmountForEdit(month.incomeMinor)),
+                    text = stringResource(R.string.trends_detail_income, MoneyFormat.formatForDisplay(month.incomeMinor)),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Text(
-                    text = stringResource(R.string.trends_detail_expense, MoneyFormat.formatAmountForEdit(month.expenseMinor)),
+                    text = stringResource(R.string.trends_detail_expense, MoneyFormat.formatForDisplay(month.expenseMinor)),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Text(
                     text = stringResource(
                         R.string.trends_detail_net,
-                        (if (month.netMinor >= 0) "+" else "") + MoneyFormat.formatAmountForEdit(month.netMinor),
+                        (if (month.netMinor >= 0) "+" else "") + MoneyFormat.formatForDisplay(month.netMinor),
                     ),
                     style = MaterialTheme.typography.bodyMedium,
                 )

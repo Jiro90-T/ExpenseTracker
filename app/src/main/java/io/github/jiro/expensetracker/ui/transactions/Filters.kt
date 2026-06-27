@@ -90,10 +90,14 @@ fun filterTransactions(
             val noteMatch = t.note?.contains(trimmedQuery, ignoreCase = true) == true
             val categoryMatch = categoryNameById[t.categoryId]
                 ?.contains(trimmedQuery, ignoreCase = true) == true
-            val formatted = MoneyFormat.formatAmountForEdit(t.amountMinor)
-            val amountMatch = formatted.contains(trimmedQuery, ignoreCase = true)
+            val formattedDisplay = MoneyFormat.formatForDisplay(t.amountMinor)
+            // Substring search needs to ignore the thousands separator — otherwise
+            // "1,200.00".contains("12") is false (the comma sits between "1" and "2"),
+            // which would surprise users searching for the un-grouped form.
+            val formattedPlain = formattedDisplay.replace(",", "")
+            val amountMatch = formattedPlain.contains(trimmedQuery, ignoreCase = true)
                 || (strippedQuery != trimmedQuery.lowercase()
-                    && formatted.contains(strippedQuery, ignoreCase = true))
+                    && formattedPlain.contains(strippedQuery, ignoreCase = true))
             if (!(titleMatch || noteMatch || categoryMatch || amountMatch)) return@filter false
         }
 

@@ -222,5 +222,5 @@ private fun BudgetEditDialog(
     )
 }
 
-/** Format a minor-unit value as the user would type it, e.g. `25.57`. */
-private fun formatMoney(minor: Long): String = MoneyFormat.formatAmountForEdit(minor)
+/** Format a minor-unit value for display in budget rows (with thousands separator). */
+private fun formatMoney(minor: Long): String = MoneyFormat.formatForDisplay(minor)

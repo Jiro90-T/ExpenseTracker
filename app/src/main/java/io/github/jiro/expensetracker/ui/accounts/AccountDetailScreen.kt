@@ -145,7 +145,7 @@ private fun BalanceHeader(name: String, balanceMinor: Long, currencyCode: String
         Text(name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
         Text(
-            text = (if (isNegative) "−" else "") + MoneyFormat.formatAmountForEdit(if (isNegative) -balanceMinor else balanceMinor) + " " + currencyCode,
+            text = (if (isNegative) "−" else "") + MoneyFormat.formatForDisplay(if (isNegative) -balanceMinor else balanceMinor) + " " + currencyCode,
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = if (isNegative) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,

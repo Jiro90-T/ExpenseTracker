@@ -163,8 +163,8 @@ class AddEditAccountViewModel @Inject constructor(
         _state.update { it.copy(adjustDialog = dialog.copy(isSaving = true)) }
         viewModelScope.launch {
             val now = System.currentTimeMillis()
-            val oldStr = MoneyFormat.formatAmountForEdit(_state.value.currentBalanceMinor)
-            val newStr = MoneyFormat.formatAmountForEdit(newBalance)
+            val oldStr = MoneyFormat.formatForDisplay(_state.value.currentBalanceMinor)
+            val newStr = MoneyFormat.formatForDisplay(newBalance)
             transactionRepository.add(
                 io.github.jiro.expensetracker.data.local.TransactionEntity(
                     title = "Balance adjustment: $oldStr → $newStr",

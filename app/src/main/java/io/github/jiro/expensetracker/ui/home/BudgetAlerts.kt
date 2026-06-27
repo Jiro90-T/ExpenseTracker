@@ -52,7 +52,7 @@ fun computeBudgetAlerts(
                 budgetMinor = budget.amountMinor,
                 spentMinor = spent,
                 overageMinor = spent - budget.amountMinor,
-                overageFormatted = MoneyFormat.formatAmountForEdit(spent - budget.amountMinor),
+                overageFormatted = MoneyFormat.formatForDisplay(spent - budget.amountMinor),
                 homeCurrency = homeCurrency,
             )
         }

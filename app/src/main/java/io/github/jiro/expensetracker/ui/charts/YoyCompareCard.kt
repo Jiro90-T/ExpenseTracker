@@ -44,12 +44,12 @@ fun YoyCompareCard(
         ) {
             YoyTile(
                 label = result.currentMonthLabel,
-                amount = MoneyFormat.formatAmountForEdit(result.currentExpenseMinor),
+                amount = MoneyFormat.formatForDisplay(result.currentExpenseMinor),
                 modifier = Modifier.weight(1f),
             )
             YoyTile(
                 label = result.previousMonthLabel,
-                amount = MoneyFormat.formatAmountForEdit(result.previousExpenseMinor),
+                amount = MoneyFormat.formatForDisplay(result.previousExpenseMinor),
                 modifier = Modifier.weight(1f),
             )
         }

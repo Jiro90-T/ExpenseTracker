@@ -155,7 +155,7 @@ private fun SavingsTab(savings: SavingsAndAverage, modifier: Modifier = Modifier
                 modifier = Modifier.weight(1f),
             )
             StatTile(
-                primary = MoneyFormat.formatAmountForEdit(savings.averageMonthlyExpenseMinor),
+                primary = MoneyFormat.formatForDisplay(savings.averageMonthlyExpenseMinor),
                 label = stringResource(R.string.stats_avg_monthly_label),
                 subLabel = if (savings.averageMonthlySampleMonths > 0)
                     stringResource(R.string.stats_avg_monthly_subtitle, savings.averageMonthlySampleMonths)
@@ -163,7 +163,7 @@ private fun SavingsTab(savings: SavingsAndAverage, modifier: Modifier = Modifier
                 modifier = Modifier.weight(1f),
             )
             StatTile(
-                primary = MoneyFormat.formatAmountForEdit(savings.topTransactionMinor),
+                primary = MoneyFormat.formatForDisplay(savings.topTransactionMinor),
                 label = stringResource(R.string.stats_top_tx_label),
                 modifier = Modifier.weight(1f),
             )
@@ -221,7 +221,7 @@ private fun NetRow(savings: SavingsAndAverage) {
         else -> MaterialTheme.colorScheme.onSurface
     }
     Text(
-        text = "${stringResource(R.string.stats_net_label)}: $sign${MoneyFormat.formatAmountForEdit(absMinor)}",
+        text = "${stringResource(R.string.stats_net_label)}: $sign${MoneyFormat.formatForDisplay(absMinor)}",
         style = MaterialTheme.typography.titleMedium,
         color = color,
     )

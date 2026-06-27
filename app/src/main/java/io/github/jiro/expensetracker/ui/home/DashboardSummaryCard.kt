@@ -10,6 +10,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import io.github.jiro.expensetracker.data.local.MoneyFormat
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -94,13 +95,10 @@ private fun StatColumn(
 }
 
 private fun formatCurrency(amountMinor: Long, showSign: Boolean = false): String {
-    val abs = if (amountMinor < 0) -amountMinor else amountMinor
-    val whole = abs / 100
-    val fraction = abs % 100
     val sign = when {
         showSign && amountMinor > 0 -> "+"
         amountMinor < 0 -> "-"
         else -> ""
     }
-    return "$sign$whole.${"%02d".format(fraction)}"
+    return sign + MoneyFormat.formatForDisplay(amountMinor)
 }
