@@ -113,6 +113,7 @@ fun MemberCardEditScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val cameraUnavailableMessage = stringResource(R.string.cards_no_camera)
 
     var showImageSheet by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
@@ -121,13 +122,17 @@ fun MemberCardEditScreen(
 
     // Camera intent: write to a fresh temp file in the app cache so we
     // can hand a real file://-backed content URI to the system camera.
+    // When TakePicture() reports success=false (no camera app, user
+    // cancellation captured as failure, etc.) we surface a snackbar so
+    // the user knows the pick didn't take.
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture(),
     ) { success ->
         val uri = pendingCameraUri
         pendingCameraUri = null
-        if (success && uri != null) {
-            viewModel.onImagePicked(uri)
+        when {
+            success && uri != null -> viewModel.onImagePicked(uri)
+            !success -> snackbarHostState.showSnackbar(cameraUnavailableMessage)
         }
     }
 
