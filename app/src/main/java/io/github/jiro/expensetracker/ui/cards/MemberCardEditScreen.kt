@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
@@ -225,7 +226,7 @@ fun MemberCardEditScreen(
                 singleLine = true,
                 isError = state.nameError != null,
                 supportingText = if (state.nameError is NameError.REQUIRED) {
-                    { Text("Required") }
+                    { Text(stringResource(R.string.cards_field_required)) }
                 } else null,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -284,7 +285,6 @@ fun MemberCardEditScreen(
         ModalBottomSheet(
             onDismissRequest = {
                 showImageSheet = false
-                viewModel.onImagePickerDismissed()
             },
             sheetState = sheetState,
         ) {
@@ -292,7 +292,6 @@ fun MemberCardEditScreen(
                 TextButton(
                     onClick = {
                         showImageSheet = false
-                        viewModel.onImagePickerDismissed()
                         pendingCameraUri = createCameraCaptureUri(context)
                     },
                     modifier = Modifier
@@ -302,7 +301,6 @@ fun MemberCardEditScreen(
                 TextButton(
                     onClick = {
                         showImageSheet = false
-                        viewModel.onImagePickerDismissed()
                         galleryLauncher.launch(
                             PickVisualMediaRequest(
                                 ActivityResultContracts.PickVisualMedia.ImageOnly,
@@ -357,7 +355,7 @@ fun MemberCardEditScreen(
                 TextButton(onClick = {
                     showDiscardConfirm = false
                     onBack()
-                }) { Text(stringResource(R.string.cards_discard_confirm)) }
+                }) { Text(stringResource(R.string.cards_action_discard)) }
             },
             dismissButton = {
                 TextButton(onClick = { showDiscardConfirm = false }) {
@@ -428,12 +426,23 @@ private fun ImageTile(
         if (imageUri != null) {
             AttachedImagePreview(uri = imageUri)
         } else {
-            Text(
-                text = stringResource(R.string.cards_image_placeholder),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Add,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(32.dp),
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.cards_image_placeholder),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
     }
 }

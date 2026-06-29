@@ -383,4 +383,6 @@
     <string name="cards_field_icon_value">(%1$s)</string>
     <string name="cards_member_id_copied">Member ID copied</string>
     <string name="cards_action_copy">Copy</string>
+    <string name="cards_field_required">Required</string>
+    <string name="cards_action_discard">Discard</string>
 </resources>

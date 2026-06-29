@@ -208,9 +208,6 @@ class MemberCardEditViewModel @Inject constructor(
         }
     }
 
-    /** No-op stub kept to give the screen a stable composable callback. */
-    fun onImagePickerDismissed() = Unit
-
     /**
      * Persist the current form to the repository. Validates required
      * fields first (name, image), then either inserts (Add) or updates
