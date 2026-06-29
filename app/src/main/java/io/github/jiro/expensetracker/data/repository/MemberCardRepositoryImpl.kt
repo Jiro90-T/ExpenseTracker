@@ -106,19 +106,21 @@ open class MemberCardRepositoryImpl @Inject constructor(
         val name = "${UUID.randomUUID()}.jpg"
         val dest = File(cardsDir, name)
         val tempRaw = File.createTempFile("card-raw-", ".bin", cardsDir)
+        var decoded: Bitmap? = null
+        var downscaled: Bitmap? = null
         try {
             context.contentResolver.openInputStream(src).use { input ->
                 requireNotNull(input) { "Could not open input stream for $src" }
                 FileOutputStream(tempRaw).use { output -> input.copyTo(output) }
             }
-            val decoded = ImageProcessor.decodeSampledBitmap(tempRaw, maxEdge = 1024)
-            val downscaled: Bitmap = ImageProcessor.downscaleToMaxEdge(decoded, maxEdge = 1024)
+            decoded = ImageProcessor.decodeSampledBitmap(tempRaw, maxEdge = 1024)
+            downscaled = ImageProcessor.downscaleToMaxEdge(decoded, maxEdge = 1024)
             FileOutputStream(dest).use { out ->
-                downscaled.compress(Bitmap.CompressFormat.JPEG, 85, out)
+                downscaled!!.compress(Bitmap.CompressFormat.JPEG, 85, out)
             }
-            decoded.recycle()
-            downscaled.recycle()
         } finally {
+            if (decoded?.isRecycled == false) decoded.recycle()
+            if (downscaled?.isRecycled == false) downscaled.recycle()
             tempRaw.delete()
         }
         name
