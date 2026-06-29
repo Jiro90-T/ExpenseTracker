@@ -351,4 +351,32 @@
     <string name="import_csv_empty_error">File is empty.</string>
     <string name="import_csv_done">Imported %1$d accounts, updated %2$d.</string>
     <string name="import_csv_failed">Import failed: %1$s</string>
+
+    <!-- Member Cards (Phase 3 — Member Cards Phase A) -->
+    <string name="nav_cards">Cards</string>
+    <string name="cards_search_hint">Search cards</string>
+    <string name="cards_empty_title">No cards yet</string>
+    <string name="cards_empty_subtitle">Add your first loyalty or membership card.</string>
+    <string name="cards_empty_search">No cards match \"%1$s\"</string>
+    <string name="cards_add">Add card</string>
+    <string name="cards_edit_title">Edit card</string>
+    <string name="cards_field_name">Card name</string>
+    <string name="cards_field_member_id">Member ID</string>
+    <string name="cards_field_notes">Notes</string>
+    <string name="cards_field_expiry">Expires</string>
+    <string name="cards_field_color">Color</string>
+    <string name="cards_field_icon">Icon</string>
+    <string name="cards_image_take_photo">Take photo</string>
+    <string name="cards_image_pick_gallery">Pick from gallery</string>
+    <string name="cards_image_replace">Replace image</string>
+    <string name="cards_image_placeholder">Tap to add image</string>
+    <string name="cards_image_missing">Image missing</string>
+    <string name="cards_delete_confirm">Delete %1$s? This can\'t be undone.</string>
+    <string name="cards_delete">Delete</string>
+    <string name="cards_discard_confirm">Discard unsaved changes?</string>
+    <string name="cards_expired">Expired</string>
+    <string name="cards_save">Save</string>
+    <string name="cards_cancel">Cancel</string>
+    <string name="cards_no_camera">No camera available</string>
+    <string name="cards_image_load_error">Couldn\'t load image</string>
 </resources>

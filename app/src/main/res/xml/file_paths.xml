@@ -6,4 +6,7 @@
     <files-path
         name="receipts"
         path="receipts/" />
+    <files-path
+        name="cards"
+        path="cards/" />
 </paths>
