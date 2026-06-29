@@ -11,6 +11,7 @@ import io.github.jiro.expensetracker.data.local.AccountDao
 import io.github.jiro.expensetracker.data.local.AppDatabase
 import io.github.jiro.expensetracker.data.local.BudgetDao
 import io.github.jiro.expensetracker.data.local.CategoryDao
+import io.github.jiro.expensetracker.data.local.MemberCardDao
 import io.github.jiro.expensetracker.data.local.TransactionDao
 import javax.inject.Singleton
 
@@ -27,6 +28,7 @@ object DatabaseModule {
                 AppDatabase.MIGRATION_3_4,
                 AppDatabase.MIGRATION_4_5,
                 AppDatabase.MIGRATION_5_6,
+                AppDatabase.MIGRATION_6_7,
             )
             .fallbackToDestructiveMigration()
             .build()
@@ -42,4 +44,7 @@ object DatabaseModule {
 
     @Provides
     fun provideAccountDao(db: AppDatabase): AccountDao = db.accountDao()
+
+    @Provides
+    fun provideMemberCardDao(db: AppDatabase): MemberCardDao = db.memberCardDao()
 }

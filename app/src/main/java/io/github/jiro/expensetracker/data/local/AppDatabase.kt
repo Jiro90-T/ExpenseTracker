@@ -11,8 +11,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         CategoryEntity::class,
         BudgetEntity::class,
         AccountEntity::class,
+        MemberCardEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -20,6 +21,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun categoryDao(): CategoryDao
     abstract fun budgetDao(): BudgetDao
     abstract fun accountDao(): AccountDao
+    abstract fun memberCardDao(): MemberCardDao
 
     companion object {
         const val NAME = "expense_tracker.db"
@@ -154,6 +156,31 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_transactions_accountId ON transactions (accountId)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_transactions_transferAccountId ON transactions (transferAccountId)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_transactions_recurringGroupId ON transactions (recurringGroupId)")
+            }
+        }
+
+        /**
+         * v6 → v7: member cards. Creates the `member_cards` table with
+         * columns matching [MemberCardEntity]. No existing data is touched.
+         */
+        val MIGRATION_6_7: Migration = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `member_cards` (
+                      `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                      `name` TEXT NOT NULL,
+                      `imagePath` TEXT NOT NULL,
+                      `memberIdText` TEXT,
+                      `colorHex` INTEGER,
+                      `icon` TEXT,
+                      `expiresAtEpochMillis` INTEGER,
+                      `notes` TEXT,
+                      `createdAtEpochMillis` INTEGER NOT NULL,
+                      `sortOrder` INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
             }
         }
     }
