@@ -1,4 +1,8 @@
 name,type,currency,balance
-Cash,CASH,USD,250.00
-BPI Savings,BANK,PHP,15000.00
-AmEx Credit,CREDIT_CARD,USD,-120.50
+Maybank Premier 1 Account,BANK,MYR,1525.26
+Maybank MAE,BANK,MYR,40.63
+Maybank Saving Account,BANK,MYR,127.91
+Maybankard 2 Visa Gold,CREDIT_CARD,MYR,0
+Maybankard 2 Amex Gold,CREDIT_CARD,MYR,0
+Maybank Grad MasterCard,CREDIT_CARD,MYR,-10687.6
+Maybank Grad MasterCard,Balance Transfer,MYR,-23743.62
