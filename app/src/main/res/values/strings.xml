@@ -381,4 +381,6 @@
     <string name="cards_image_load_error">Couldn\'t load image</string>
     <string name="cards_clear_search">Clear</string>
     <string name="cards_field_icon_value">(%1$s)</string>
+    <string name="cards_member_id_copied">Member ID copied</string>
+    <string name="cards_action_copy">Copy</string>
 </resources>

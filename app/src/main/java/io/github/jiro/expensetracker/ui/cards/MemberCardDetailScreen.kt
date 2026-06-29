@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
@@ -38,12 +39,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -58,6 +62,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,6 +73,9 @@ fun MemberCardDetailScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val snackbarScope = rememberCoroutineScope()
+    val clipboardManager = LocalClipboardManager.current
+    val memberIdCopiedMessage = stringResource(R.string.cards_member_id_copied)
     var menuOpen by remember { mutableStateOf(false) }
     var showFullImage by remember { mutableStateOf(false) }
 
@@ -164,6 +172,12 @@ fun MemberCardDetailScreen(
                     )
                     DetailRows(
                         card = card,
+                        onCopyMemberId = { id ->
+                            clipboardManager.setText(AnnotatedString(id))
+                            snackbarScope.launch {
+                                snackbarHostState.showSnackbar(memberIdCopiedMessage)
+                            }
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp),
@@ -247,6 +261,7 @@ private fun HeroImage(
 @Composable
 private fun DetailRows(
     card: MemberCardEntity,
+    onCopyMemberId: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val dateFormatter = remember { DateTimeFormatter.ofPattern("MMM d, yyyy") }
@@ -267,6 +282,12 @@ private fun DetailRows(
                     fontFamily = FontFamily.Monospace,
                     modifier = Modifier.weight(1f),
                 )
+                IconButton(onClick = { onCopyMemberId(memberId) }) {
+                    Icon(
+                        imageVector = Icons.Filled.ContentCopy,
+                        contentDescription = stringResource(R.string.cards_action_copy),
+                    )
+                }
             }
         }
         card.expiresAtEpochMillis?.let { epochMillis ->
