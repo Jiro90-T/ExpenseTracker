@@ -328,7 +328,7 @@ private fun DetailRows(
                 )
                 Spacer(Modifier.size(8.dp))
                 Text(
-                    text = "(${icon})",
+                    text = stringResource(R.string.cards_field_icon_value, icon),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

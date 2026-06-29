@@ -380,4 +380,5 @@
     <string name="cards_no_camera">No camera available</string>
     <string name="cards_image_load_error">Couldn\'t load image</string>
     <string name="cards_clear_search">Clear</string>
+    <string name="cards_field_icon_value">(%1$s)</string>
 </resources>
