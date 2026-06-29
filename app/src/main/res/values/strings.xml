@@ -379,4 +379,5 @@
     <string name="cards_cancel">Cancel</string>
     <string name="cards_no_camera">No camera available</string>
     <string name="cards_image_load_error">Couldn\'t load image</string>
+    <string name="cards_clear_search">Clear</string>
 </resources>
