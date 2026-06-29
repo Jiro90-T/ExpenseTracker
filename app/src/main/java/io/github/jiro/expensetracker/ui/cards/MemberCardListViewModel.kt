@@ -22,7 +22,7 @@ data class MemberCardListUiState(
 
 @HiltViewModel
 class MemberCardListViewModel @Inject constructor(
-    private val repository: MemberCardRepository,
+    val repository: MemberCardRepository,
 ) : ViewModel() {
 
     private val _query = MutableStateFlow("")

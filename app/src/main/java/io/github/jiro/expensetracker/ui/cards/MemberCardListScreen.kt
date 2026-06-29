@@ -36,6 +36,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -76,6 +77,13 @@ fun MemberCardListScreen(
     // Re-sync when the VM's query is cleared externally (e.g. by the
     // "Clear search" affordance in the no-matches empty state).
     var searchInput by remember(state.query) { mutableStateOf(state.query) }
+
+    // Hoist "start of today" so every card in the list doesn't recompute it
+    // on every recomposition. Recomputed only when this composable enters
+    // composition (or its parent restarts it).
+    val startOfTodayMillis = remember {
+        LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+    }
 
     Scaffold(
         topBar = {
@@ -156,6 +164,8 @@ fun MemberCardListScreen(
                         items(state.cards, key = { it.id }) { card ->
                             CardTile(
                                 card = card,
+                                repository = viewModel.repository,
+                                startOfTodayMillis = startOfTodayMillis,
                                 onClick = { onCardClick(card.id) },
                             )
                         }
@@ -169,10 +179,11 @@ fun MemberCardListScreen(
 @Composable
 private fun CardTile(
     card: MemberCardEntity,
+    repository: MemberCardRepository,
+    startOfTodayMillis: Long,
     onClick: () -> Unit,
 ) {
-    val repository = LocalMemberCardRepository.current
-    val expired = isExpired(card.expiresAtEpochMillis)
+    val expired = card.expiresAtEpochMillis != null && card.expiresAtEpochMillis!! < startOfTodayMillis
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -216,10 +227,19 @@ private fun CardThumbnail(card: MemberCardEntity, repository: MemberCardReposito
 
     var bitmap by remember(card.imagePath) { mutableStateOf<Bitmap?>(null) }
     LaunchedEffect(card.imagePath) {
+        // Release the previous decode before starting a new one.
+        bitmap?.takeIf { !it.isRecycled }?.recycle()
+        bitmap = null
         bitmap = withContext(Dispatchers.IO) {
             val file = repository.absolutePath(card.imagePath) ?: return@withContext null
             runCatching { ImageProcessor.decodeSampledBitmap(file, maxEdge = 256) }
                 .getOrNull()
+        }
+    }
+    // Recycle when this tile leaves the composition entirely (e.g. filtered out).
+    DisposableEffect(Unit) {
+        onDispose {
+            bitmap?.takeIf { !it.isRecycled }?.recycle()
         }
     }
 
@@ -309,44 +329,4 @@ private fun EmptyNoMatches(
             Text(stringResource(R.string.cards_clear_search))
         }
     }
-}
-
-/**
- * CompositionLocal providing the [MemberCardRepository] to the list screen.
- * This keeps the public signature of [MemberCardListScreen] narrow — the
- * repository is provided by the call site (which has access via Hilt) rather
- * than threaded through the screen parameters. See `WithMemberCardRepository`
- * for the wrapper.
- */
-private val LocalMemberCardRepository = androidx.compose.runtime.staticCompositionLocalOf<MemberCardRepository> {
-    error("MemberCardRepository not provided; wrap with WithMemberCardRepository")
-}
-
-/**
- * Wraps [content] so that [MemberCardListScreen] can resolve its
- * `MemberCardRepository` via the internal CompositionLocal. Nav-graph callers
- * provide a Hilt-injected repository here:
- *
- *     WithMemberCardRepository(repository = ...) {
- *         MemberCardListScreen(...)
- *     }
- */
-@Composable
-fun WithMemberCardRepository(
-    repository: MemberCardRepository,
-    content: @Composable () -> Unit,
-) {
-    androidx.compose.runtime.CompositionLocalProvider(
-        LocalMemberCardRepository provides repository,
-        content = content,
-    )
-}
-
-private fun isExpired(expiresAtEpochMillis: Long?): Boolean {
-    if (expiresAtEpochMillis == null) return false
-    val startOfToday = LocalDate.now()
-        .atStartOfDay(ZoneId.systemDefault())
-        .toInstant()
-        .toEpochMilli()
-    return expiresAtEpochMillis < startOfToday
 }
