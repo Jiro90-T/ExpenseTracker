@@ -99,24 +99,21 @@ fun MemberCardImage(
 
     // When the composable leaves the composition entirely (e.g. navigation
     // away from Detail screen) make sure the bitmap is freed promptly.
-    DisposableEffect(relativePath) {
+    DisposableEffect(Unit) {
         onDispose {
             bitmap?.takeIf { !it.isRecycled }?.recycle()
-            bitmap = null
         }
     }
 
+    val current: Bitmap? = bitmap
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         when {
-            bitmap != null -> {
-                val bmp = bitmap!!
-                Image(
-                    bitmap = bmp.asImageBitmap(),
-                    contentDescription = null,
-                    contentScale = contentScale,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
+            current != null -> Image(
+                bitmap = current.asImageBitmap(),
+                contentDescription = null,
+                contentScale = contentScale,
+                modifier = Modifier.fillMaxSize(),
+            )
             isMissingOrFailed -> MissingImagePlaceholder(modifier = Modifier.fillMaxSize())
             else -> LoadingPlaceholder(modifier = Modifier.fillMaxSize())
         }
