@@ -352,7 +352,7 @@
     <string name="import_csv_done">Imported %1$d accounts, updated %2$d.</string>
     <string name="import_csv_failed">Import failed: %1$s</string>
 
-    <!-- Member Cards (Phase 3 — Member Cards Phase A) -->
+    <!-- Member Cards (Phase A) -->
     <string name="nav_cards">Cards</string>
     <string name="cards_search_hint">Search cards</string>
     <string name="cards_empty_title">No cards yet</string>
