@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -42,12 +43,18 @@ fun MoreScreen(
     onManageCategories: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onAddReceipt: () -> Unit = {},
+    onOpenCards: () -> Unit = {},
 ) {
     val items = listOf(
         MoreItem(
             title = stringResource(R.string.action_manage_accounts),
             icon = Icons.Filled.AccountBalance,
             onClick = onManageAccounts,
+        ),
+        MoreItem(
+            title = stringResource(R.string.nav_cards),
+            icon = Icons.Filled.CreditCard,
+            onClick = onOpenCards,
         ),
         MoreItem(
             title = stringResource(R.string.action_add_receipt),

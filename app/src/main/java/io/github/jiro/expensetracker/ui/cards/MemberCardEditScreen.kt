@@ -50,6 +50,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,6 +74,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
@@ -119,12 +121,15 @@ fun MemberCardEditScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     var showDiscardConfirm by remember { mutableStateOf(false) }
     var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+    val snackbarScope = rememberCoroutineScope()
 
     // Camera intent: write to a fresh temp file in the app cache so we
     // can hand a real file://-backed content URI to the system camera.
     // When TakePicture() reports success=false (no camera app, user
     // cancellation captured as failure, etc.) we surface a snackbar so
-    // the user knows the pick didn't take.
+    // the user knows the pick didn't take. The snackbar is shown via a
+    // coroutine launched from a remembered scope because showSnackbar
+    // is a suspend function and the launcher callback isn't a coroutine.
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture(),
     ) { success ->
@@ -132,7 +137,9 @@ fun MemberCardEditScreen(
         pendingCameraUri = null
         when {
             success && uri != null -> viewModel.onImagePicked(uri)
-            !success -> snackbarHostState.showSnackbar(cameraUnavailableMessage)
+            !success -> snackbarScope.launch {
+                snackbarHostState.showSnackbar(cameraUnavailableMessage)
+            }
         }
     }
 

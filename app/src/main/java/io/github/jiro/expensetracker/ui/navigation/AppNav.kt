@@ -26,6 +26,9 @@ import io.github.jiro.expensetracker.ui.add_edit.AddEditTransactionScreen
 import io.github.jiro.expensetracker.ui.add_edit.ReceiptSectionViewModel
 import io.github.jiro.expensetracker.ui.add_receipt.AddReceiptScreen
 import io.github.jiro.expensetracker.ui.budget.BudgetScreen
+import io.github.jiro.expensetracker.ui.cards.MemberCardDetailScreen
+import io.github.jiro.expensetracker.ui.cards.MemberCardEditScreen
+import io.github.jiro.expensetracker.ui.cards.MemberCardListScreen
 import io.github.jiro.expensetracker.ui.categories.CategoryManagementScreen
 import io.github.jiro.expensetracker.ui.home.HomeScreen
 import io.github.jiro.expensetracker.ui.more.MoreScreen
@@ -60,10 +63,19 @@ object Routes {
     const val ACCOUNT_EDIT = "account_edit"
     const val ACCOUNT_EDIT_WITH_ID = "account_edit/{accountId}"
     const val ACCOUNT_EDIT_ARG_ID = "accountId"
+    const val MEMBER_CARDS = "member_cards"
+    const val MEMBER_CARDS_DETAIL = "member_cards/{cardId}"
+    const val MEMBER_CARDS_DETAIL_ARG_ID = "cardId"
+    const val MEMBER_CARDS_EDIT = "member_cards/edit?id={cardId}"
+    const val MEMBER_CARDS_EDIT_ARG_ID = "cardId"
+    const val MEMBER_CARDS_EDIT_NO_ID = "member_cards/edit"
 }
 
 fun addEditRoute(transactionId: Long? = null): String =
     if (transactionId == null) Routes.ADD_EDIT_NO_ID else "add_edit?id=$transactionId"
+
+fun memberCardEditRoute(cardId: Long? = null): String =
+    if (cardId == null) Routes.MEMBER_CARDS_EDIT_NO_ID else "member_cards/edit?id=$cardId"
 
 @Composable
 fun AppNavHost(
@@ -196,12 +208,43 @@ fun AppNavHost(
             ) {
                 AddEditAccountScreen(onBack = { navController.popBackStack() })
             }
+            composable(Routes.MEMBER_CARDS) {
+                MemberCardListScreen(
+                    onBack = { navController.popBackStack() },
+                    onAddCard = { navController.navigate(memberCardEditRoute()) },
+                    onCardClick = { id -> navController.navigate("member_cards/$id") },
+                )
+            }
+            composable(
+                route = Routes.MEMBER_CARDS_DETAIL,
+                arguments = listOf(navArgument(Routes.MEMBER_CARDS_DETAIL_ARG_ID) { type = NavType.LongType }),
+            ) {
+                MemberCardDetailScreen(
+                    onBack = { navController.popBackStack() },
+                    onEdit = { id -> navController.navigate(memberCardEditRoute(id)) },
+                )
+            }
+            composable(
+                route = Routes.MEMBER_CARDS_EDIT,
+                arguments = listOf(
+                    navArgument(Routes.MEMBER_CARDS_EDIT_ARG_ID) {
+                        type = NavType.LongType
+                        defaultValue = -1L
+                    },
+                ),
+            ) {
+                MemberCardEditScreen(
+                    onBack = { navController.popBackStack() },
+                    onSaved = { navController.popBackStack() },
+                )
+            }
             composable(Routes.MORE) {
                 MoreScreen(
                     onManageAccounts = { navController.navigate(Routes.ACCOUNTS_LIST) },
                     onManageCategories = { navController.navigate(Routes.CATEGORIES) },
                     onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                     onAddReceipt = { navController.navigate(Routes.ADD_RECEIPT) },
+                    onOpenCards = { navController.navigate(Routes.MEMBER_CARDS) },
                 )
             }
             composable(Routes.CATEGORIES) {
