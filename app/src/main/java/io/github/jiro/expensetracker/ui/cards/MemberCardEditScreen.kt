@@ -111,6 +111,9 @@ private val CARD_COLOR_CHOICES = listOf(
 fun MemberCardEditScreen(
     onBack: () -> Unit,
     onSaved: () -> Unit,
+    onNavigateToCrop: (String) -> Unit = {},
+    pendingCroppedPath: String? = null,
+    onCroppedPathConsumed: () -> Unit = {},
     viewModel: MemberCardEditViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -137,7 +140,7 @@ fun MemberCardEditScreen(
         val uri = pendingCameraUri
         pendingCameraUri = null
         when {
-            success && uri != null -> viewModel.onImagePicked(uri)
+            success && uri != null -> onNavigateToCrop(uri.toString())
             !success -> snackbarScope.launch {
                 snackbarHostState.showSnackbar(cameraUnavailableMessage)
             }
@@ -149,7 +152,7 @@ fun MemberCardEditScreen(
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
     ) { uri ->
-        if (uri != null) viewModel.onImagePicked(uri)
+        if (uri != null) onNavigateToCrop(uri.toString())
     }
 
     // Launch the camera whenever the pending URI is set. Using a separate
@@ -170,6 +173,15 @@ fun MemberCardEditScreen(
             snackbarHostState.showSnackbar(msg)
             viewModel.onErrorShown()
         }
+    }
+
+    // When the crop screen returns with a freshly-cropped file, feed it to
+    // the VM as if it were the original pick, then clear the shared state so
+    // we don't re-apply the same file on the next recomposition.
+    LaunchedEffect(pendingCroppedPath) {
+        val path = pendingCroppedPath ?: return@LaunchedEffect
+        viewModel.onImagePicked(Uri.fromFile(File(path)))
+        onCroppedPathConsumed()
     }
 
     // Back button intercepts when dirty — otherwise the user could lose

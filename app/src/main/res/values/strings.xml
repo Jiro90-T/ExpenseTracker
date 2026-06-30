@@ -385,4 +385,8 @@
     <string name="cards_action_copy">Copy</string>
     <string name="cards_field_required">Required</string>
     <string name="cards_action_discard">Discard</string>
+    <string name="cards_crop_cancel">Cancel</string>
+    <string name="cards_crop_confirm">Crop</string>
+    <string name="cards_crop_load_error">Couldn\'t load image.</string>
+    <string name="cards_crop_title">Crop</string>
 </resources>

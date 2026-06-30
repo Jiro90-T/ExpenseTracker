@@ -7,6 +7,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -26,6 +27,7 @@ import io.github.jiro.expensetracker.ui.add_edit.AddEditTransactionScreen
 import io.github.jiro.expensetracker.ui.add_edit.ReceiptSectionViewModel
 import io.github.jiro.expensetracker.ui.add_receipt.AddReceiptScreen
 import io.github.jiro.expensetracker.ui.budget.BudgetScreen
+import io.github.jiro.expensetracker.ui.cards.MemberCardCropScreen
 import io.github.jiro.expensetracker.ui.cards.MemberCardDetailScreen
 import io.github.jiro.expensetracker.ui.cards.MemberCardEditScreen
 import io.github.jiro.expensetracker.ui.cards.MemberCardListScreen
@@ -69,6 +71,8 @@ object Routes {
     const val MEMBER_CARDS_EDIT = "member_cards/edit?id={cardId}"
     const val MEMBER_CARDS_EDIT_ARG_ID = "cardId"
     const val MEMBER_CARDS_EDIT_NO_ID = "member_cards/edit"
+    const val MEMBER_CARDS_CROP = "member_cards/crop?uri={uri}"
+    const val MEMBER_CARDS_CROP_ARG_URI = "uri"
 }
 
 fun addEditRoute(transactionId: Long? = null): String =
@@ -76,6 +80,15 @@ fun addEditRoute(transactionId: Long? = null): String =
 
 fun memberCardEditRoute(cardId: Long? = null): String =
     if (cardId == null) Routes.MEMBER_CARDS_EDIT_NO_ID else "member_cards/edit?id=$cardId"
+
+/**
+ * Build the crop route for a given source URI. The URI is URL-encoded so a
+ * `content://` URI with query params survives the round-trip.
+ */
+fun memberCardCropRoute(sourceUri: String): String {
+    val encoded = java.net.URLEncoder.encode(sourceUri, "UTF-8")
+    return "member_cards/crop?uri=$encoded"
+}
 
 @Composable
 fun AppNavHost(
@@ -88,6 +101,11 @@ fun AppNavHost(
     // visible (jump-to-top), instead of being a silent no-op.
     var homeReselectCount by remember { mutableIntStateOf(0) }
     var transactionsReselectCount by remember { mutableIntStateOf(0) }
+
+    // Holds the absolute path of a freshly-cropped image, set by the crop
+    // screen and consumed by the Edit screen on the next recomposition.
+    // Survives recomposition; cleared once Edit has handed it to its VM.
+    val pendingCroppedPath = remember { mutableStateOf<String?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val snackbarScope = rememberCoroutineScope()
@@ -236,6 +254,29 @@ fun AppNavHost(
                 MemberCardEditScreen(
                     onBack = { navController.popBackStack() },
                     onSaved = { navController.popBackStack() },
+                    onNavigateToCrop = { uri ->
+                        navController.navigate(memberCardCropRoute(uri))
+                    },
+                    pendingCroppedPath = pendingCroppedPath.value,
+                    onCroppedPathConsumed = { pendingCroppedPath.value = null },
+                )
+            }
+            composable(
+                route = Routes.MEMBER_CARDS_CROP,
+                arguments = listOf(
+                    navArgument(Routes.MEMBER_CARDS_CROP_ARG_URI) { type = NavType.StringType },
+                ),
+            ) { backStackEntry ->
+                val encoded = backStackEntry.arguments
+                    ?.getString(Routes.MEMBER_CARDS_CROP_ARG_URI).orEmpty()
+                val uri = java.net.URLDecoder.decode(encoded, "UTF-8")
+                MemberCardCropScreen(
+                    sourceUri = uri,
+                    onCancel = { navController.popBackStack() },
+                    onCropped = { path ->
+                        pendingCroppedPath.value = path
+                        navController.popBackStack()
+                    },
                 )
             }
             composable(Routes.MORE) {
