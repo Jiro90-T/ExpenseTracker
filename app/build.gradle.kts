@@ -113,6 +113,8 @@ dependencies {
     implementation(libs.androidx.exifinterface)
     implementation(libs.mlkit.text.recognition)
 
+    implementation(libs.androidx.datastore.preferences)
+
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.androidx.room.testing)
