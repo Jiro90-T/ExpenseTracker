@@ -115,6 +115,8 @@ dependencies {
 
     implementation(libs.androidx.datastore.preferences)
 
+    implementation(libs.androidx.glance.appwidget)
+
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.androidx.room.testing)
