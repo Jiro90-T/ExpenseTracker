@@ -8,6 +8,9 @@ import io.github.jiro.expensetracker.data.local.ImageProcessor
 import io.github.jiro.expensetracker.data.local.MemberCardDao
 import io.github.jiro.expensetracker.data.local.MemberCardEntity
 import io.github.jiro.expensetracker.ui.cards.MemberCardForm
+import io.github.jiro.expensetracker.widget.MemberCardWidgetState
+import io.github.jiro.expensetracker.widget.WidgetRefresher
+import io.github.jiro.expensetracker.widget.coerceInRange
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
@@ -15,6 +18,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 
 /**
@@ -30,6 +34,7 @@ import kotlinx.coroutines.withContext
 open class MemberCardRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     private val dao: MemberCardDao,
+    private val widgetRefresher: WidgetRefresher,
 ) : MemberCardRepository {
 
     open val cardsDir: File by lazy { File(context.filesDir, "cards").apply { mkdirs() } }
@@ -43,7 +48,7 @@ open class MemberCardRepositoryImpl @Inject constructor(
 
     override suspend fun add(sourceUri: Uri, form: MemberCardForm): Long {
         val relativePath = saveFromUri(sourceUri)
-        return dao.insert(
+        val id = dao.insert(
             MemberCardEntity(
                 id = 0,
                 name = form.name,
@@ -57,6 +62,8 @@ open class MemberCardRepositoryImpl @Inject constructor(
                 sortOrder = 0,
             )
         )
+        widgetRefresher.refresh(context)
+        return id
     }
 
     override suspend fun update(id: Long, form: MemberCardForm, newImageUri: Uri?): Unit = withContext(Dispatchers.IO) {
@@ -78,6 +85,7 @@ open class MemberCardRepositoryImpl @Inject constructor(
                 notes = form.notes,
             )
         )
+        widgetRefresher.refresh(context)
         Unit
     }
 
@@ -87,6 +95,14 @@ open class MemberCardRepositoryImpl @Inject constructor(
             CardPaths.delete(cardsDir, existing.imagePath)
         }
         dao.deleteById(id)
+        // Clamp the persisted cycle index so the widget doesn't render 'card 3 of 2' after the user deletes the currently-shown card.
+        val remaining = dao.observeAll().first()
+        val current = MemberCardWidgetState.readCycleIndex(context)
+        val clamped = current.coerceInRange(remaining.size)
+        if (clamped != current) {
+            MemberCardWidgetState.setCycleIndex(context, clamped)
+        }
+        widgetRefresher.refresh(context)
         Unit
     }
 
