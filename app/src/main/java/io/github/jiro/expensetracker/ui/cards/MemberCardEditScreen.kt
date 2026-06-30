@@ -221,7 +221,7 @@ fun MemberCardEditScreen(
             // Name field.
             OutlinedTextField(
                 value = state.name,
-                onValueChange = viewModel::onNameChange,
+                onValueChange = { viewModel.onNameChange(capitalizeFirstAlpha(it)) },
                 label = { Text(stringResource(R.string.cards_field_name)) },
                 singleLine = true,
                 isError = state.nameError != null,
@@ -241,7 +241,7 @@ fun MemberCardEditScreen(
             // Member ID field.
             OutlinedTextField(
                 value = state.memberIdText,
-                onValueChange = viewModel::onMemberIdChange,
+                onValueChange = { viewModel.onMemberIdChange(capitalizeFirstAlpha(it)) },
                 label = { Text(stringResource(R.string.cards_field_member_id)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
@@ -714,4 +714,18 @@ private fun createCameraCaptureUri(context: android.content.Context): Uri {
         "${BuildConfig.APPLICATION_ID}.fileprovider",
         captureFile,
     )
+}
+
+/**
+ * Auto-capitalize the first alphabetic character of [value]. Skips leading
+ * non-letters (digits, spaces, punctuation) so e.g. "  costco" → "  Costco"
+ * and "1abc" → "1Abc". Leaves the rest of the string untouched so the user
+ * still controls case in the middle/end (no title-case force).
+ */
+private fun capitalizeFirstAlpha(value: String): String {
+    val firstAlphaIdx = value.indexOfFirst { it.isLetter() }
+    if (firstAlphaIdx < 0) return value
+    val ch = value[firstAlphaIdx]
+    if (ch.isUpperCase()) return value
+    return value.substring(0, firstAlphaIdx) + ch.uppercaseChar() + value.substring(firstAlphaIdx + 1)
 }
