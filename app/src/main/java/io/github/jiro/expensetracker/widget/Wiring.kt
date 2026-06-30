@@ -24,12 +24,15 @@ object Wiring {
         count == 1 -> 0
         else -> (current + 1) % count
     }
+}
 
-    /** Clamp [this] into `[0, max(0, maxExclusive - 1)]`. */
-    fun Int.coerceInRange(maxExclusive: Int): Int {
-        val safeMax = (maxExclusive - 1).coerceAtLeast(0)
-        return this.coerceIn(0, safeMax)
-    }
+/**
+ * Clamp [this] into `[0, max(0, maxExclusive - 1)]`. Defined at file scope
+ * so any class in the `widget` package can call it without an import.
+ */
+internal fun Int.coerceInRange(maxExclusive: Int): Int {
+    val safeMax = (maxExclusive - 1).coerceAtLeast(0)
+    return this.coerceIn(0, safeMax)
 }
 
 /** Process-wide DataStore instance. Lives at top level so callers don't need a Context holder. */
