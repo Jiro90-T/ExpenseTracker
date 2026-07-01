@@ -5,6 +5,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -19,6 +20,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import io.github.jiro.expensetracker.LocalPendingMemberCardNavId
+import io.github.jiro.expensetracker.MainActivity
 import io.github.jiro.expensetracker.R
 import io.github.jiro.expensetracker.ui.accounts.AccountDetailScreen
 import io.github.jiro.expensetracker.ui.accounts.AccountsListScreen
@@ -93,6 +96,7 @@ fun memberCardCropRoute(sourceUri: String): String {
 @Composable
 fun AppNavHost(
     navController: NavHostController = rememberNavController(),
+    activity: MainActivity? = null,
 ) {
     // Per-tab reselect counters. The bottom nav increments the matching
     // counter when the user taps an already-active tab; the corresponding
@@ -110,6 +114,20 @@ fun AppNavHost(
     val snackbarHostState = remember { SnackbarHostState() }
     val snackbarScope = rememberCoroutineScope()
     val ocrSnackbarMessage = stringResource(R.string.receipt_ocr_snackbar)
+
+    // Consume widget deep-links. MainActivity stashes the card id from
+    // EXTRA_MEMBER_CARD_ID into pendingMemberCardNavId; we navigate to
+    // the detail screen and clear the field so we don't replay it on
+    // subsequent recompositions.
+    val pendingMemberCardId = if (activity != null) {
+        LocalPendingMemberCardNavId.current
+    } else null
+    LaunchedEffect(pendingMemberCardId) {
+        if (pendingMemberCardId != null && activity != null) {
+            navController.navigate("member_cards/$pendingMemberCardId")
+            activity.pendingMemberCardNavId = null
+        }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
