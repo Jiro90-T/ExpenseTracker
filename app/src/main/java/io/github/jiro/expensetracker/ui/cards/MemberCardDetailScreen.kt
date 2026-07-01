@@ -46,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -58,6 +59,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.jiro.expensetracker.R
 import io.github.jiro.expensetracker.data.local.MemberCardEntity
+import io.github.jiro.expensetracker.widget.refreshMemberCardWidgets
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -75,6 +77,7 @@ fun MemberCardDetailScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val snackbarScope = rememberCoroutineScope()
     val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
     val memberIdCopiedMessage = stringResource(R.string.cards_member_id_copied)
     var menuOpen by remember { mutableStateOf(false) }
     var showFullImage by remember { mutableStateOf(false) }
@@ -82,7 +85,9 @@ fun MemberCardDetailScreen(
     // Refresh when returning from Edit (ON_RESUME fires every time the
     // screen comes back to the foreground, including after Edit pops).
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        val ctx = context.applicationContext
         viewModel.refresh()
+        snackbarScope.launch { refreshMemberCardWidgets(ctx) }
     }
 
     // One-shot side effects: pop on delete, surface DB errors as a snackbar.
