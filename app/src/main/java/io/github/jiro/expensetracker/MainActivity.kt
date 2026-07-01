@@ -50,7 +50,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun Intent.extractMemberCardNavId(): Long? {
-        val raw = getLongExtra(EXTRA_MEMBER_CARD_ID, 0L)
-        return raw.takeIf { it != 0L }
+        // Sentinel `0L` (from EmptyStateAddAction) means "open the Add screen";
+        // AppNavHost branches on that value. No extra → no nav.
+        if (!hasExtra(EXTRA_MEMBER_CARD_ID)) return null
+        return getLongExtra(EXTRA_MEMBER_CARD_ID, 0L)
     }
 }

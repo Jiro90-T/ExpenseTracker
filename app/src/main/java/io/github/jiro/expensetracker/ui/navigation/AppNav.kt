@@ -116,15 +116,21 @@ fun AppNavHost(
     val ocrSnackbarMessage = stringResource(R.string.receipt_ocr_snackbar)
 
     // Consume widget deep-links. MainActivity stashes the card id from
-    // EXTRA_MEMBER_CARD_ID into pendingMemberCardNavId; we navigate to
-    // the detail screen and clear the field so we don't replay it on
-    // subsequent recompositions.
+    // EXTRA_MEMBER_CARD_ID into pendingMemberCardNavId; we navigate and
+    // clear the field so we don't replay it on subsequent recompositions.
+    // Sentinel `0L` from the widget's empty-state "Add card" CTA means
+    // "open the Add screen" rather than detail-of-card-0.
     val pendingMemberCardId = if (activity != null) {
         LocalPendingMemberCardNavId.current
     } else null
     LaunchedEffect(pendingMemberCardId) {
         if (pendingMemberCardId != null && activity != null) {
-            navController.navigate("member_cards/$pendingMemberCardId")
+            val route = if (pendingMemberCardId == 0L) {
+                Routes.MEMBER_CARDS_EDIT_NO_ID
+            } else {
+                "member_cards/$pendingMemberCardId"
+            }
+            navController.navigate(route)
             activity.pendingMemberCardNavId = null
         }
     }
