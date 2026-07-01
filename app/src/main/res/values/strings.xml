@@ -390,6 +390,15 @@
     <string name="cards_crop_load_error">Couldn\'t load image.</string>
     <string name="cards_crop_title">Crop</string>
 
-    <!-- Member Cards widget (Phase A) -->
+    <!-- Member Cards widget -->
     <string name="cards_widget_description">Show a loyalty or membership card on your home screen. Tap the photo to open it, tap anywhere else to cycle cards.</string>
+    <string name="cards_widget_label">Member Card</string>
+    <string name="cards_widget_image_content_desc">Open card details</string>
+    <string name="cards_widget_cycle_content_desc">Show next card</string>
+    <string name="cards_widget_empty_title">No cards yet</string>
+    <string name="cards_widget_empty_subtitle">Add your first loyalty or membership card.</string>
+    <string name="cards_widget_add_card">Add card</string>
+    <string name="cards_widget_counter_format">%1$d/%2$d</string>
+    <string name="cards_widget_next">Next</string>
+    <string name="cards_widget_widget_content_desc_format">Member card %1$d of %2$d: %3$s. Tap photo to open, tap elsewhere for next card.</string>
 </resources>
