@@ -35,5 +35,12 @@ data class AccountEntity(
     val openingBalanceMinor: Long = 0L,
     val createdAtEpochMillis: Long,
     val archived: Boolean = false,
+    /**
+     * Timestamp when the account was closed (archived = true). Null means
+     * the account has never been closed. Set whenever the user closes an
+     * account from AccountDetailScreen; cleared on reopen. Distinct from
+     * `archived` so reopen doesn't need to inspect a sentinel.
+     */
+    val archivedAtEpochMillis: Long? = null,
     val sortOrder: Int = 0,
 )

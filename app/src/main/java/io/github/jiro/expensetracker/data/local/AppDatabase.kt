@@ -13,7 +13,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         AccountEntity::class,
         MemberCardEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -181,6 +181,18 @@ abstract class AppDatabase : RoomDatabase() {
                     )
                     """.trimIndent()
                 )
+            }
+        }
+
+        /**
+         * v7 → v8: close-account. Adds the nullable `archivedAtEpochMillis`
+         * column to `accounts`. Existing rows default to NULL (active).
+         * No data migration needed — closing is a user action that only
+         * happens post-upgrade.
+         */
+        val MIGRATION_7_8: Migration = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE accounts ADD COLUMN archivedAtEpochMillis INTEGER")
             }
         }
     }

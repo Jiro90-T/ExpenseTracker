@@ -116,4 +116,50 @@ class AccountMigrationTest {
             assertNull(cursor.getColumnIndexOrThrow("transferAccountId").let { cursor.getString(it) })
         }
     }
+
+    @Test
+    fun migrate_7_to_8_adds_archivedAtEpochMillis_column() {
+        // Build v7 schema from scratch with minimal tables required for the migration
+        // (only the `accounts` table is read by MIGRATION_7_8).
+        helper.createDatabase(AppDatabase.NAME, 7).apply {
+            execSQL(
+                """
+                CREATE TABLE accounts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    name TEXT NOT NULL,
+                    type TEXT NOT NULL,
+                    icon TEXT NOT NULL,
+                    color INTEGER NOT NULL,
+                    currencyCode TEXT NOT NULL,
+                    openingBalanceMinor INTEGER NOT NULL DEFAULT 0,
+                    createdAtEpochMillis INTEGER NOT NULL,
+                    archived INTEGER NOT NULL DEFAULT 0,
+                    sortOrder INTEGER NOT NULL DEFAULT 0
+                )
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            AppDatabase.NAME,
+            8,
+            true,
+            AppDatabase.MIGRATION_7_8,
+        )
+
+        db.query("PRAGMA table_info(accounts)").use { c ->
+            val cols = mutableMapOf<String, String>()
+            while (c.moveToNext()) {
+                cols[c.getString(c.getColumnIndexOrThrow("name"))] =
+                    c.getString(c.getColumnIndexOrThrow("type"))
+            }
+            assertTrue(
+                "archivedAtEpochMillis column should exist",
+                cols.containsKey("archivedAtEpochMillis"),
+            )
+            // SQLite stores nullable as "INTEGER" without NOT NULL modifier.
+            assertEquals("INTEGER", cols["archivedAtEpochMillis"])
+        }
+    }
 }
