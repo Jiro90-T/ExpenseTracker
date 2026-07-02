@@ -102,10 +102,10 @@ interface AccountDao {
     )
     fun observeAllBalances(): Flow<List<AccountBalanceRow>>
 
-    @Query("SELECT * FROM accounts")
+    @Query("SELECT * FROM accounts ORDER BY sortOrder, name")
     fun observeAllEntities(): Flow<List<AccountEntity>>
 
-    @Query("SELECT * FROM accounts")
+    @Query("SELECT * FROM accounts ORDER BY sortOrder, name")
     suspend fun listAllOnce(): List<AccountEntity>
 
     @Query("UPDATE accounts SET archived = 1, archivedAtEpochMillis = :now WHERE id = :id")
