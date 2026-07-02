@@ -334,6 +334,21 @@
     <string name="account_delete_blocked_title">Account has transactions</string>
     <string name="account_delete_blocked_message">Account \'%1$s\' has %2$d transactions referencing it. Delete them first or move them to another account.</string>
 
+    <!-- Accounts (Phase 2.19 — Close account) -->
+    <string name="account_close">Close account</string>
+    <string name="account_reopen">Reopen account</string>
+    <string name="account_close_confirm_title">Close account?</string>
+    <string name="account_close_confirm_message">Closed accounts stay in your records but won\'t appear in dropdowns. You can reopen it later.</string>
+    <string name="account_reopen_confirm_title">Reopen account?</string>
+    <string name="account_reopen_confirm_message">This account will reappear in dropdowns.</string>
+    <string name="account_close_snackbar">Account closed</string>
+    <string name="account_reopen_snackbar">Account reopened</string>
+    <string name="account_undo">Undo</string>
+    <string name="account_status_closed">Closed</string>
+    <string name="account_filter_show_closed">Show closed accounts</string>
+    <string name="account_closed_on">Closed on %1$s</string>
+    <string name="transaction_added_on">Added %1$s</string>
+
     <!-- Accounts (Phase 2.18 — CSV Balance Import) -->
     <string name="import_csv_section_title">Import accounts from CSV</string>
     <string name="import_csv_section_subtitle">Bulk-create accounts or update opening balances from a 4-column CSV file.</string>
