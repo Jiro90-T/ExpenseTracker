@@ -37,6 +37,20 @@ open class AccountRepository @Inject constructor(
 
     open suspend fun delete(id: Long): Int = dao.delete(id)
 
+    suspend fun close(id: Long) {
+        dao.close(id, System.currentTimeMillis())
+    }
+
+    suspend fun reopen(id: Long) {
+        dao.reopen(id)
+    }
+
+    fun observeAllEntities(): Flow<List<AccountEntity>> = dao.observeAllEntities()
+
+    fun observeAllBalances(): Flow<List<AccountBalanceRow>> = dao.observeAllBalances()
+
+    suspend fun listAllOnce(): List<AccountEntity> = dao.listAllOnce()
+
     /** Applies a batch of resolved CSV import rows in one Room transaction. */
     open suspend fun applyAccountImport(rows: List<ResolvedImportRow>, nowEpochMs: Long) =
         dao.applyAccountImport(rows, nowEpochMs)
@@ -44,6 +58,22 @@ open class AccountRepository @Inject constructor(
     /** Stream of all non-archived accounts joined with their computed balances. */
     fun observeWithBalances(): Flow<List<AccountWithBalance>> =
         combine(dao.observeActive(), dao.observeBalances()) { accounts, balances ->
+            val map = balances.associate { it.accountId to it.balanceMinor }
+            accounts.map { acc ->
+                AccountWithBalance(
+                    account = acc,
+                    balanceMinor = map[acc.id] ?: acc.openingBalanceMinor,
+                )
+            }
+        }
+
+    /**
+     * All accounts (active + archived), joined with their computed balances.
+     * Used for the net-balance label and any totals that should not exclude
+     * closed accounts.
+     */
+    fun observeAllWithBalances(): Flow<List<AccountWithBalance>> =
+        combine(dao.observeAllEntities(), dao.observeAllBalances()) { accounts, balances ->
             val map = balances.associate { it.accountId to it.balanceMinor }
             accounts.map { acc ->
                 AccountWithBalance(
