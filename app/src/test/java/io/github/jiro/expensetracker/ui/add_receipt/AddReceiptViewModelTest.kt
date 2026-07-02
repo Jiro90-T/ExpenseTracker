@@ -258,7 +258,7 @@ private class StubAccountDao : AccountDao {
         MutableStateFlow(emptyList<AccountEntity>()).asStateFlow()
     override suspend fun listActiveOnce(): List<AccountEntity> = emptyList()
     override suspend fun findById(id: Long): AccountEntity? = null
-    override suspend fun findDefault(): AccountEntity? = null
+    override suspend fun findActiveDefault(): AccountEntity? = null
     override suspend fun insert(account: AccountEntity): Long = 0L
     override suspend fun update(account: AccountEntity): Int = 0
     override suspend fun delete(id: Long): Int = 0
@@ -266,6 +266,13 @@ private class StubAccountDao : AccountDao {
     override suspend fun countActive(): Int = 0
     override fun observeBalances(): Flow<List<io.github.jiro.expensetracker.data.local.AccountBalanceRow>> =
         MutableStateFlow(emptyList<io.github.jiro.expensetracker.data.local.AccountBalanceRow>()).asStateFlow()
+    override fun observeAllBalances(): Flow<List<io.github.jiro.expensetracker.data.local.AccountBalanceRow>> =
+        MutableStateFlow(emptyList<io.github.jiro.expensetracker.data.local.AccountBalanceRow>()).asStateFlow()
+    override fun observeAllEntities(): Flow<List<AccountEntity>> =
+        MutableStateFlow(emptyList<AccountEntity>()).asStateFlow()
+    override suspend fun listAllOnce(): List<AccountEntity> = emptyList()
+    override suspend fun close(id: Long, now: Long) = Unit
+    override suspend fun reopen(id: Long) = Unit
     override suspend fun maxSortOrder(): Int = 0
     override suspend fun updateOpeningBalanceByName(name: String, balance: Long): Int = 0
     override suspend fun applyAccountImport(

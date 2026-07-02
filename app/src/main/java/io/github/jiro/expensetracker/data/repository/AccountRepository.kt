@@ -21,8 +21,8 @@ open class AccountRepository @Inject constructor(
 
     suspend fun countActive(): Int = dao.countActive()
 
-    /** Returns the seeded default account (id=1) if it exists. */
-    suspend fun findDefault(): AccountEntity? = dao.findDefault()
+    /** Lowest-id active account, or null if every account is archived. */
+    suspend fun findActiveDefault(): AccountEntity? = dao.findActiveDefault()
 
     /**
      * Insert a new account. Returns the row id. Returns -1 if a duplicate

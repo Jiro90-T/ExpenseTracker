@@ -21,7 +21,7 @@ class AccountSeeder @Inject constructor(
 ) {
     suspend fun syncDefaultCurrency() {
         val home = settingsRepository.homeCurrency.value
-        val default = accountRepository.findDefault() ?: return
+        val default = accountRepository.findActiveDefault() ?: return
         if (default.currencyCode != home) {
             accountRepository.syncDefaultCurrency(home)
         }

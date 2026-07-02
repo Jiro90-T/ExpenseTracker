@@ -23,9 +23,6 @@ interface AccountDao {
     @Query("SELECT * FROM accounts WHERE id = :id LIMIT 1")
     suspend fun findById(id: Long): AccountEntity?
 
-    @Query("SELECT * FROM accounts WHERE id = 1 LIMIT 1")
-    suspend fun findDefault(): AccountEntity?
-
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(account: AccountEntity): Long
 
@@ -81,6 +78,44 @@ interface AccountDao {
         WHERE a.archived = 0
     """)
     fun observeBalances(): Flow<List<AccountBalanceRow>>
+
+    /**
+     * Parallel of [observeBalances] without the `archived = 0` filter.
+     * Returns one [AccountBalanceRow] per account (active or closed).
+     * The detail/account-list UI pairs this with [observeAllEntities] to
+     * render closed rows alongside active ones.
+     */
+    @Query(
+        """
+        SELECT a.id AS accountId,
+               a.openingBalanceMinor
+               + COALESCE((SELECT SUM(CASE WHEN type = 'EXPENSE' THEN -amountMinor ELSE amountMinor END)
+                           FROM transactions
+                           WHERE accountId = a.id AND type IN ('INCOME','EXPENSE','ADJUSTMENT')), 0)
+               - COALESCE((SELECT SUM(amountMinor) FROM transactions
+                           WHERE accountId = a.id AND type = 'TRANSFER'), 0)
+               + COALESCE((SELECT SUM(amountMinor) FROM transactions
+                           WHERE transferAccountId = a.id AND type = 'TRANSFER'), 0)
+               AS balanceMinor
+        FROM accounts a
+        """
+    )
+    fun observeAllBalances(): Flow<List<AccountBalanceRow>>
+
+    @Query("SELECT * FROM accounts")
+    fun observeAllEntities(): Flow<List<AccountEntity>>
+
+    @Query("SELECT * FROM accounts")
+    suspend fun listAllOnce(): List<AccountEntity>
+
+    @Query("UPDATE accounts SET archived = 1, archivedAtEpochMillis = :now WHERE id = :id")
+    suspend fun close(id: Long, now: Long)
+
+    @Query("UPDATE accounts SET archived = 0, archivedAtEpochMillis = NULL WHERE id = :id")
+    suspend fun reopen(id: Long)
+
+    @Query("SELECT * FROM accounts WHERE archived = 0 ORDER BY id ASC LIMIT 1")
+    suspend fun findActiveDefault(): AccountEntity?
 
     /**
      * Applies a list of resolved CSV import rows in a single Room transaction.
