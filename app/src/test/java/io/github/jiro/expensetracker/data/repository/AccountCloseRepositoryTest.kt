@@ -5,6 +5,7 @@ import io.github.jiro.expensetracker.data.local.AccountDao
 import io.github.jiro.expensetracker.data.local.AccountEntity
 import io.github.jiro.expensetracker.data.accountimport.ResolvedImportRow
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -66,5 +67,79 @@ class AccountCloseRepositoryTest {
         val repo = AccountRepository(dao)
         repo.reopen(id = 9L)
         assertEquals(9L, dao.lastReopenId)
+    }
+
+    @Test fun observeAllWithBalances_joinsEntitiesWithBalances() = runBlocking {
+        val activeEntity = AccountEntity(
+            id = 1L, name = "Active", type = "CASH", icon = "💵",
+            color = 0xFFFFFFFF.toInt(), currencyCode = "USD",
+            openingBalanceMinor = 1000L, createdAtEpochMillis = 0L,
+        )
+        val closedEntity = activeEntity.copy(id = 2L, name = "Closed", archived = true, archivedAtEpochMillis = 1_700L)
+        val entities = listOf(activeEntity, closedEntity)
+        val balances = listOf(
+            AccountBalanceRow(accountId = 1L, balanceMinor = 2500L),
+            AccountBalanceRow(accountId = 2L, balanceMinor = 800L),
+        )
+        val dao = object : AccountDao {
+            override fun observeAllEntities() = flowOf(entities)
+            override fun observeAllBalances() = flowOf(balances)
+            override suspend fun listAllOnce() = entities
+            // unused stubs
+            override fun observeActive() = flowOf(emptyList<AccountEntity>())
+            override suspend fun listActiveOnce() = emptyList<AccountEntity>()
+            override suspend fun findById(id: Long) = null
+            override suspend fun insert(account: AccountEntity) = 0L
+            override suspend fun update(account: AccountEntity) = 0
+            override suspend fun delete(id: Long) = 0
+            override suspend fun countActive() = 0
+            override fun observeBalances() = flowOf(emptyList<AccountBalanceRow>())
+            override suspend fun updateDefaultCurrency(code: String) = 0
+            override suspend fun maxSortOrder() = 0
+            override suspend fun updateOpeningBalanceByName(name: String, balance: Long) = 0
+            override suspend fun findActiveDefault(): AccountEntity? = null
+            override suspend fun close(id: Long, now: Long) {}
+            override suspend fun reopen(id: Long) {}
+            override suspend fun applyAccountImport(rows: List<ResolvedImportRow>, nowEpochMs: Long) {}
+        }
+        val repo = AccountRepository(dao)
+        val rows = repo.observeAllWithBalances().first()
+        assertEquals(2, rows.size)
+        val byId = rows.associateBy { it.account.id }
+        assertEquals(2500L, byId[1L]!!.balanceMinor)
+        assertEquals(800L, byId[2L]!!.balanceMinor)
+        assertTrue("closed row should be present", byId[2L]!!.account.archived)
+    }
+
+    @Test fun observeAllWithBalances_fallsBackToOpeningBalanceWhenBalanceRowMissing() = runBlocking {
+        val entity = AccountEntity(
+            id = 1L, name = "NoTxn", type = "CASH", icon = "💵",
+            color = 0xFFFFFFFF.toInt(), currencyCode = "USD",
+            openingBalanceMinor = 1234L, createdAtEpochMillis = 0L,
+        )
+        val dao = object : AccountDao {
+            override fun observeAllEntities() = flowOf(listOf(entity))
+            override fun observeAllBalances() = flowOf(emptyList<AccountBalanceRow>())
+            override suspend fun listAllOnce() = listOf(entity)
+            override fun observeActive() = flowOf(emptyList<AccountEntity>())
+            override suspend fun listActiveOnce() = emptyList<AccountEntity>()
+            override suspend fun findById(id: Long) = null
+            override suspend fun insert(account: AccountEntity) = 0L
+            override suspend fun update(account: AccountEntity) = 0
+            override suspend fun delete(id: Long) = 0
+            override suspend fun countActive() = 0
+            override fun observeBalances() = flowOf(emptyList<AccountBalanceRow>())
+            override suspend fun updateDefaultCurrency(code: String) = 0
+            override suspend fun maxSortOrder() = 0
+            override suspend fun updateOpeningBalanceByName(name: String, balance: Long) = 0
+            override suspend fun findActiveDefault(): AccountEntity? = null
+            override suspend fun close(id: Long, now: Long) {}
+            override suspend fun reopen(id: Long) {}
+            override suspend fun applyAccountImport(rows: List<ResolvedImportRow>, nowEpochMs: Long) {}
+        }
+        val repo = AccountRepository(dao)
+        val rows = repo.observeAllWithBalances().first()
+        assertEquals(1, rows.size)
+        assertEquals(1234L, rows[0].balanceMinor)  // fell back to openingBalanceMinor
     }
 }
