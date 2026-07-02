@@ -8,6 +8,7 @@ import io.github.jiro.expensetracker.data.repository.AccountWithBalance
 import io.github.jiro.expensetracker.domain.FxConverter
 import io.github.jiro.expensetracker.preferences.SettingsRepository
 import javax.inject.Inject
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -18,31 +19,42 @@ data class AccountsListUiState(
     val netBalanceInHome: String = "",
     val count: Int = 0,
     val isLoading: Boolean = true,
+    val showClosed: Boolean = false,
 )
 
 @HiltViewModel
 class AccountsListViewModel @Inject constructor(
-    accountRepository: AccountRepository,
+    private val accountRepository: AccountRepository,
     settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
+    private val _showClosed = MutableStateFlow(false)
+
     val state: StateFlow<AccountsListUiState> = combine(
+        _showClosed,
+        accountRepository.observeAllWithBalances(),
         accountRepository.observeWithBalances(),
         settingsRepository.fxRates,
         settingsRepository.homeCurrency,
-    ) { accounts, fx, home ->
-        val net = computeNetBalanceInHome(accounts, home, fx)
+    ) { showClosed, allAccounts, activeAccounts, fx, home ->
+        val listed = if (showClosed) allAccounts else activeAccounts
+        val net = computeNetBalanceInHome(allAccounts, home, fx)
         AccountsListUiState(
-            accounts = accounts,
+            accounts = listed,
             netBalanceInHome = "%.2f %s".format(net, home),
-            count = accounts.size,
+            count = listed.size,
             isLoading = false,
+            showClosed = showClosed,
         )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = AccountsListUiState(),
     )
+
+    fun setShowClosed(value: Boolean) {
+        _showClosed.value = value
+    }
 }
 
 /**

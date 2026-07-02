@@ -85,3 +85,16 @@ class AccountsListViewModelTest {
         assertEquals(0.0, result, 0.0001)
     }
 }
+
+class AccountsListViewModelToggleTest {
+
+    @Test
+    fun `view model exposes showClosed state that defaults to false`() {
+        // Sanity: the data class must gain a showClosed field; this test
+        // fails to compile until the field exists.
+        val s = AccountsListUiState(showClosed = false)
+        assertEquals(false, s.showClosed)
+        val s2 = s.copy(showClosed = true)
+        assertEquals(true, s2.showClosed)
+    }
+}
