@@ -61,6 +61,16 @@ of `docs/superpowers/testdata/member-cards-widget.md`.
     AppDatabase, install, seed an account, then install a v8 APK on
     top. Verify the existing account's `archivedAtEpochMillis` is
     `null` and the app still launches cleanly.
+15. **Backup round-trip (closed account survives).** With "Checking"
+    closed (and the "Added MMM d" line on its historic transaction),
+    open Settings → Backup → Export to JSON. Pick "Show closed
+    accounts" off, then open the exported `.zip` (or `.json`). Verify
+    the manifest contains an `accounts` array with `Checking`
+    (`archived: true`, `archivedAtEpochMillis` non-null) and the
+    transaction's `accountId: <checkingId>`. Reset app data
+    (`adb shell pm clear io.github.jiro.expensetracker`), relaunch,
+    import the backup, and verify "Checking" returns in its closed
+    state with the same historic transactions attached.
 
 ## Expected outcomes
 
