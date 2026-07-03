@@ -6,11 +6,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -19,7 +21,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -31,6 +36,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -75,6 +81,24 @@ fun AccountsListScreen(
             EmptyState(modifier = Modifier.fillMaxSize().padding(padding))
             return@Scaffold
         }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(padding)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            FilterChip(
+                selected = state.showClosed,
+                onClick = { viewModel.setShowClosed(!state.showClosed) },
+                label = { Text(stringResource(R.string.account_filter_show_closed)) },
+            )
+            Text(
+                text = stringResource(R.string.accounts_header_count, state.count),
+                style = MaterialTheme.typography.labelMedium,
+            )
+        }
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
             modifier = Modifier.fillMaxSize().padding(padding),
@@ -91,6 +115,7 @@ fun AccountsListScreen(
             items(state.accounts, key = { it.account.id }) { aw ->
                 AccountTile(
                     accountWithBalance = aw,
+                    archived = aw.account.archived,
                     onClick = { onAccountClick(aw.account.id) },
                 )
             }
@@ -129,6 +154,7 @@ private fun HeaderCard(netBalanceInHome: String, count: Int) {
 @Composable
 private fun AccountTile(
     accountWithBalance: AccountWithBalance,
+    archived: Boolean,
     onClick: () -> Unit,
 ) {
     val account = accountWithBalance.account
@@ -139,7 +165,8 @@ private fun AccountTile(
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
             .clickable(onClick = onClick)
-            .padding(12.dp),
+            .padding(12.dp)
+            .alpha(if (archived) 0.6f else 1f),
     ) {
         Text(account.icon, style = MaterialTheme.typography.headlineSmall)
         Spacer(Modifier.height(4.dp))
@@ -151,16 +178,35 @@ private fun AccountTile(
             overflow = TextOverflow.Ellipsis,
         )
         Spacer(Modifier.height(4.dp))
-        Text(
-            text = if (isNegative) {
-                "−${MoneyFormat.formatForDisplay(-balance)} ${account.currencyCode}"
-            } else {
-                "${MoneyFormat.formatForDisplay(balance)} ${account.currencyCode}"
-            },
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            color = if (isNegative) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = if (isNegative) {
+                    "−${MoneyFormat.formatForDisplay(-balance)} ${account.currencyCode}"
+                } else {
+                    "${MoneyFormat.formatForDisplay(balance)} ${account.currencyCode}"
+                },
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = if (isNegative) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+            )
+            if (archived) {
+                Spacer(Modifier.width(8.dp))
+                AssistChip(
+                    onClick = {},
+                    enabled = false,
+                    label = {
+                        Text(
+                            text = stringResource(R.string.account_status_closed),
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                    },
+                    colors = AssistChipDefaults.assistChipColors(
+                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
+                )
+            }
+        }
     }
 }
 
