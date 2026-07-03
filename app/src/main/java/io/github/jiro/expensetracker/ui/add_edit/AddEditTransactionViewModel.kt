@@ -82,6 +82,9 @@ data class AddEditTransactionUiState(
      */
     val dateTouched: Boolean = false,
 
+    // ---- Phase 2.19: created-at timestamp shown in detail/edit header ----
+    val createdAtEpochMillis: Long = 0L,
+
     // ---- Phase 2.16: per-tx account ----
     val accounts: List<AccountEntity> = emptyList(),
     val selectedAccountId: Long? = null,
@@ -173,6 +176,7 @@ class AddEditTransactionViewModel @Inject constructor(
                         isRecurring = existing.recurringGroupId != null,
                         currency = existing.currencyCode,
                         receiptPath = existing.receiptPath,
+                        createdAtEpochMillis = existing.createdAtEpochMillis,
                         recurrenceKind = RecurrenceKind.fromStorage(existing.recurrenceKind)
                             ?: RecurrenceKind.MONTHLY,
                         recurrenceInterval = existing.recurrenceInterval.coerceAtLeast(1),

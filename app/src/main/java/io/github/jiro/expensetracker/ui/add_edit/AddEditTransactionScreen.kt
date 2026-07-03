@@ -1,5 +1,6 @@
 package io.github.jiro.expensetracker.ui.add_edit
 
+import android.text.format.DateUtils
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -45,6 +46,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -161,6 +163,20 @@ private fun AddEditForm(
         }
 
         // Title
+        // "Added MMM d, yyyy" subtitle for existing transactions
+        if (state.id != null && state.createdAtEpochMillis > 0L) {
+            val ctx = LocalContext.current
+            val addedText = DateUtils.formatDateTime(
+                ctx,
+                state.createdAtEpochMillis,
+                DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_ABBREV_MONTH,
+            )
+            Text(
+                text = stringResource(R.string.transaction_added_on, addedText),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         OutlinedTextField(
             value = state.title,
             onValueChange = viewModel::onTitleChange,
