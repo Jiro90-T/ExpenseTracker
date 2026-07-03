@@ -1,5 +1,6 @@
 package io.github.jiro.expensetracker.ui.home
 
+import android.text.format.DateUtils
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -28,10 +29,12 @@ import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -122,6 +125,23 @@ private fun StandardRow(
                     )
                 }
             }
+            val ctx = LocalContext.current
+            val addedText = remember(txn.createdAtEpochMillis) {
+                if (txn.createdAtEpochMillis == 0L) null else {
+                    DateUtils.formatDateTime(
+                        ctx,
+                        txn.createdAtEpochMillis,
+                        DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_ABBREV_MONTH or DateUtils.FORMAT_NO_YEAR,
+                    )
+                }
+            }
+            if (addedText != null) {
+                Text(
+                    text = stringResource(R.string.transaction_added_on, addedText),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Text(
                 text = "$displayCategoryName · ${txn.currencyCode} " +
                     "$sign${txn.amountMinor / 100}.${"%02d".format(txn.amountMinor % 100)}",
@@ -164,6 +184,23 @@ private fun TransferRow(
                 text = highlightMatches(txn.title, searchQuery, highlightStyle),
                 style = MaterialTheme.typography.titleMedium,
             )
+            val ctx = LocalContext.current
+            val addedText = remember(txn.createdAtEpochMillis) {
+                if (txn.createdAtEpochMillis == 0L) null else {
+                    DateUtils.formatDateTime(
+                        ctx,
+                        txn.createdAtEpochMillis,
+                        DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_ABBREV_MONTH or DateUtils.FORMAT_NO_YEAR,
+                    )
+                }
+            }
+            if (addedText != null) {
+                Text(
+                    text = stringResource(R.string.transaction_added_on, addedText),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             // TODO(Phase 2.16+): extend TransactionWithCategory to embed the
             // destination account entity for TRANSFER rows so we can render the
             // account name instead of the id.
