@@ -33,7 +33,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -47,7 +46,6 @@ import io.github.jiro.expensetracker.data.local.AccountEntity
 import io.github.jiro.expensetracker.data.local.MoneyFormat
 import io.github.jiro.expensetracker.ui.home.TransactionRow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,9 +57,7 @@ fun AccountDetailScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val aw = state.accountWithBalance
-    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
-    val snackbarScope = rememberCoroutineScope()
     val undoLabel = stringResource(R.string.account_undo)
 
     val closeSnackbarMessage = stringResource(R.string.account_close_snackbar)
