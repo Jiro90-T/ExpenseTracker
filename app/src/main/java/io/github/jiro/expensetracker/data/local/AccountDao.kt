@@ -26,11 +26,17 @@ interface AccountDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(account: AccountEntity): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAllReplacing(accounts: List<AccountEntity>): List<Long>
+
     @Update
     suspend fun update(account: AccountEntity): Int
 
     @Query("DELETE FROM accounts WHERE id = :id")
     suspend fun delete(id: Long): Int
+
+    @Query("DELETE FROM accounts")
+    suspend fun deleteAll(): Int
 
     @Query("UPDATE accounts SET currencyCode = :code WHERE id = 1")
     suspend fun updateDefaultCurrency(code: String): Int

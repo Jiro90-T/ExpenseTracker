@@ -214,7 +214,8 @@ class SettingsViewModel @Inject constructor(
                         val msg = buildString {
                             append(
                                 "Restored ${s.transactionsRestored} transactions, " +
-                                    "${s.categoriesRestored} categories.",
+                                    "${s.categoriesRestored} categories, " +
+                                    "${s.accountsRestored} accounts.",
                             )
                             if (s.missingReceiptCount > 0) {
                                 append(" ${appContext.getString(R.string.receipt_backup_missing)}")

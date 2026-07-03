@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.core.content.FileProvider
 import androidx.room.withTransaction
+import io.github.jiro.expensetracker.data.local.AccountEntity
 import io.github.jiro.expensetracker.data.local.AppDatabase
 import io.github.jiro.expensetracker.data.local.CategoryEntity
 import io.github.jiro.expensetracker.data.local.TransactionEntity
@@ -17,11 +18,13 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Owns the v3 ZIP backup format (manifest + media) and the v1/v2 JSON
+ * Owns the v4 ZIP backup format (manifest + media) and the v1..v3 JSON
  * fallback format. The export is a `.zip` containing `manifest.json`
- * (the v3 envelope) and a `receipts/` folder with the receipt media.
- * Restore accepts both the new `.zip` and the legacy `.json` (v1, v2)
- * for backward compatibility — v2 backups restore with `receiptPath = null`.
+ * (the v4 envelope) and a `receipts/` folder with the receipt media.
+ * Restore accepts both the new `.zip` and the legacy `.json` (v1..v3)
+ * for backward compatibility — older backups restore with `archived =
+ * false` on accounts (the field pre-dates them) and `accountId = 1L` on
+ * any transaction missing the field.
  */
 @Singleton
 class BackupManager @Inject constructor(
@@ -38,12 +41,35 @@ class BackupManager @Inject constructor(
         // Read everything in a single suspend transaction for snapshot
         // consistency — if the user is mid-typing, we don't want the
         // export to mix pre-edit and post-edit rows.
-        val (categories, transactions) = database.withTransaction {
+        val (accounts, categories, transactions) = database.withTransaction {
+            val acctList = database.accountDao().listAllOnce()
             val catList = database.categoryDao().observeAllOnce()
             val txnList = database.transactionDao().observeAllForExport()
-            catList to txnList
+            Triple(acctList, catList, txnList)
         }
 
+        BackupFormat.putAccountsArray(
+            envelope,
+            JSONArray().also { arr ->
+                accounts.forEach { a ->
+                    arr.put(
+                        accountEntityToJson(
+                            id = a.id,
+                            name = a.name,
+                            type = a.type,
+                            icon = a.icon,
+                            color = a.color,
+                            currencyCode = a.currencyCode,
+                            openingBalanceMinor = a.openingBalanceMinor,
+                            createdAtEpochMillis = a.createdAtEpochMillis,
+                            archived = a.archived,
+                            archivedAtEpochMillis = a.archivedAtEpochMillis,
+                            sortOrder = a.sortOrder,
+                        ),
+                    )
+                }
+            },
+        )
         BackupFormat.putCategoriesArray(
             envelope,
             JSONArray().also { arr ->
@@ -64,7 +90,7 @@ class BackupManager @Inject constructor(
                             currencyCode = t.currencyCode,
                             type = t.type,
                             // TRANSFER/ADJUSTMENT rows have no category; coerced to 0 for legacy export shape.
-                            // TODO: bump backup format and persist null + new accountId/transferAccountId.
+                            // TODO: bump backup format and persist null categoryId.
                             categoryId = t.categoryId ?: 0L,
                             occurredAtEpochMillis = t.occurredAtEpochMillis,
                             note = t.note,
@@ -76,6 +102,8 @@ class BackupManager @Inject constructor(
                             recurrenceMaxOccurrences = t.recurrenceMaxOccurrences,
                             recurrenceNextAt = t.recurrenceNextAt,
                             receiptPath = t.receiptPath,
+                            accountId = t.accountId,
+                            transferAccountId = t.transferAccountId,
                         ),
                     )
                 }
@@ -159,9 +187,13 @@ class BackupManager @Inject constructor(
             } ?: error("Could not open input stream for $uri")
 
             val envelope = BackupFormat.parseEnvelope(json)
+            val acctArr: JSONArray = BackupFormat.accountsArrayOf(envelope)
             val catArr: JSONArray = BackupFormat.categoriesArrayOf(envelope)
             val txnArr: JSONArray = BackupFormat.transactionsArrayOf(envelope)
 
+            val accounts = (0 until acctArr.length()).map { i ->
+                accountFromJson(acctArr.getJSONObject(i))
+            }
             val categories = (0 until catArr.length()).map { i ->
                 categoryFromJson(catArr.getJSONObject(i))
             }
@@ -169,12 +201,31 @@ class BackupManager @Inject constructor(
                 transactionFromJson(txnArr.getJSONObject(i))
             }
 
-            // Wipe + re-insert. We use REPLACE so the original IDs from
-            // the backup are preserved where they don't collide with new
-            // built-ins; built-ins are re-inserted as-is.
+            // Wipe + re-insert. Order matters: transactions FK-reference
+            // accounts, so accounts must exist before transactions are
+            // inserted. We use REPLACE so the original IDs from the backup
+            // are preserved.
             database.withTransaction {
                 database.transactionDao().deleteAll()
+                database.accountDao().deleteAll()
                 database.categoryDao().deleteAllNonBuiltIn()
+                database.accountDao().insertAllReplacing(
+                    accounts.map { a ->
+                        AccountEntity(
+                            id = a.id,
+                            name = a.name,
+                            type = a.type,
+                            icon = a.icon,
+                            color = a.color,
+                            currencyCode = a.currencyCode,
+                            openingBalanceMinor = a.openingBalanceMinor,
+                            createdAtEpochMillis = a.createdAtEpochMillis,
+                            archived = a.archived,
+                            archivedAtEpochMillis = a.archivedAtEpochMillis,
+                            sortOrder = a.sortOrder,
+                        )
+                    }
+                )
                 database.categoryDao().insertAllReplacing(
                     categories.map { c ->
                         CategoryEntity(
@@ -195,8 +246,10 @@ class BackupManager @Inject constructor(
                             currencyCode = t.currencyCode,
                             type = t.type,
                             // TRANSFER/ADJUSTMENT rows have no category; coerced to 0 for legacy export shape.
-                            // TODO: bump backup format and persist null + new accountId/transferAccountId.
+                            // TODO: bump backup format and persist null categoryId.
                             categoryId = t.categoryId ?: 0L,
+                            accountId = t.accountId,
+                            transferAccountId = t.transferAccountId,
                             occurredAtEpochMillis = t.occurredAtEpochMillis,
                             note = t.note,
                             createdAtEpochMillis = t.createdAtEpochMillis,
@@ -213,6 +266,7 @@ class BackupManager @Inject constructor(
             }
 
             ImportSummary(
+                accountsRestored = accounts.size,
                 categoriesRestored = categories.size,
                 transactionsRestored = transactions.size,
             )
@@ -220,9 +274,9 @@ class BackupManager @Inject constructor(
     }
 
     /**
-     * Restore a v3 `.zip` backup. Replaces all current data (categories +
-     * transactions + receipts) with the backup's contents. Caller is
-     * responsible for user confirmation — this is destructive.
+     * Restore a v4 `.zip` backup. Replaces all current data (accounts +
+     * categories + transactions + receipts) with the backup's contents.
+     * Caller is responsible for user confirmation — this is destructive.
      */
     suspend fun importFromZipUri(context: Context, uri: Uri): Result<ImportSummary> = withContext(Dispatchers.IO) {
         runCatching {
@@ -245,21 +299,43 @@ class BackupManager @Inject constructor(
             } ?: error("Could not open input stream for $uri")
 
             val envelope = BackupFormat.parseEnvelope(json)
+            val acctArr: JSONArray = BackupFormat.accountsArrayOf(envelope)
             val catArr: JSONArray = BackupFormat.categoriesArrayOf(envelope)
             val txnArr: JSONArray = BackupFormat.transactionsArrayOf(envelope)
 
+            val accounts = (0 until acctArr.length()).map { accountFromJson(acctArr.getJSONObject(it)) }
             val categories = (0 until catArr.length()).map { categoryFromJson(catArr.getJSONObject(it)) }
             val transactions = (0 until txnArr.length()).map { transactionFromJson(txnArr.getJSONObject(it)) }
             val referencedReceipts = transactions.mapNotNull { it.receiptPath }.toSet()
 
-            // 2. Wipe + restore (receipts dir + DB).
+            // 2. Wipe + restore (receipts dir + DB). Order matters:
+            // transactions FK-reference accounts, so accounts are inserted
+            // before transactions.
             val receiptsDir = receiptRepository.receiptsDir
             receiptsDir.deleteRecursively()
             receiptsDir.mkdirs()
 
             database.withTransaction {
                 database.transactionDao().deleteAll()
+                database.accountDao().deleteAll()
                 database.categoryDao().deleteAllNonBuiltIn()
+                database.accountDao().insertAllReplacing(
+                    accounts.map { a ->
+                        AccountEntity(
+                            id = a.id,
+                            name = a.name,
+                            type = a.type,
+                            icon = a.icon,
+                            color = a.color,
+                            currencyCode = a.currencyCode,
+                            openingBalanceMinor = a.openingBalanceMinor,
+                            createdAtEpochMillis = a.createdAtEpochMillis,
+                            archived = a.archived,
+                            archivedAtEpochMillis = a.archivedAtEpochMillis,
+                            sortOrder = a.sortOrder,
+                        )
+                    }
+                )
                 database.categoryDao().insertAllReplacing(
                     categories.map { c ->
                         CategoryEntity(
@@ -280,8 +356,10 @@ class BackupManager @Inject constructor(
                             currencyCode = t.currencyCode,
                             type = t.type,
                             // TRANSFER/ADJUSTMENT rows have no category; coerced to 0 for legacy export shape.
-                            // TODO: bump backup format and persist null + new accountId/transferAccountId.
+                            // TODO: bump backup format and persist null categoryId.
                             categoryId = t.categoryId ?: 0L,
+                            accountId = t.accountId,
+                            transferAccountId = t.transferAccountId,
                             occurredAtEpochMillis = t.occurredAtEpochMillis,
                             note = t.note,
                             createdAtEpochMillis = t.createdAtEpochMillis,
@@ -346,6 +424,7 @@ class BackupManager @Inject constructor(
             }
 
             ImportSummary(
+                accountsRestored = accounts.size,
                 categoriesRestored = categories.size,
                 transactionsRestored = transactions.size,
                 missingReceiptCount = missingReceiptCount,
@@ -355,6 +434,7 @@ class BackupManager @Inject constructor(
 }
 
 data class ImportSummary(
+    val accountsRestored: Int = 0,
     val categoriesRestored: Int,
     val transactionsRestored: Int,
     val missingReceiptCount: Int = 0,

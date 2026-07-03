@@ -10,10 +10,13 @@ import org.json.JSONObject
  */
 internal object BackupFormat {
     /**
-     * v3: adds receiptPath. Older backups (v1, v2) restore fine — the new
-     * column is nullable and defaults to null.
+     * v4: adds the `accounts` array to the envelope (with `archived` +
+     * `archivedAtEpochMillis`) and persists `accountId` + `transferAccountId`
+     * on every transaction. v3 and earlier backups still parse — restore on
+     * a fresh DB leaves accounts empty and falls back to the seeded
+     * "Cash wallet" (id=1) for any transaction missing an accountId.
      */
-    const val FORMAT_VERSION = 3
+    const val FORMAT_VERSION = 4
     const val MIME_TYPE = "application/json"
     const val MIME_TYPE_ZIP = "application/zip"
     const val FILE_PREFIX = "expense-tracker-backup-"
@@ -31,13 +34,17 @@ internal object BackupFormat {
     fun parseEnvelope(json: String): JSONObject =
         JSONObject(json).also { obj ->
             val v = obj.optInt("formatVersion", -1)
-            // Accept v1 and v2 too — older backups restore fine; newer
-            // fields are simply absent and the new rows get the column
-            // default (null / 1).
+            // Accept v1..v3 too — older backups restore fine; newer fields
+            // are simply absent and the new rows get the column default
+            // (null / 1 / empty accounts array).
             require(v in 1..FORMAT_VERSION) {
-                "Unsupported backup format version: $v (expected 1, 2, or $FORMAT_VERSION)"
+                "Unsupported backup format version: $v (expected 1..$FORMAT_VERSION)"
             }
         }
+
+    fun putAccountsArray(envelope: JSONObject, items: JSONArray) {
+        envelope.put("accounts", items)
+    }
 
     fun putCategoriesArray(envelope: JSONObject, items: JSONArray) {
         envelope.put("categories", items)
@@ -46,6 +53,15 @@ internal object BackupFormat {
     fun putTransactionsArray(envelope: JSONObject, items: JSONArray) {
         envelope.put("transactions", items)
     }
+
+    /**
+     * Returns the `accounts` array if present, else an empty array. Older
+     * (v1..v3) backups don't include it — callers must handle the empty
+     * case by leaving the accounts table untouched (or wiped to nothing)
+     * rather than failing the import.
+     */
+    fun accountsArrayOf(envelope: JSONObject): JSONArray =
+        envelope.optJSONArray("accounts") ?: JSONArray()
 
     fun categoriesArrayOf(envelope: JSONObject): JSONArray =
         envelope.getJSONArray("categories")
@@ -85,6 +101,8 @@ internal fun transactionEntityToJson(
     recurrenceMaxOccurrences: Int?,
     recurrenceNextAt: Long?,
     receiptPath: String? = null,
+    accountId: Long = 1L,
+    transferAccountId: Long? = null,
 ): JSONObject = JSONObject().apply {
     put("id", id)
     put("title", title)
@@ -102,6 +120,8 @@ internal fun transactionEntityToJson(
     put("recurrenceMaxOccurrences", recurrenceMaxOccurrences ?: JSONObject.NULL)
     put("recurrenceNextAt", recurrenceNextAt ?: JSONObject.NULL)
     put("receiptPath", receiptPath ?: JSONObject.NULL)
+    put("accountId", accountId)
+    put("transferAccountId", transferAccountId ?: JSONObject.NULL)
 }
 
 internal fun categoryFromJson(obj: JSONObject): CategoryRow = CategoryRow(
@@ -131,6 +151,11 @@ internal fun transactionFromJson(obj: JSONObject): TransactionRow = TransactionR
     recurrenceMaxOccurrences = if (obj.has("recurrenceMaxOccurrences") && !obj.isNull("recurrenceMaxOccurrences")) obj.getInt("recurrenceMaxOccurrences") else null,
     recurrenceNextAt = if (obj.has("recurrenceNextAt") && !obj.isNull("recurrenceNextAt")) obj.getLong("recurrenceNextAt") else null,
     receiptPath = if (obj.has("receiptPath") && !obj.isNull("receiptPath")) obj.getString("receiptPath") else null,
+    // accountId / transferAccountId are absent in v1..v3 backups — fall back
+    // to the seeded "Cash wallet" (id=1) and null destination so restored
+    // transactions at least link somewhere instead of crashing on insert.
+    accountId = if (obj.has("accountId")) obj.getLong("accountId") else 1L,
+    transferAccountId = if (obj.has("transferAccountId") && !obj.isNull("transferAccountId")) obj.getLong("transferAccountId") else null,
 )
 
 internal data class CategoryRow(
@@ -158,4 +183,63 @@ internal data class TransactionRow(
     val recurrenceMaxOccurrences: Int?,
     val recurrenceNextAt: Long?,
     val receiptPath: String?,
+    val accountId: Long,
+    val transferAccountId: Long?,
+)
+
+internal fun accountEntityToJson(
+    id: Long,
+    name: String,
+    type: String,
+    icon: String,
+    color: Int,
+    currencyCode: String,
+    openingBalanceMinor: Long,
+    createdAtEpochMillis: Long,
+    archived: Boolean,
+    archivedAtEpochMillis: Long?,
+    sortOrder: Int,
+): JSONObject = JSONObject().apply {
+    put("id", id)
+    put("name", name)
+    put("type", type)
+    put("icon", icon)
+    put("color", color)
+    put("currencyCode", currencyCode)
+    put("openingBalanceMinor", openingBalanceMinor)
+    put("createdAtEpochMillis", createdAtEpochMillis)
+    put("archived", archived)
+    put("archivedAtEpochMillis", archivedAtEpochMillis ?: JSONObject.NULL)
+    put("sortOrder", sortOrder)
+}
+
+internal fun accountFromJson(obj: JSONObject): AccountRow = AccountRow(
+    id = obj.getLong("id"),
+    name = obj.getString("name"),
+    type = obj.getString("type"),
+    icon = obj.getString("icon"),
+    color = obj.getInt("color"),
+    currencyCode = obj.getString("currencyCode"),
+    openingBalanceMinor = obj.optLong("openingBalanceMinor", 0L),
+    createdAtEpochMillis = obj.optLong("createdAtEpochMillis", 0L),
+    // archived + archivedAtEpochMillis are absent in pre-v4 backups — older
+    // backups predate the close-account feature, so every restored row is
+    // active and never carries a close timestamp.
+    archived = obj.optBoolean("archived", false),
+    archivedAtEpochMillis = if (obj.has("archivedAtEpochMillis") && !obj.isNull("archivedAtEpochMillis")) obj.getLong("archivedAtEpochMillis") else null,
+    sortOrder = obj.optInt("sortOrder", 0),
+)
+
+internal data class AccountRow(
+    val id: Long,
+    val name: String,
+    val type: String,
+    val icon: String,
+    val color: Int,
+    val currencyCode: String,
+    val openingBalanceMinor: Long,
+    val createdAtEpochMillis: Long,
+    val archived: Boolean,
+    val archivedAtEpochMillis: Long?,
+    val sortOrder: Int,
 )
