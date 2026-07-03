@@ -36,8 +36,10 @@ class AccountCloseRepositoryTest {
         override suspend fun listActiveOnce() = emptyList<AccountEntity>()
         override suspend fun findById(id: Long) = null
         override suspend fun insert(account: AccountEntity) = 0L
+        override suspend fun insertAllReplacing(accounts: List<AccountEntity>) = emptyList<Long>()
         override suspend fun update(account: AccountEntity) = 0
         override suspend fun delete(id: Long) = 0
+        override suspend fun deleteAll() = 0
         override suspend fun countActive() = 0
         override fun observeBalances() = flowOf(emptyList<AccountBalanceRow>())
         override fun observeAllBalances() = flowOf(emptyList<AccountBalanceRow>())
@@ -90,8 +92,10 @@ class AccountCloseRepositoryTest {
             override suspend fun listActiveOnce() = emptyList<AccountEntity>()
             override suspend fun findById(id: Long) = null
             override suspend fun insert(account: AccountEntity) = 0L
+            override suspend fun insertAllReplacing(accounts: List<AccountEntity>) = emptyList<Long>()
             override suspend fun update(account: AccountEntity) = 0
             override suspend fun delete(id: Long) = 0
+            override suspend fun deleteAll() = 0
             override suspend fun countActive() = 0
             override fun observeBalances() = flowOf(emptyList<AccountBalanceRow>())
             override suspend fun updateDefaultCurrency(code: String) = 0
@@ -125,8 +129,10 @@ class AccountCloseRepositoryTest {
             override suspend fun listActiveOnce() = emptyList<AccountEntity>()
             override suspend fun findById(id: Long) = null
             override suspend fun insert(account: AccountEntity) = 0L
+            override suspend fun insertAllReplacing(accounts: List<AccountEntity>) = emptyList<Long>()
             override suspend fun update(account: AccountEntity) = 0
             override suspend fun delete(id: Long) = 0
+            override suspend fun deleteAll() = 0
             override suspend fun countActive() = 0
             override fun observeBalances() = flowOf(emptyList<AccountBalanceRow>())
             override suspend fun updateDefaultCurrency(code: String) = 0
