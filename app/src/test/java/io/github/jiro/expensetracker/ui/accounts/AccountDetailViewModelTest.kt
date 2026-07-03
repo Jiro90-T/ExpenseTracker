@@ -16,6 +16,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -163,6 +164,37 @@ class AccountDetailViewModelTest {
 
         assertFalse(vm.state.value.showDeleteConfirm)
         assertTrue(accountRepo.deletedIds.isEmpty())
+    }
+
+    @Test
+    fun resolves_closedAccount_fromListAllOnce() = runTest(testDispatcher) {
+        val closed = accountEntity(id = 3L, name = "Old").copy(
+            archived = true, archivedAtEpochMillis = 1_700_000_000_000L,
+        )
+        val (vm, _) = buildVm(accountId = 3L, accounts = listOf(closed))
+        advanceUntilIdle()
+        val s = vm.state.value
+        assertEquals(closed, s.accountWithBalance?.account)
+    }
+
+    @Test
+    fun onCloseConfirm_emitsClosedEvent() = runTest(testDispatcher) {
+        val (vm, _) = buildVm(accountId = 2L)
+        advanceUntilIdle()
+        vm.onCloseConfirm()
+        advanceUntilIdle()
+        val evt = vm.closeEvent.first()
+        assertEquals(2L, evt)
+    }
+
+    @Test
+    fun onReopenConfirm_emitsReopenedEvent() = runTest(testDispatcher) {
+        val (vm, _) = buildVm(accountId = 2L)
+        advanceUntilIdle()
+        vm.onReopenConfirm()
+        advanceUntilIdle()
+        val evt = vm.reopenEvent.first()
+        assertEquals(2L, evt)
     }
 }
 

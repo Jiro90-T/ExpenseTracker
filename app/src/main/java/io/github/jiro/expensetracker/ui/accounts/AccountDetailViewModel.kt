@@ -10,10 +10,13 @@ import io.github.jiro.expensetracker.data.repository.AccountWithBalance
 import io.github.jiro.expensetracker.data.repository.TransactionRepository
 import io.github.jiro.expensetracker.ui.navigation.Routes
 import javax.inject.Inject
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -26,7 +29,10 @@ data class AccountDetailUiState(
     val deleteGuard: DeleteGuard? = null,
     val referenceCount: Int = 0,
     val deleted: Boolean = false,    // signal to UI: pop back stack
-    val errorMessage: String? = null,// surfaced as a snackbar
+    val errorMessage: String? = null,
+    // Phase 2.19 close/reopen flow:
+    val showCloseConfirm: Boolean = false,
+    val showReopenConfirm: Boolean = false,
 )
 
 enum class DeleteGuard { ALLOW, BLOCK_TRANSACTIONS_EXIST }
@@ -48,10 +54,17 @@ class AccountDetailViewModel @Inject constructor(
     private val _state = MutableStateFlow(AccountDetailUiState())
     val state: StateFlow<AccountDetailUiState> = _state.asStateFlow()
 
+    // One-shot events consumed by the screen to show snackbars.
+    private val _closeEvent = Channel<Long>(Channel.BUFFERED)
+    val closeEvent: Flow<Long> = _closeEvent.receiveAsFlow()
+
+    private val _reopenEvent = Channel<Long>(Channel.BUFFERED)
+    val reopenEvent: Flow<Long> = _reopenEvent.receiveAsFlow()
+
     init {
         viewModelScope.launch {
             combine(
-                accountRepository.observeWithBalances(),
+                accountRepository.observeAllWithBalances(),
                 transactionRepository.observeByAccount(accountId),
             ) { accounts, txns ->
                 AccountDetailUiState(
@@ -60,9 +73,6 @@ class AccountDetailViewModel @Inject constructor(
                     isLoading = false,
                 )
             }.collect { upstream ->
-                // Preserve transient delete-flow fields across upstream emissions.
-                // Using stateIn here would reset the entire state object on every
-                // emission, wiping the confirm dialog the user just opened.
                 _state.update { current ->
                     upstream.copy(
                         showDeleteConfirm = current.showDeleteConfirm,
@@ -70,11 +80,15 @@ class AccountDetailViewModel @Inject constructor(
                         referenceCount = current.referenceCount,
                         deleted = current.deleted,
                         errorMessage = current.errorMessage,
+                        showCloseConfirm = current.showCloseConfirm,
+                        showReopenConfirm = current.showReopenConfirm,
                     )
                 }
             }
         }
     }
+
+    // ---- Delete flow (unchanged) ----
 
     fun onDeleteClick() {
         val accountId = state.value.accountWithBalance?.account?.id ?: return
@@ -104,5 +118,53 @@ class AccountDetailViewModel @Inject constructor(
 
     fun onDeleteDismiss() {
         _state.update { it.copy(showDeleteConfirm = false) }
+    }
+
+    // ---- Close / Reopen flow (Phase 2.19) ----
+
+    fun onCloseClick() {
+        _state.update { it.copy(showCloseConfirm = true) }
+    }
+
+    fun onCloseConfirm() {
+        val accountId = state.value.accountWithBalance?.account?.id ?: return
+        viewModelScope.launch {
+            accountRepository.close(accountId)
+            _state.update { it.copy(showCloseConfirm = false) }
+            _closeEvent.send(accountId)
+        }
+    }
+
+    fun onCloseDismiss() {
+        _state.update { it.copy(showCloseConfirm = false) }
+    }
+
+    fun onReopenClick() {
+        _state.update { it.copy(showReopenConfirm = true) }
+    }
+
+    fun onReopenConfirm() {
+        val accountId = state.value.accountWithBalance?.account?.id ?: return
+        viewModelScope.launch {
+            accountRepository.reopen(accountId)
+            _state.update { it.copy(showReopenConfirm = false) }
+            _reopenEvent.send(accountId)
+        }
+    }
+
+    fun onReopenDismiss() {
+        _state.update { it.copy(showReopenConfirm = false) }
+    }
+
+    /**
+     * Undo path for the post-close snackbar. Called by the screen when the
+     * user taps the Undo action — reopens the just-closed account.
+     */
+    fun undoClose() {
+        val accountId = state.value.accountWithBalance?.account?.id ?: return
+        viewModelScope.launch {
+            accountRepository.reopen(accountId)
+            _reopenEvent.send(accountId)
+        }
     }
 }
