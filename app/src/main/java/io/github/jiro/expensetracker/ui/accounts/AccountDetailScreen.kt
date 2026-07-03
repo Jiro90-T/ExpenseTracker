@@ -1,5 +1,6 @@
 package io.github.jiro.expensetracker.ui.accounts
 
+import android.text.format.DateUtils
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,30 +13,41 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.jiro.expensetracker.R
+import io.github.jiro.expensetracker.data.local.AccountEntity
 import io.github.jiro.expensetracker.data.local.MoneyFormat
 import io.github.jiro.expensetracker.ui.home.TransactionRow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,8 +59,34 @@ fun AccountDetailScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val aw = state.accountWithBalance
+    val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val snackbarScope = rememberCoroutineScope()
+    val undoLabel = stringResource(R.string.account_undo)
+
+    val closeSnackbarMessage = stringResource(R.string.account_close_snackbar)
+    val reopenSnackbarMessage = stringResource(R.string.account_reopen_snackbar)
+
+    LaunchedEffect(viewModel) {
+        viewModel.closeEvent.collectLatest { _ ->
+            val result = snackbarHostState.showSnackbar(
+                message = closeSnackbarMessage,
+                actionLabel = undoLabel,
+                withDismissAction = true,
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                viewModel.undoClose()
+            }
+        }
+    }
+    LaunchedEffect(viewModel) {
+        viewModel.reopenEvent.collectLatest { _ ->
+            snackbarHostState.showSnackbar(message = reopenSnackbarMessage)
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(aw?.account?.name ?: stringResource(R.string.accounts_title)) },
@@ -62,6 +100,21 @@ fun AccountDetailScreen(
                 },
                 actions = {
                     if (aw != null) {
+                        if (aw.account.archived) {
+                            IconButton(onClick = viewModel::onReopenClick) {
+                                Icon(
+                                    Icons.Filled.LockOpen,
+                                    contentDescription = stringResource(R.string.account_reopen),
+                                )
+                            }
+                        } else {
+                            IconButton(onClick = viewModel::onCloseClick) {
+                                Icon(
+                                    Icons.Filled.Close,
+                                    contentDescription = stringResource(R.string.account_close),
+                                )
+                            }
+                        }
                         if (aw.account.id != 1L) {
                             IconButton(onClick = viewModel::onDeleteClick) {
                                 Icon(
@@ -91,7 +144,7 @@ fun AccountDetailScreen(
         ) {
             aw?.let {
                 item("header") {
-                    BalanceHeader(name = it.account.name, balanceMinor = it.balanceMinor, currencyCode = it.account.currencyCode)
+                    BalanceHeader(account = it.account, balanceMinor = it.balanceMinor)
                     Spacer(Modifier.height(16.dp))
                 }
             }
@@ -105,6 +158,7 @@ fun AccountDetailScreen(
         if (state.deleted) onBack()
     }
 
+    // ---- Delete flow (unchanged) ----
     if (state.showDeleteConfirm) {
         val account = state.accountWithBalance?.account
         when (state.deleteGuard) {
@@ -133,19 +187,77 @@ fun AccountDetailScreen(
                     }
                 },
             )
-            null -> Unit // defensive: dialog shouldn't show in this state
+            null -> Unit
         }
+    }
+
+    // ---- Close confirm ----
+    if (state.showCloseConfirm) {
+        AlertDialog(
+            onDismissRequest = viewModel::onCloseDismiss,
+            title = { Text(stringResource(R.string.account_close_confirm_title)) },
+            text = { Text(stringResource(R.string.account_close_confirm_message)) },
+            confirmButton = {
+                TextButton(onClick = viewModel::onCloseConfirm) {
+                    Text(stringResource(R.string.account_close))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::onCloseDismiss) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
+        )
+    }
+
+    // ---- Reopen confirm ----
+    if (state.showReopenConfirm) {
+        AlertDialog(
+            onDismissRequest = viewModel::onReopenDismiss,
+            title = { Text(stringResource(R.string.account_reopen_confirm_title)) },
+            text = { Text(stringResource(R.string.account_reopen_confirm_message)) },
+            confirmButton = {
+                TextButton(onClick = viewModel::onReopenConfirm) {
+                    Text(stringResource(R.string.account_reopen))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::onReopenDismiss) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
+        )
     }
 }
 
 @Composable
-private fun BalanceHeader(name: String, balanceMinor: Long, currencyCode: String) {
+private fun BalanceHeader(account: AccountEntity, balanceMinor: Long) {
     val isNegative = balanceMinor < 0
     Column(modifier = Modifier.fillMaxWidth()) {
-        Text(name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+        Text(account.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+        if (account.archived) {
+            Spacer(Modifier.height(4.dp))
+            val ctx = LocalContext.current
+            val formattedDate = account.archivedAtEpochMillis?.let { ms ->
+                DateUtils.formatDateTime(
+                    ctx,
+                    ms,
+                    DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_ABBREV_MONTH,
+                )
+            }
+            Text(
+                text = if (formattedDate != null) {
+                    stringResource(R.string.account_closed_on, formattedDate)
+                } else {
+                    stringResource(R.string.account_status_closed)
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         Spacer(Modifier.height(4.dp))
         Text(
-            text = (if (isNegative) "−" else "") + MoneyFormat.formatForDisplay(if (isNegative) -balanceMinor else balanceMinor) + " " + currencyCode,
+            text = (if (isNegative) "−" else "") + MoneyFormat.formatForDisplay(if (isNegative) -balanceMinor else balanceMinor) + " " + account.currencyCode,
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = if (isNegative) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
