@@ -77,10 +77,6 @@ fun AccountsListScreen(
             }
         },
     ) { padding ->
-        if (state.accounts.isEmpty() && !state.isLoading) {
-            EmptyState(modifier = Modifier.fillMaxSize().padding(padding))
-            return@Scaffold
-        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -98,6 +94,10 @@ fun AccountsListScreen(
                 text = stringResource(R.string.accounts_header_count, state.count),
                 style = MaterialTheme.typography.labelMedium,
             )
+        }
+        if (state.accounts.isEmpty() && !state.isLoading) {
+            EmptyState(modifier = Modifier.fillMaxSize().padding(padding))
+            return@Scaffold
         }
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
