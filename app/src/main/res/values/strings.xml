@@ -160,6 +160,23 @@
     <string name="stats_empty_in_range">No transactions in this range</string>
     <string name="stats_empty_reset">Reset to this month</string>
 
+    <!-- Insights tab (Phase 2.13c) -->
+    <string name="stats_tab_insights">Insights</string>
+    <string name="stats_insights_empty">Not enough data yet — log transactions to see insights</string>
+    <string name="stats_insights_cat_up">%1$s up %2$d%%</string>
+    <string name="stats_insights_cat_down">%1$s down %2$d%%</string>
+    <string name="stats_insights_cat_new">New spending: %1$s</string>
+    <string name="stats_insights_cat_supporting">%1$s this month vs %2$s last month</string>
+    <string name="stats_insights_cat_supporting_new">%1$s this month</string>
+    <string name="stats_insights_weekend">Weekend spending is %1$d%% of your total</string>
+    <string name="stats_insights_weekend_support">%1$s on weekends vs %2$s on weekdays</string>
+    <string name="stats_insights_savings_up">Savings rate up %1$d pts</string>
+    <string name="stats_insights_savings_down">Savings rate down %1$d pts</string>
+    <string name="stats_insights_savings_same">Savings rate unchanged at %1$d%%</string>
+    <string name="stats_insights_savings_support">%1$d%% this month vs %2$d%% last month</string>
+    <string name="stats_insights_top_expense">Largest expense: %1$s</string>
+    <string name="stats_insights_top_expense_support">%1$s on %2$s</string>
+
     <!-- Trends (Phase 2.5) -->
     <string name="trends_tap_hint">Tap a month to see details</string>
     <string name="trends_detail_title">%1$s</string>
