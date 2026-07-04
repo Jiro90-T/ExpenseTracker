@@ -18,6 +18,10 @@ import org.json.JSONObject
  * in a header (schemaVersion / lastModifiedEpochMillis / deviceId /
  * checksum); the rest of the app can read and write it without touching
  * org.json.
+ *
+ * `internal` because AccountRow / CategoryRow / TransactionRow in the
+ * `backup` package are internal — widen visibility if a future consumer
+ * outside `sync/` needs it.
  */
 internal data class BackupBody(
     val accounts: List<AccountRow>,
