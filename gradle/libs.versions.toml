@@ -26,6 +26,7 @@ junit = "4.13.2"
 junitExt = "1.2.1"
 espresso = "3.6.1"
 orgJson = "20240303"
+robolectric = "4.11.1"
 
 datastorePreferences = "1.1.1"
 
@@ -78,6 +79,8 @@ androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-co
 # a tiny drop-in replacement that Gradle's classpath picks up before the
 # stub.
 org-json = { group = "org.json", name = "json", version.ref = "orgJson" }
+
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastorePreferences" }
 

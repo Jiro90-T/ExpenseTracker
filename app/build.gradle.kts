@@ -123,6 +123,8 @@ dependencies {
     // Real org.json implementation for unit tests — the one in android.jar
     // is a stub that throws on every call.
     testImplementation(libs.org.json)
+    // Robolectric: Android-context unit tests (DataStore requires an Application).
+    testImplementation(libs.robolectric)
 
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.junit)
