@@ -5,7 +5,6 @@ import io.github.jiro.expensetracker.data.local.TransactionWithCategory
 import io.github.jiro.expensetracker.domain.FxConverter
 import io.github.jiro.expensetracker.domain.model.TransactionType
 import java.time.Instant
-import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
 
@@ -38,8 +37,8 @@ data class DayOfWeekBucket(
 )
 
 data class YearOverYear(
-    val currentMonthLabel: String,
-    val previousMonthLabel: String,
+    val currentWindowLabel: String,
+    val previousWindowLabel: String,
     val currentExpenseMinor: Long,
     val previousExpenseMinor: Long,
     val percentChange: Float,
@@ -89,28 +88,21 @@ object StatisticsCalculator {
         cats: List<CategoryEntity>,
         homeCurrency: String,
         fxRates: Map<String, Double>,
-        nowMs: Long,
+        startMs: Long, endMs: Long,
     ): TopCategoriesResult {
-        val today = Instant.ofEpochMilli(nowMs).atZone(ZoneId.systemDefault()).toLocalDate()
-        val (monthStart, monthEnd) = monthBounds(today.year, today.monthValue)
         val catsById = cats.associateBy { it.id }
-
         val byCategory = mutableMapOf<Long, Long>()
         var missingRateCount = 0
-
         for (row in txns) {
             val t = row.transaction
             if (t.type != TransactionType.EXPENSE.name) continue
-            if (t.occurredAtEpochMillis < monthStart || t.occurredAtEpochMillis >= monthEnd) continue
+            if (t.occurredAtEpochMillis < startMs || t.occurredAtEpochMillis >= endMs) continue
             val converted = FxConverter.convertMinor(t.amountMinor, t.currencyCode, homeCurrency, fxRates)
-            if (converted == null && t.currencyCode != homeCurrency) {
-                missingRateCount++
-            }
+            if (converted == null && t.currencyCode != homeCurrency) missingRateCount++
             val contribution = converted ?: t.amountMinor
             val cid = t.categoryId ?: continue
             byCategory[cid] = (byCategory[cid] ?: 0L) + contribution
         }
-
         val sorted = byCategory.entries.sortedByDescending { it.value }
         val top5 = sorted.take(5)
         val rest = sorted.drop(5)
@@ -120,18 +112,18 @@ object StatisticsCalculator {
         }
         val withOther = if (rest.isEmpty()) slices
         else slices + CategorySpend(categoryId = -1L, categoryName = "Other", amountMinor = rest.sumOf { it.value })
-
-        return TopCategoriesResult(rangeLabel(monthStart, monthEnd), withOther, missingRateCount)
+        return TopCategoriesResult(rangeLabel(startMs, endMs), withOther, missingRateCount)
     }
 
     fun savingsAndAverage(
         txns: List<TransactionWithCategory>,
         homeCurrency: String,
         fxRates: Map<String, Double>,
-        nowMs: Long,
+        startMs: Long, endMs: Long,
     ): SavingsAndAverage {
-        val today = Instant.ofEpochMilli(nowMs).atZone(ZoneId.systemDefault()).toLocalDate()
-        val (monthStart, monthEnd) = monthBounds(today.year, today.monthValue)
+        val zone = ZoneId.systemDefault()
+        val startDate = Instant.ofEpochMilli(startMs).atZone(zone).toLocalDate()
+        val priorAnchor = YearMonth.of(startDate.year, startDate.monthValue)
 
         var incomeMinor = 0L
         var expenseMinor = 0L
@@ -140,10 +132,9 @@ object StatisticsCalculator {
         for (row in txns) {
             val t = row.transaction
             val converted = FxConverter.convertMinor(t.amountMinor, t.currencyCode, homeCurrency, fxRates) ?: t.amountMinor
-            if (t.occurredAtEpochMillis in monthStart until monthEnd) {
-                if (t.type == TransactionType.INCOME.name) {
-                    incomeMinor += converted
-                } else if (t.type == TransactionType.EXPENSE.name) {
+            if (t.occurredAtEpochMillis in startMs until endMs) {
+                if (t.type == TransactionType.INCOME.name) incomeMinor += converted
+                else if (t.type == TransactionType.EXPENSE.name) {
                     expenseMinor += converted
                     if (converted > topTransactionMinor) topTransactionMinor = converted
                 }
@@ -155,11 +146,10 @@ object StatisticsCalculator {
             ((netMinor.toDouble()) / incomeMinor.toDouble()).toFloat().coerceIn(0f, 1f)
         } else 0f
 
-        // Average over the 6 calendar months immediately preceding [today].
         var sumPrior = 0L
         var monthsWithData = 0
         for (offset in 1..6) {
-            val ym = YearMonth.of(today.year, today.monthValue).minusMonths(offset.toLong())
+            val ym = priorAnchor.minusMonths(offset.toLong())
             val (s, e) = monthBounds(ym.year, ym.monthValue)
             var monthTotal = 0L
             for (row in txns) {
@@ -170,15 +160,12 @@ object StatisticsCalculator {
                     monthTotal += c
                 }
             }
-            if (monthTotal > 0L) {
-                sumPrior += monthTotal
-                monthsWithData++
-            }
+            if (monthTotal > 0L) { sumPrior += monthTotal; monthsWithData++ }
         }
         val averageMonthlyExpenseMinor = if (monthsWithData >= 3) sumPrior / 6L else 0L
 
         return SavingsAndAverage(
-            monthLabel = rangeLabel(monthStart, monthEnd),
+            monthLabel = rangeLabel(startMs, endMs),
             incomeMinor = incomeMinor,
             expenseMinor = expenseMinor,
             netMinor = netMinor,
@@ -193,15 +180,14 @@ object StatisticsCalculator {
         txns: List<TransactionWithCategory>,
         homeCurrency: String,
         fxRates: Map<String, Double>,
-        nowMs: Long,
+        startMs: Long, endMs: Long,
     ): List<DayOfWeekBucket> {
         val zone = ZoneId.systemDefault()
-        val windowStart = nowMs - 90L * 24L * 3600L * 1000L
         val sums = LongArray(8) // index 1..7
         for (row in txns) {
             val t = row.transaction
             if (t.type != TransactionType.EXPENSE.name) continue
-            if (t.occurredAtEpochMillis < windowStart || t.occurredAtEpochMillis > nowMs) continue
+            if (t.occurredAtEpochMillis < startMs || t.occurredAtEpochMillis >= endMs) continue
             val dow = Instant.ofEpochMilli(t.occurredAtEpochMillis).atZone(zone).toLocalDate().dayOfWeek.value
             val converted = FxConverter.convertMinor(t.amountMinor, t.currencyCode, homeCurrency, fxRates) ?: t.amountMinor
             sums[dow] += converted
@@ -213,13 +199,9 @@ object StatisticsCalculator {
         txns: List<TransactionWithCategory>,
         homeCurrency: String,
         fxRates: Map<String, Double>,
-        nowMs: Long,
+        currentStartMs: Long, currentEndMs: Long,
+        priorStartMs: Long,   priorEndMs: Long,
     ): YearOverYear {
-        val today = Instant.ofEpochMilli(nowMs).atZone(ZoneId.systemDefault()).toLocalDate()
-        val (curStart, curEnd) = monthBounds(today.year, today.monthValue)
-        val previous = YearMonth.of(today.year - 1, today.monthValue)
-        val (prevStart, prevEnd) = monthBounds(previous.year, previous.monthValue)
-
         fun sum(start: Long, end: Long): Long {
             var s = 0L
             for (row in txns) {
@@ -231,17 +213,15 @@ object StatisticsCalculator {
             }
             return s
         }
-
-        val currentExpenseMinor = sum(curStart, curEnd)
-        val previousExpenseMinor = sum(prevStart, prevEnd)
+        val currentExpenseMinor = sum(currentStartMs, currentEndMs)
+        val previousExpenseMinor = sum(priorStartMs, priorEndMs)
         val percentChange = if (previousExpenseMinor > 0L) {
             ((currentExpenseMinor - previousExpenseMinor).toDouble() / previousExpenseMinor.toDouble()).toFloat()
         } else 0f
         val isNewSpending = previousExpenseMinor == 0L && currentExpenseMinor > 0L
-
         return YearOverYear(
-            currentMonthLabel = rangeLabel(curStart, curEnd),
-            previousMonthLabel = rangeLabel(prevStart, prevEnd),
+            currentWindowLabel = rangeLabel(currentStartMs, currentEndMs),
+            previousWindowLabel = rangeLabel(priorStartMs, priorEndMs),
             currentExpenseMinor = currentExpenseMinor,
             previousExpenseMinor = previousExpenseMinor,
             percentChange = percentChange,

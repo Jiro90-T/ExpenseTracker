@@ -62,6 +62,7 @@ class StatisticsCalculatorTest {
     )
 
     private val nowMs = LocalDate.of(2026, 6, 17).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+    private val windowStartMs = nowMs - 90L * 24L * 3600L * 1000L
 
     // ---- topCategories ----
 
@@ -76,7 +77,8 @@ class StatisticsCalculatorTest {
             CategoryEntity(1L, "Food", "EXPENSE"),
             CategoryEntity(2L, "Transit", "EXPENSE"),
         )
-        val out = StatisticsCalculator.topCategories(txns, cats, "USD", emptyMap(), nowMs)
+        val (monthStart, monthEnd) = StatisticsCalculator.monthBounds(2026, 6)
+        val out = StatisticsCalculator.topCategories(txns, cats, "USD", emptyMap(), monthStart, monthEnd)
         assertEquals(2, out.slices.size)
         assertEquals(2L, out.slices[0].categoryId)
         assertEquals(1200L, out.slices[0].amountMinor)
@@ -91,7 +93,8 @@ class StatisticsCalculatorTest {
             txn(i, "X$i", (i * 100L), "USD", "EXPENSE", i, date(2026, 6, 5))
         }
         val cats = (1L..8L).map { CategoryEntity(it, "Cat$it", "EXPENSE") }
-        val out = StatisticsCalculator.topCategories(txns, cats, "USD", emptyMap(), nowMs)
+        val (monthStart, monthEnd) = StatisticsCalculator.monthBounds(2026, 6)
+        val out = StatisticsCalculator.topCategories(txns, cats, "USD", emptyMap(), monthStart, monthEnd)
         assertEquals(6, out.slices.size)
         // Top 5: 800, 700, 600, 500, 400
         assertEquals(8L, out.slices[0].categoryId)
@@ -114,7 +117,8 @@ class StatisticsCalculatorTest {
             CategoryEntity(1L, "Food", "EXPENSE"),
             CategoryEntity(2L, "Transit", "EXPENSE"),
         )
-        val out = StatisticsCalculator.topCategories(txns, cats, "USD", emptyMap(), nowMs)
+        val (monthStart, monthEnd) = StatisticsCalculator.monthBounds(2026, 6)
+        val out = StatisticsCalculator.topCategories(txns, cats, "USD", emptyMap(), monthStart, monthEnd)
         assertEquals(2, out.slices.size)
         assertEquals(1L, out.slices[0].categoryId)
         assertEquals(2L, out.slices[1].categoryId)
@@ -127,7 +131,8 @@ class StatisticsCalculatorTest {
             txn(2L, "Coffee", 500L, "USD", "EXPENSE", 1L, date(2026, 6, 5)),
         )
         val cats = listOf(CategoryEntity(1L, "Food", "EXPENSE"))
-        val out = StatisticsCalculator.topCategories(txns, cats, "USD", emptyMap(), nowMs)
+        val (monthStart, monthEnd) = StatisticsCalculator.monthBounds(2026, 6)
+        val out = StatisticsCalculator.topCategories(txns, cats, "USD", emptyMap(), monthStart, monthEnd)
         assertEquals(1, out.slices.size)
         assertEquals(500L, out.slices[0].amountMinor)
     }
@@ -140,7 +145,8 @@ class StatisticsCalculatorTest {
         )
         val cats = listOf(CategoryEntity(1L, "Food", "EXPENSE"))
         val rates = mapOf("EUR_to_USD" to 1.10)
-        val out = StatisticsCalculator.topCategories(txns, cats, "USD", rates, nowMs)
+        val (monthStart, monthEnd) = StatisticsCalculator.monthBounds(2026, 6)
+        val out = StatisticsCalculator.topCategories(txns, cats, "USD", rates, monthStart, monthEnd)
         assertEquals(1, out.slices.size)
         // 10000 * 1.10 = 11000 minor; + 5000 = 16000
         assertEquals(16000L, out.slices[0].amountMinor)
@@ -155,14 +161,16 @@ class StatisticsCalculatorTest {
         )
         val cats = listOf(CategoryEntity(1L, "Food", "EXPENSE"))
         val rates = mapOf("EUR_to_USD" to 1.10) // JPY rate missing
-        val out = StatisticsCalculator.topCategories(txns, cats, "USD", rates, nowMs)
+        val (monthStart, monthEnd) = StatisticsCalculator.monthBounds(2026, 6)
+        val out = StatisticsCalculator.topCategories(txns, cats, "USD", rates, monthStart, monthEnd)
         assertEquals(1, out.missingRateCount)
     }
 
     @Test
     fun topCategories_emptyTxns() {
         val cats = listOf(CategoryEntity(1L, "Food", "EXPENSE"))
-        val out = StatisticsCalculator.topCategories(emptyList(), cats, "USD", emptyMap(), nowMs)
+        val (monthStart, monthEnd) = StatisticsCalculator.monthBounds(2026, 6)
+        val out = StatisticsCalculator.topCategories(emptyList(), cats, "USD", emptyMap(), monthStart, monthEnd)
         assertTrue(out.slices.isEmpty())
         assertEquals(0, out.missingRateCount)
     }
@@ -174,7 +182,8 @@ class StatisticsCalculatorTest {
             txn(2L, "New", 500L, "USD", "EXPENSE", 1L, date(2026, 6, 1)),
         )
         val cats = listOf(CategoryEntity(1L, "Food", "EXPENSE"))
-        val out = StatisticsCalculator.topCategories(txns, cats, "USD", emptyMap(), nowMs)
+        val (monthStart, monthEnd) = StatisticsCalculator.monthBounds(2026, 6)
+        val out = StatisticsCalculator.topCategories(txns, cats, "USD", emptyMap(), monthStart, monthEnd)
         assertEquals(1, out.slices.size)
         assertEquals(500L, out.slices[0].amountMinor)
     }
@@ -188,7 +197,8 @@ class StatisticsCalculatorTest {
             txn(2L, "Coffee", 1_000L, "USD", "EXPENSE", 1L, date(2026, 6, 5)),
             txn(3L, "Lunch", 4_000L, "USD", "EXPENSE", 2L, date(2026, 6, 6)),
         )
-        val out = StatisticsCalculator.savingsAndAverage(txns, "USD", emptyMap(), nowMs)
+        val (monthStart, monthEnd) = StatisticsCalculator.monthBounds(2026, 6)
+        val out = StatisticsCalculator.savingsAndAverage(txns, "USD", emptyMap(), monthStart, monthEnd)
         assertEquals(500_000L, out.incomeMinor)
         assertEquals(5_000L, out.expenseMinor)
         assertEquals(495_000L, out.netMinor)
@@ -202,7 +212,8 @@ class StatisticsCalculatorTest {
         val txns = listOf(
             txn(1L, "Coffee", 1_000L, "USD", "EXPENSE", 1L, date(2026, 6, 5)),
         )
-        val out = StatisticsCalculator.savingsAndAverage(txns, "USD", emptyMap(), nowMs)
+        val (monthStart, monthEnd) = StatisticsCalculator.monthBounds(2026, 6)
+        val out = StatisticsCalculator.savingsAndAverage(txns, "USD", emptyMap(), monthStart, monthEnd)
         assertEquals(0f, out.savingsRate, 0.0001f)
     }
 
@@ -212,13 +223,14 @@ class StatisticsCalculatorTest {
             income(1L, 100L, date(2026, 6, 1)),
             txn(2L, "Big", 5_000L, "USD", "EXPENSE", 1L, date(2026, 6, 5)),
         )
-        val out = StatisticsCalculator.savingsAndAverage(txns, "USD", emptyMap(), nowMs)
+        val (monthStart, monthEnd) = StatisticsCalculator.monthBounds(2026, 6)
+        val out = StatisticsCalculator.savingsAndAverage(txns, "USD", emptyMap(), monthStart, monthEnd)
         assertEquals(0f, out.savingsRate, 0.0001f)
     }
 
     @Test
     fun savingsAndAverage_averageOverSixCompletedMonths() {
-        // nowMs = Jun 17 2026. Six prior completed months: Dec, Jan, Feb, Mar, Apr, May.
+        // startMs = Jun 1 2026. Six prior completed months: Dec, Jan, Feb, Mar, Apr, May.
         val priorMonthExpenses = mapOf(
             2025 to listOf(12 to 1000L),                  // Dec 2025
             2026 to listOf(1 to 2000L, 2 to 3000L,        // Jan, Feb, Mar, Apr, May 2026
@@ -232,7 +244,8 @@ class StatisticsCalculatorTest {
         }
         // Plus an unrelated row in current month (Jun 2026) — must be excluded.
         txns += txn(99L, "Jun", 7_777L, "USD", "EXPENSE", 1L, date(2026, 6, 5))
-        val out = StatisticsCalculator.savingsAndAverage(txns, "USD", emptyMap(), nowMs)
+        val (monthStart, monthEnd) = StatisticsCalculator.monthBounds(2026, 6)
+        val out = StatisticsCalculator.savingsAndAverage(txns, "USD", emptyMap(), monthStart, monthEnd)
         // sum = 1000+2000+3000+4000+5000+6000 = 21000; avg = 21000/6 = 3500
         assertEquals(3_500L, out.averageMonthlyExpenseMinor)
         assertEquals(6, out.averageMonthlySampleMonths)
@@ -247,7 +260,8 @@ class StatisticsCalculatorTest {
             txn(1L, "X", 1000L, "USD", "EXPENSE", 1L, date(2026, 4, 15)),
             txn(2L, "X", 2000L, "USD", "EXPENSE", 1L, date(2026, 5, 15)),
         )
-        val out = StatisticsCalculator.savingsAndAverage(txns, "USD", emptyMap(), nowMs)
+        val (monthStart, monthEnd) = StatisticsCalculator.monthBounds(2026, 6)
+        val out = StatisticsCalculator.savingsAndAverage(txns, "USD", emptyMap(), monthStart, monthEnd)
         assertEquals(0L, out.averageMonthlyExpenseMinor)
         assertEquals(2, out.averageMonthlySampleMonths)
     }
@@ -259,13 +273,15 @@ class StatisticsCalculatorTest {
             txn(2L, "B", 9_999L, "USD", "EXPENSE", 2L, date(2026, 6, 5)),
             txn(3L, "C", 50L, "USD", "EXPENSE", 3L, date(2026, 6, 6)),
         )
-        val out = StatisticsCalculator.savingsAndAverage(txns, "USD", emptyMap(), nowMs)
+        val (monthStart, monthEnd) = StatisticsCalculator.monthBounds(2026, 6)
+        val out = StatisticsCalculator.savingsAndAverage(txns, "USD", emptyMap(), monthStart, monthEnd)
         assertEquals(9_999L, out.topTransactionMinor)
     }
 
     @Test
     fun savingsAndAverage_emptyTxns() {
-        val out = StatisticsCalculator.savingsAndAverage(emptyList(), "USD", emptyMap(), nowMs)
+        val (monthStart, monthEnd) = StatisticsCalculator.monthBounds(2026, 6)
+        val out = StatisticsCalculator.savingsAndAverage(emptyList(), "USD", emptyMap(), monthStart, monthEnd)
         assertEquals(0L, out.incomeMinor)
         assertEquals(0L, out.expenseMinor)
         assertEquals(0L, out.netMinor)
@@ -279,7 +295,7 @@ class StatisticsCalculatorTest {
 
     @Test
     fun dayOfWeek_alwaysReturnsSevenBuckets() {
-        val out = StatisticsCalculator.dayOfWeekPattern(emptyList(), "USD", emptyMap(), nowMs)
+        val out = StatisticsCalculator.dayOfWeekPattern(emptyList(), "USD", emptyMap(), windowStartMs, nowMs)
         assertEquals(7, out.size)
         // Ordered Mon..Sun
         assertEquals(1, out[0].isoDayOfWeek)
@@ -296,7 +312,7 @@ class StatisticsCalculatorTest {
             txn(2L, "B", 200L, "USD", "EXPENSE", 1L, date(2026, 6, 1)),   // Mon
             txn(3L, "C", 50L, "USD", "EXPENSE", 2L, date(2026, 6, 3)),    // Wed
         )
-        val out = StatisticsCalculator.dayOfWeekPattern(txns, "USD", emptyMap(), nowMs)
+        val out = StatisticsCalculator.dayOfWeekPattern(txns, "USD", emptyMap(), windowStartMs, nowMs)
         val monday = out.first { it.isoDayOfWeek == 1 }
         val wednesday = out.first { it.isoDayOfWeek == 3 }
         assertEquals(300L, monday.amountMinor)
@@ -308,7 +324,7 @@ class StatisticsCalculatorTest {
         val txns = listOf(
             income(1L, 5_000L, date(2026, 6, 8)),
         )
-        val out = StatisticsCalculator.dayOfWeekPattern(txns, "USD", emptyMap(), nowMs)
+        val out = StatisticsCalculator.dayOfWeekPattern(txns, "USD", emptyMap(), windowStartMs, nowMs)
         assertTrue(out.all { it.amountMinor == 0L })
     }
 
@@ -318,18 +334,20 @@ class StatisticsCalculatorTest {
             txn(1L, "A", 100_00L, "EUR", "EXPENSE", 1L, date(2026, 6, 8)),
         )
         val rates = mapOf("EUR_to_USD" to 1.10)
-        val out = StatisticsCalculator.dayOfWeekPattern(txns, "USD", rates, nowMs)
+        val out = StatisticsCalculator.dayOfWeekPattern(txns, "USD", rates, windowStartMs, nowMs)
         val monday = out.first { it.isoDayOfWeek == 1 }
         assertEquals(11000L, monday.amountMinor)
     }
 
     @Test
-    fun dayOfWeek_respects90DayWindow() {
+    fun dayOfWeek_customWindow_filtersCorrectly() {
         val txns = listOf(
-            txn(1L, "Old", 999L, "USD", "EXPENSE", 1L, date(2026, 2, 1)),   // > 90 days before Jun 17
-            txn(2L, "New", 500L, "USD", "EXPENSE", 1L, date(2026, 6, 1)),
+            txn(1L, "Old", 999L, "USD", "EXPENSE", 1L, date(2026, 2, 1)),   // outside custom window
+            txn(2L, "New", 500L, "USD", "EXPENSE", 1L, date(2026, 6, 1)),   // inside custom window
         )
-        val out = StatisticsCalculator.dayOfWeekPattern(txns, "USD", emptyMap(), nowMs)
+        // Custom window: just June 2026
+        val (customStart, customEnd) = StatisticsCalculator.monthBounds(2026, 6)
+        val out = StatisticsCalculator.dayOfWeekPattern(txns, "USD", emptyMap(), customStart, customEnd)
         assertTrue(out.all { it.amountMinor == 500L || it.amountMinor == 0L })
     }
 
@@ -341,9 +359,11 @@ class StatisticsCalculatorTest {
             txn(1L, "A", 800L, "USD", "EXPENSE", 1L, date(2025, 6, 10)),
             txn(2L, "B", 1_000L, "USD", "EXPENSE", 2L, date(2026, 6, 10)),
         )
-        val out = StatisticsCalculator.yearOverYear(txns, "USD", emptyMap(), nowMs)
-        assertEquals("June 2026", out.currentMonthLabel)
-        assertEquals("June 2025", out.previousMonthLabel)
+        val (curStart, curEnd) = StatisticsCalculator.monthBounds(2026, 6)
+        val (prevStart, prevEnd) = StatisticsCalculator.monthBounds(2025, 6)
+        val out = StatisticsCalculator.yearOverYear(txns, "USD", emptyMap(), curStart, curEnd, prevStart, prevEnd)
+        assertEquals("June 2026", out.currentWindowLabel)
+        assertEquals("June 2025", out.previousWindowLabel)
         assertEquals(1_000L, out.currentExpenseMinor)
         assertEquals(800L, out.previousExpenseMinor)
         assertEquals(0.25f, out.percentChange, 0.001f)  // (1000-800)/800 = 0.25
@@ -355,7 +375,9 @@ class StatisticsCalculatorTest {
         val txns = listOf(
             txn(1L, "A", 500L, "USD", "EXPENSE", 1L, date(2026, 6, 10)),
         )
-        val out = StatisticsCalculator.yearOverYear(txns, "USD", emptyMap(), nowMs)
+        val (curStart, curEnd) = StatisticsCalculator.monthBounds(2026, 6)
+        val (prevStart, prevEnd) = StatisticsCalculator.monthBounds(2025, 6)
+        val out = StatisticsCalculator.yearOverYear(txns, "USD", emptyMap(), curStart, curEnd, prevStart, prevEnd)
         assertEquals(500L, out.currentExpenseMinor)
         assertEquals(0L, out.previousExpenseMinor)
         assertEquals(0f, out.percentChange, 0.0001f)
@@ -364,7 +386,9 @@ class StatisticsCalculatorTest {
 
     @Test
     fun yearOverYear_bothZero() {
-        val out = StatisticsCalculator.yearOverYear(emptyList(), "USD", emptyMap(), nowMs)
+        val (curStart, curEnd) = StatisticsCalculator.monthBounds(2026, 6)
+        val (prevStart, prevEnd) = StatisticsCalculator.monthBounds(2025, 6)
+        val out = StatisticsCalculator.yearOverYear(emptyList(), "USD", emptyMap(), curStart, curEnd, prevStart, prevEnd)
         assertEquals(0L, out.currentExpenseMinor)
         assertEquals(0L, out.previousExpenseMinor)
         assertEquals(0f, out.percentChange, 0.0001f)
@@ -373,14 +397,16 @@ class StatisticsCalculatorTest {
 
     @Test
     fun yearOverYear_calendarBoundary() {
-        // nowMs = Jun 17 2026; previous = Jun 1 - Jun 30 2025.
+        // current = Jun 2026; previous = Jun 2025.
         val txns = listOf(
             txn(1L, "May", 999L, "USD", "EXPENSE", 1L, date(2025, 5, 31)),     // boundary: May, not Jun
             txn(2L, "Jul", 999L, "USD", "EXPENSE", 1L, date(2025, 7, 1)),      // boundary: Jul, not Jun
             txn(3L, "Jun",  500L, "USD", "EXPENSE", 1L, date(2025, 6, 15)),
             txn(4L, "Jun", 1_000L, "USD", "EXPENSE", 1L, date(2026, 6, 10)),
         )
-        val out = StatisticsCalculator.yearOverYear(txns, "USD", emptyMap(), nowMs)
+        val (curStart, curEnd) = StatisticsCalculator.monthBounds(2026, 6)
+        val (prevStart, prevEnd) = StatisticsCalculator.monthBounds(2025, 6)
+        val out = StatisticsCalculator.yearOverYear(txns, "USD", emptyMap(), curStart, curEnd, prevStart, prevEnd)
         assertEquals(500L, out.previousExpenseMinor)
         assertEquals(1_000L, out.currentExpenseMinor)
     }
@@ -391,7 +417,9 @@ class StatisticsCalculatorTest {
             income(1L, 5_000L, date(2025, 6, 10)),
             income(2L, 5_000L, date(2026, 6, 10)),
         )
-        val out = StatisticsCalculator.yearOverYear(txns, "USD", emptyMap(), nowMs)
+        val (curStart, curEnd) = StatisticsCalculator.monthBounds(2026, 6)
+        val (prevStart, prevEnd) = StatisticsCalculator.monthBounds(2025, 6)
+        val out = StatisticsCalculator.yearOverYear(txns, "USD", emptyMap(), curStart, curEnd, prevStart, prevEnd)
         assertEquals(0L, out.currentExpenseMinor)
         assertEquals(0L, out.previousExpenseMinor)
     }
@@ -403,7 +431,9 @@ class StatisticsCalculatorTest {
             txn(2L, "B", 1_000_00L, "EUR", "EXPENSE", 2L, date(2026, 6, 10)),
         )
         val rates = mapOf("EUR_to_USD" to 1.10)
-        val out = StatisticsCalculator.yearOverYear(txns, "USD", rates, nowMs)
+        val (curStart, curEnd) = StatisticsCalculator.monthBounds(2026, 6)
+        val (prevStart, prevEnd) = StatisticsCalculator.monthBounds(2025, 6)
+        val out = StatisticsCalculator.yearOverYear(txns, "USD", rates, curStart, curEnd, prevStart, prevEnd)
         // 80000 * 1.10 = 88000; 100000 * 1.10 = 110000
         assertEquals(110_000L, out.currentExpenseMinor)
         assertEquals(88_000L, out.previousExpenseMinor)
@@ -462,5 +492,70 @@ class StatisticsCalculatorTest {
         // Dec 31, 2026 → Dec 31, 2025 (both non-leap). Year-rolls-back.
         val ms = date(2026, 12, 31)
         assertEquals(date(2025, 12, 31), StatisticsCalculator.subtractOneYear(ms))
+    }
+
+    // ---- new: window-agnostic edge cases ----
+
+    @Test
+    fun topCategories_arbitraryWindow_filtersByStartEnd() {
+        val (start, end) = StatisticsCalculator.monthBounds(2026, 1)
+        val txns = listOf(
+            txn(1L, "Before", 999L, "USD", "EXPENSE", 1L, date(2025, 12, 31)), // outside (before start)
+            txn(2L, "Inside", 500L, "USD", "EXPENSE", 1L, date(2026, 1, 7)),   // inside
+            txn(3L, "After",  999L, "USD", "EXPENSE", 1L, date(2026, 2, 1)),   // outside (at exclusive end)
+        )
+        val cats = listOf(CategoryEntity(1L, "Food", "EXPENSE"))
+        val out = StatisticsCalculator.topCategories(txns, cats, "USD", emptyMap(), start, end)
+        assertEquals(1, out.slices.size)
+        assertEquals(500L, out.slices[0].amountMinor)
+    }
+
+    @Test
+    fun savingsAndAverage_windowWithNoIncome_returnsZeroRate() {
+        val (start, end) = StatisticsCalculator.monthBounds(2026, 6)
+        val txns = listOf(
+            txn(1L, "Coffee", 1_000L, "USD", "EXPENSE", 1L, date(2026, 6, 5)),
+        )
+        val out = StatisticsCalculator.savingsAndAverage(txns, "USD", emptyMap(), start, end)
+        assertEquals(0f, out.savingsRate, 0.0001f)
+    }
+
+    @Test
+    fun spendingPatterns_weekSpanningMonthBoundary_aggregatesBothWeeks() {
+        // Window: Mar 25, 2026 .. Apr 7, 2026 (cross-month).
+        val start = date(2026, 3, 25)
+        val end = date(2026, 4, 8)
+        val txns = listOf(
+            txn(1L, "Wed", 100L, "USD", "EXPENSE", 1L, date(2026, 3, 25)),
+            txn(2L, "Mon", 200L, "USD", "EXPENSE", 1L, date(2026, 3, 30)),
+            txn(3L, "Mon", 300L, "USD", "EXPENSE", 1L, date(2026, 4, 6)),
+            txn(4L, "Sun", 50L,  "USD", "EXPENSE", 1L, date(2026, 4, 5)),
+        )
+        val out = StatisticsCalculator.dayOfWeekPattern(txns, "USD", emptyMap(), start, end)
+        assertEquals(500L, out.first { it.isoDayOfWeek == 1 }.amountMinor)
+        assertEquals(100L, out.first { it.isoDayOfWeek == 3 }.amountMinor)
+        assertEquals(50L,  out.first { it.isoDayOfWeek == 7 }.amountMinor)
+    }
+
+    @Test
+    fun yearOverYear_subtractOneYear_handlesLeapDay() {
+        val ms = StatisticsCalculator.subtractOneYear(date(2024, 2, 29))
+        assertEquals(date(2023, 2, 28), ms)
+    }
+
+    @Test
+    fun yearOverYear_subtractOneYear_handlesNonLeapYear() {
+        val ms = StatisticsCalculator.subtractOneYear(date(2025, 6, 17))
+        assertEquals(date(2024, 6, 17), ms)
+    }
+
+    @Test
+    fun yearOverYear_priorWindowComputation_matchesSubtractOneYear() {
+        val curStart = date(2026, 3, 15)
+        val curEnd = date(2026, 4, 14)
+        val priorStart = StatisticsCalculator.subtractOneYear(curStart)
+        val priorEnd = StatisticsCalculator.subtractOneYear(curEnd)
+        assertEquals(date(2025, 3, 15), priorStart)
+        assertEquals(date(2025, 4, 14), priorEnd)
     }
 }
