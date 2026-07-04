@@ -108,7 +108,9 @@ internal fun StatisticsContent(
         HorizontalPager(state = pagerState) { page ->
             val tab = tabs[page]
             val range = rangesByTab.getValue(tab)
-            val isDefault = range == defaultFor(tab)
+            // Memoize isDefault off the range itself — recomputing defaultFor(tab)
+            // every frame could flicker the chip color across month boundaries.
+            val isDefault = remember(range) { range == defaultFor(tab) }
             when (tab) {
                 StatisticsTab.TOP_CATS -> TopCatsTab(
                     result = topCategories,
@@ -144,17 +146,23 @@ internal fun StatisticsContent(
 
     sheetTab?.let { tab ->
         val r = rangesByTab.getValue(tab)
+        // RangeChip stores [startMs, endMs) half-open. The M3 DateRangePicker
+        // shows inclusive end-of-day bounds, so we shift by one day on both sides
+        // of the sheet: display r.last - 1day as "last visible day", and convert
+        // the user's inclusive pick (s..e) into half-open (s..e+1day) for storage.
         RangePickerSheet(
             currentStartMs = r.first,
-            currentEndMs = r.last,
+            currentEndMs = r.last - ONE_DAY_MS,
             onDismiss = { sheetTab = null },
             onConfirm = { s, e ->
-                onRangeSelected(tab, s..e)
+                onRangeSelected(tab, s..(e + ONE_DAY_MS))
                 sheetTab = null
             },
         )
     }
 }
+
+private const val ONE_DAY_MS: Long = 24L * 60L * 60L * 1000L
 
 private fun defaultFor(tab: StatisticsTab): LongRange {
     val now = System.currentTimeMillis()
