@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 /**
- * The four statistics tabs. Exists in this file (rather than StatisticsScreen.kt)
+ * The five statistics tabs. Exists in this file (rather than StatisticsScreen.kt)
  * because the repository and ViewModel need to reference it. The screen-side
  * `StatTab` enum will be merged into this one in Task 11.
  */
