@@ -425,6 +425,7 @@
     <string name="cards_crop_confirm">Crop</string>
     <string name="cards_crop_load_error">Couldn\'t load image.</string>
     <string name="cards_crop_title">Crop</string>
+    <string name="cards_crop_failed">Couldn\'t crop image. Try again.</string>
 
     <!-- Member Cards widget -->
     <string name="cards_widget_description">Show a loyalty or membership card on your home screen. Tap the photo to open it, tap anywhere else to cycle cards.</string>

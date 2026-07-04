@@ -24,6 +24,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -46,10 +49,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import io.github.jiro.expensetracker.R
@@ -68,7 +69,8 @@ import kotlinx.coroutines.withContext
  *
  * MVP scope (intentionally limited):
  *  - No zoom/pan of the image itself; image is rendered at [ContentScale.Fit].
- *  - Free aspect ratio; rectangle starts at the image's full bounds.
+ *  - Free aspect ratio; rectangle starts centered, sized at 80% of the
+ *    displayed image so the user has room to drag it in any direction.
  *  - Drag-to-reposition only (no resize handles).
  *  - Single Compose screen, no separate Activity.
  *
@@ -86,6 +88,8 @@ fun MemberCardCropScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val cropFailedMessage = stringResource(R.string.cards_crop_failed)
 
     var sourceBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var loadError by remember { mutableStateOf(false) }
@@ -123,10 +127,13 @@ fun MemberCardCropScreen(
     }
 
     // Recycle the source bitmap on dispose so navigating away frees memory.
+    // Reset the module-level crop state too so a second visit to this screen
+    // starts fresh even if the previous visit's bitmap was the same identity.
     DisposableEffect(Unit) {
         onDispose {
             sourceBitmap?.takeIf { !it.isRecycled }?.recycle()
             sourceBitmap = null
+            cropState = null to null
         }
     }
 
@@ -178,7 +185,11 @@ fun MemberCardCropScreen(
                                 }.getOrNull()
                             }
                             isCropping = false
-                            if (path != null) onCropped(path)
+                            if (path != null) {
+                                onCropped(path)
+                            } else {
+                                snackbarHostState.showSnackbar(cropFailedMessage)
+                            }
                         }
                     },
                     enabled = sourceBitmap != null && !loadError && !isCropping,
@@ -188,6 +199,7 @@ fun MemberCardCropScreen(
                 ) { Text(stringResource(R.string.cards_crop_confirm)) }
             }
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
     ) { padding ->
         Box(
             modifier = Modifier
@@ -214,10 +226,16 @@ fun MemberCardCropScreen(
 
 // Holds the latest crop rect + image layout in screen-pixel coordinates.
 // Module-level on purpose: CropBody writes here on every change, and the
-// Crop button reads it when the user taps. This is intentionally simple
-// (and tightly scoped to a single screen lifetime) — the screen always
-// exists exactly once per navigation entry.
+// Crop button reads it when the user taps. Cleared in the screen's
+// DisposableEffect so a fresh visit to the screen starts clean.
 private var cropState: Pair<Rect?, CropLayout?> = null to null
+
+/**
+ * Initial crop rect = 80% of the displayed image, centered. Smaller than
+ * the image bounds so [clampRect] leaves room to drag the rectangle in any
+ * direction.
+ */
+private const val INITIAL_CROP_FRACTION = 0.8f
 
 /**
  * The crop body — image + dimmed cutout overlay + drag handling.
@@ -261,15 +279,20 @@ private fun CropBody(
             scale = scale,
         )
 
-        // Initial crop rect = the full displayed image bounds. Keyed on
-        // the bitmap identity so a new source resets to full bounds.
+        // Initial crop rect = 80% of the image, centered. Smaller than
+        // imageBounds so clampRect leaves room to drag. Keyed on the bitmap
+        // identity so a new source resets to the centered default.
         var cropRect by remember(bitmap) {
-            mutableStateOf(imageBounds)
+            val rectW = displayedW * INITIAL_CROP_FRACTION
+            val rectH = displayedH * INITIAL_CROP_FRACTION
+            val rectLeft = displayedLeft + (displayedW - rectW) / 2f
+            val rectTop = displayedTop + (displayedH - rectH) / 2f
+            mutableStateOf(Rect(rectLeft, rectTop, rectLeft + rectW, rectTop + rectH))
         }
 
         // Clamp helper — keeps the crop rect inside the image bounds.
-        // Note: for MVP, the rectangle keeps its full size; the user only
-        // drags it around. Resize handles are intentionally out of scope.
+        // The rectangle keeps its size; the user only drags it around.
+        // Resize handles are intentionally out of scope.
         fun clampRect(r: Rect): Rect {
             val w = r.width
             val h = r.height
@@ -362,16 +385,61 @@ private fun ErrorMessage(text: String) {
     }
 }
 
-private data class CropLayout(
+internal data class CropLayout(
     val displayedLeft: Float,
     val displayedTop: Float,
     val scale: Float,
 )
 
+internal data class BitmapCropRect(
+    val x: Int,
+    val y: Int,
+    val width: Int,
+    val height: Int,
+)
+
+/**
+ * Map the on-screen crop rect (display-pixel coordinates) to a clipped
+ * sub-rectangle in source-bitmap pixels. The display rect is centered and
+ * uniformly scaled inside the bitmap (ContentScale.Fit), so we subtract
+ * [layout.displayedLeft] and [layout.displayedTop] to remove the centering
+ * offset and divide by [layout.scale] to invert the fit-scale.
+ *
+ * The result is clipped so it stays inside the bitmap bounds while
+ * preserving the requested width/height when possible. Returns null only
+ * when the bitmap dimensions are degenerate (zero/negative) or the rect
+ * maps to a zero-area region (width or height ≤ 0).
+ */
+internal fun computeBitmapCropRect(
+    cropRect: Rect,
+    layout: CropLayout,
+    sourceWidth: Int,
+    sourceHeight: Int,
+): BitmapCropRect? {
+    if (layout.scale <= 0f || sourceWidth <= 0 || sourceHeight <= 0) return null
+    if (cropRect.width <= 0f || cropRect.height <= 0f) return null
+    val imageX = ((cropRect.left - layout.displayedLeft) / layout.scale).toInt()
+    val imageY = ((cropRect.top - layout.displayedTop) / layout.scale).toInt()
+    val imageW = (cropRect.width / layout.scale).toInt()
+    val imageH = (cropRect.height / layout.scale).toInt()
+    // Shift the start inside the bitmap so the requested width/height still
+    // fits. coerceIn(0, maxX) where maxX = sourceWidth - imageW clamps the
+    // rect rather than shrinking it. When imageW exceeds sourceWidth, the
+    // rect is anchored at 0 and the width is shrunk below.
+    val safeX = imageX.coerceIn(0, (sourceWidth - imageW).coerceAtLeast(0))
+    val safeY = imageY.coerceIn(0, (sourceHeight - imageH).coerceAtLeast(0))
+    val maxW = (sourceWidth - safeX).coerceAtLeast(0)
+    val maxH = (sourceHeight - safeY).coerceAtLeast(0)
+    val safeW = imageW.coerceIn(0, maxW).coerceAtLeast(1)
+    val safeH = imageH.coerceIn(0, maxH).coerceAtLeast(1)
+    return BitmapCropRect(safeX, safeY, safeW, safeH)
+}
+
 /**
  * Map the on-screen crop rect to image-pixel coordinates, slice the source
  * bitmap, JPEG-encode at quality 90, and write to
- * `<cacheDir>/cards/cropped/<uuid>.jpg`. Returns the absolute path.
+ * `<cacheDir>/cards/cropped/<uuid>.jpg`. Returns the absolute path, or
+ * null if the bitmap can't be sliced or the file can't be written.
  *
  * The new (cropped) bitmap is recycled after encoding. The source bitmap
  * is left intact — the caller still owns it and is responsible for
@@ -383,19 +451,15 @@ private fun cropAndEncode(
     cropRect: Rect,
     cacheDir: File,
 ): String? {
-    val scale = layout.scale
-    if (scale <= 0f) return null
-    val imageX = ((cropRect.left - layout.displayedLeft) / scale).toInt().coerceAtLeast(0)
-    val imageY = ((cropRect.top - layout.displayedTop) / scale).toInt().coerceAtLeast(0)
-    val imageW = (cropRect.width / scale).toInt().coerceAtLeast(1)
-    val imageH = (cropRect.height / scale).toInt().coerceAtLeast(1)
-    val safeX = min(imageX, source.width - 1)
-    val safeY = min(imageY, source.height - 1)
-    val safeW = min(imageW, source.width - safeX)
-    val safeH = min(imageH, source.height - safeY)
-    if (safeW <= 0 || safeH <= 0) return null
-    val cropped: Bitmap = Bitmap.createBitmap(source, safeX, safeY, safeW, safeH)
-        ?: return null
+    val slice = computeBitmapCropRect(
+        cropRect = cropRect,
+        layout = layout,
+        sourceWidth = source.width,
+        sourceHeight = source.height,
+    ) ?: return null
+    val cropped: Bitmap = runCatching {
+        Bitmap.createBitmap(source, slice.x, slice.y, slice.width, slice.height)
+    }.getOrNull() ?: return null
     return try {
         val outDir = File(cacheDir, "cards/cropped").apply { mkdirs() }
         val outFile = File(outDir, "${UUID.randomUUID()}.jpg")
