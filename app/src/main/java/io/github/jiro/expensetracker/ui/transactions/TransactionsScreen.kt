@@ -18,7 +18,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.DropdownMenu
@@ -230,6 +233,11 @@ private fun FilterControls(
     onFlipDirection: () -> Unit,
 ) {
     var showDateDialog by remember { mutableStateOf(false) }
+    // Collapsible section: sort + amount range + category/date + clear.
+    // Default collapsed so the filter block doesn't dominate the screen —
+    // users tap "Filters" to reveal the advanced controls. The type chips
+    // stay always-visible since they're the most-used quick filter.
+    var filtersExpanded by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
@@ -274,113 +282,128 @@ private fun FilterControls(
                 selected = filters.typeFilter == TypeFilter.EXPENSE,
                 onClick = { onTypeChange(TypeFilter.EXPENSE) },
             )
-        }
-
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "${stringResource(R.string.filter_sort_label)}:",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            SortFieldDropdown(
-                selected = sort.field,
-                onSelect = onSortFieldChange,
-                modifier = Modifier.weight(1f),
-            )
-            IconButton(onClick = onFlipDirection) {
+            Spacer(modifier = Modifier.weight(1f))
+            TextButton(onClick = { filtersExpanded = !filtersExpanded }) {
+                Text(stringResource(R.string.filter_section_label))
                 Icon(
-                    imageVector = if (sort.direction == SortDirection.ASC)
-                        Icons.Filled.ArrowUpward
-                    else
-                        Icons.Filled.ArrowDownward,
+                    imageVector = if (filtersExpanded) Icons.Filled.KeyboardArrowUp
+                    else Icons.Filled.KeyboardArrowDown,
                     contentDescription = stringResource(
-                        if (sort.direction == SortDirection.ASC)
-                            R.string.filter_sort_direction_asc
-                        else
-                            R.string.filter_sort_direction_desc
+                        if (filtersExpanded) R.string.filter_section_collapse_cd
+                        else R.string.filter_section_expand_cd
                     ),
                 )
             }
         }
 
-        // NEW: amount range row
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            OutlinedTextField(
-                value = minInput,
-                onValueChange = onMinInputChange,
-                modifier = Modifier.weight(1f),
-                label = { Text(stringResource(R.string.filter_amount_min)) },
-                placeholder = { Text(stringResource(R.string.filter_amount_min_hint)) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                trailingIcon = if (minInput.isNotEmpty()) {
-                    {
-                        IconButton(onClick = { onMinInputChange("") }) {
-                            Icon(
-                                Icons.Filled.Close,
-                                contentDescription = stringResource(R.string.filter_clear),
-                            )
-                        }
+        AnimatedVisibility(visible = filtersExpanded) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "${stringResource(R.string.filter_sort_label)}:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    SortFieldDropdown(
+                        selected = sort.field,
+                        onSelect = onSortFieldChange,
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(onClick = onFlipDirection) {
+                        Icon(
+                            imageVector = if (sort.direction == SortDirection.ASC)
+                                Icons.Filled.ArrowUpward
+                            else
+                                Icons.Filled.ArrowDownward,
+                            contentDescription = stringResource(
+                                if (sort.direction == SortDirection.ASC)
+                                    R.string.filter_sort_direction_asc
+                                else
+                                    R.string.filter_sort_direction_desc
+                            ),
+                        )
                     }
-                } else null,
-            )
-            OutlinedTextField(
-                value = maxInput,
-                onValueChange = onMaxInputChange,
-                modifier = Modifier.weight(1f),
-                label = { Text(stringResource(R.string.filter_amount_max)) },
-                placeholder = { Text(stringResource(R.string.filter_amount_max_hint)) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                trailingIcon = if (maxInput.isNotEmpty()) {
-                    {
-                        IconButton(onClick = { onMaxInputChange("") }) {
-                            Icon(
-                                Icons.Filled.Close,
-                                contentDescription = stringResource(R.string.filter_clear),
-                            )
-                        }
+                }
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    OutlinedTextField(
+                        value = minInput,
+                        onValueChange = onMinInputChange,
+                        modifier = Modifier.weight(1f),
+                        label = { Text(stringResource(R.string.filter_amount_min)) },
+                        placeholder = { Text(stringResource(R.string.filter_amount_min_hint)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                        trailingIcon = if (minInput.isNotEmpty()) {
+                            {
+                                IconButton(onClick = { onMinInputChange("") }) {
+                                    Icon(
+                                        Icons.Filled.Close,
+                                        contentDescription = stringResource(R.string.filter_clear),
+                                    )
+                                }
+                            }
+                        } else null,
+                    )
+                    OutlinedTextField(
+                        value = maxInput,
+                        onValueChange = onMaxInputChange,
+                        modifier = Modifier.weight(1f),
+                        label = { Text(stringResource(R.string.filter_amount_max)) },
+                        placeholder = { Text(stringResource(R.string.filter_amount_max_hint)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        trailingIcon = if (maxInput.isNotEmpty()) {
+                            {
+                                IconButton(onClick = { onMaxInputChange("") }) {
+                                    Icon(
+                                        Icons.Filled.Close,
+                                        contentDescription = stringResource(R.string.filter_clear),
+                                    )
+                                }
+                            }
+                        } else null,
+                    )
+                }
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CategoryDropdown(
+                        categories = categories,
+                        selectedCategoryId = filters.categoryId,
+                        onSelect = onCategoryChange,
+                        modifier = Modifier.weight(1f),
+                    )
+                    DateRangeDropdown(
+                        selected = filters.dateRange,
+                        onPresetSelected = onDateRangeChange,
+                        onCustomRequested = { showDateDialog = true },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+
+                if (!filters.isEmpty) {
+                    TextButton(
+                        onClick = onClear,
+                        modifier = Modifier.align(Alignment.End),
+                    ) {
+                        Icon(
+                            Icons.Filled.Close,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.size(4.dp))
+                        Text(stringResource(R.string.filter_clear))
                     }
-                } else null,
-            )
-        }
-
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            CategoryDropdown(
-                categories = categories,
-                selectedCategoryId = filters.categoryId,
-                onSelect = onCategoryChange,
-                modifier = Modifier.weight(1f),
-            )
-            DateRangeDropdown(
-                selected = filters.dateRange,
-                onPresetSelected = onDateRangeChange,
-                onCustomRequested = { showDateDialog = true },
-                modifier = Modifier.weight(1f),
-            )
-        }
-
-        if (!filters.isEmpty) {
-            TextButton(
-                onClick = onClear,
-                modifier = Modifier.align(Alignment.End),
-            ) {
-                Icon(
-                    Icons.Filled.Close,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(Modifier.size(4.dp))
-                Text(stringResource(R.string.filter_clear))
+                }
             }
         }
     }

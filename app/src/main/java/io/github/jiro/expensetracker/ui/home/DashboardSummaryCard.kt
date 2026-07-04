@@ -94,11 +94,9 @@ private fun StatColumn(
     }
 }
 
+// `showSign` adds a leading "+" for positives. MoneyFormat already handles
+// the "-" for negatives, so we never re-add it — that would yield "--X.XX".
 private fun formatCurrency(amountMinor: Long, showSign: Boolean = false): String {
-    val sign = when {
-        showSign && amountMinor > 0 -> "+"
-        amountMinor < 0 -> "-"
-        else -> ""
-    }
+    val sign = if (showSign && amountMinor > 0) "+" else ""
     return sign + MoneyFormat.formatForDisplay(amountMinor)
 }

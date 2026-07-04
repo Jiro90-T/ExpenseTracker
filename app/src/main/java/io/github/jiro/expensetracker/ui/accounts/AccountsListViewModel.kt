@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.jiro.expensetracker.data.repository.AccountRepository
 import io.github.jiro.expensetracker.data.repository.AccountWithBalance
+import io.github.jiro.expensetracker.data.local.MoneyFormat
 import io.github.jiro.expensetracker.domain.FxConverter
 import io.github.jiro.expensetracker.preferences.SettingsRepository
 import javax.inject.Inject
@@ -39,9 +40,12 @@ class AccountsListViewModel @Inject constructor(
     ) { showClosed, allAccounts, activeAccounts, fx, home ->
         val listed = if (showClosed) allAccounts else activeAccounts
         val net = computeNetBalanceInHome(allAccounts, home, fx)
+        // `net` is in major units (Double) — convert to minor (Long) so
+        // MoneyFormat can apply thousands grouping ("39,318.12" not "39318.12").
+        val netMinor = kotlin.math.round(net * 100.0).toLong()
         AccountsListUiState(
             accounts = listed,
-            netBalanceInHome = "%.2f %s".format(net, home),
+            netBalanceInHome = "${MoneyFormat.formatForDisplay(netMinor)} $home",
             count = listed.size,
             isLoading = false,
             showClosed = showClosed,
