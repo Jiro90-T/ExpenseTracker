@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -51,6 +53,7 @@ fun StatisticsScreen(
     val savings by viewModel.savings.collectAsStateWithLifecycle()
     val dayOfWeek by viewModel.dayOfWeek.collectAsStateWithLifecycle()
     val yoy by viewModel.yoy.collectAsStateWithLifecycle()
+    val insights by viewModel.insights.collectAsStateWithLifecycle()
     val topCatsRange by viewModel.topCatsRange.collectAsStateWithLifecycle()
     val savingsRange by viewModel.savingsRange.collectAsStateWithLifecycle()
     val patternsRange by viewModel.patternsRange.collectAsStateWithLifecycle()
@@ -60,6 +63,7 @@ fun StatisticsScreen(
         savings = savings,
         dayOfWeek = dayOfWeek,
         yoy = yoy,
+        insights = insights,
         topCatsRange = topCatsRange,
         savingsRange = savingsRange,
         patternsRange = patternsRange,
@@ -75,6 +79,7 @@ internal fun StatisticsContent(
     savings: SavingsAndAverage,
     dayOfWeek: List<DayOfWeekBucket>,
     yoy: YearOverYear,
+    insights: List<Insight>,
     topCatsRange: LongRange,
     savingsRange: LongRange,
     patternsRange: LongRange,
@@ -82,7 +87,7 @@ internal fun StatisticsContent(
     onRangeSelected: (StatisticsTab, LongRange) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val tabs = listOf(StatisticsTab.TOP_CATS, StatisticsTab.SAVINGS, StatisticsTab.PATTERNS, StatisticsTab.YOY)
+    val tabs = listOf(StatisticsTab.TOP_CATS, StatisticsTab.SAVINGS, StatisticsTab.PATTERNS, StatisticsTab.YOY, StatisticsTab.INSIGHTS)
     val pagerState = rememberPagerState(pageCount = { tabs.size })
     val scope = rememberCoroutineScope()
 
@@ -140,6 +145,7 @@ internal fun StatisticsContent(
                     onChipClick = { sheetTab = tab },
                     onReset = { onRangeSelected(tab, defaultFor(tab)) },
                 )
+                StatisticsTab.INSIGHTS -> InsightsTab(insights = insights)
             }
         }
     }
@@ -179,6 +185,7 @@ private fun StatisticsTab.labelRes(): Int = when (this) {
     StatisticsTab.SAVINGS  -> R.string.stats_tab_savings
     StatisticsTab.PATTERNS -> R.string.stats_tab_patterns
     StatisticsTab.YOY      -> R.string.stats_tab_yoy
+    StatisticsTab.INSIGHTS -> R.string.stats_tab_insights
 }
 
 // ---- per-tab composables ----
@@ -437,4 +444,41 @@ private fun NetRow(savings: SavingsAndAverage) {
         style = MaterialTheme.typography.titleMedium,
         color = color,
     )
+}
+
+@Composable
+private fun InsightsTab(insights: List<Insight>) {
+    if (insights.isEmpty()) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = stringResource(R.string.stats_insights_empty),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+        }
+        return
+    }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        items(items = insights, key = { insight ->
+            // Stable per-type key. compute() emits at most one of each subclass,
+            // so a per-type key is sufficient to keep items() stable across
+            // recompositions.
+            when (insight) {
+                is Insight.CategoryDelta -> "cat-${insight.categoryName}"
+                is Insight.WeekendVsWeekday -> "weekend"
+                is Insight.SavingsTrend -> "savings"
+                is Insight.TopExpenseSpotlight -> "top-${insight.title}-${insight.dateLabel}"
+            }
+        }) { insight ->
+            InsightCard(insight = insight)
+        }
+    }
 }
