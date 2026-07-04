@@ -6,9 +6,12 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.Instant
 import java.time.YearMonth
 import java.time.ZoneId
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -31,8 +34,9 @@ private val Context.statisticsRangeDataStore: DataStore<Preferences> by preferen
     name = "statistics_range",
 )
 
-class DataStoreStatisticsRangeRepository(
-    private val context: Context,
+@Singleton
+class DataStoreStatisticsRangeRepository @Inject constructor(
+    @ApplicationContext private val context: Context,
 ) : StatisticsRangeRepository {
 
     private val dataStore get() = context.statisticsRangeDataStore
