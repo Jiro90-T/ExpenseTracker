@@ -21,7 +21,7 @@ import kotlinx.coroutines.flow.map
  * `StatTab` enum will be merged into this one in Task 11.
  */
 enum class StatisticsTab {
-    TOP_CATS, SAVINGS, PATTERNS, YOY,
+    TOP_CATS, SAVINGS, PATTERNS, YOY, INSIGHTS,
 }
 
 interface StatisticsRangeRepository {
@@ -73,6 +73,7 @@ class DataStoreStatisticsRangeRepository @Inject constructor(
             StatisticsTab.SAVINGS  -> KEY_SAVINGS_START  to KEY_SAVINGS_END
             StatisticsTab.PATTERNS -> KEY_PATTERNS_START to KEY_PATTERNS_END
             StatisticsTab.YOY      -> KEY_YOY_START      to KEY_YOY_END
+            StatisticsTab.INSIGHTS -> error("INSIGHTS tab does not use a persisted range override")
         }
 
     companion object {

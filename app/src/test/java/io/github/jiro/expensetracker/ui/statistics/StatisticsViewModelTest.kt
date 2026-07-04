@@ -100,6 +100,15 @@ class StatisticsViewModelTest {
         advanceUntilIdle()
         assertTrue(vm.topCategories.value.monthLabel.isNotEmpty())
     }
+
+    @Test
+    fun insights_isAlwaysEmittedAsAList() = runTest(testDispatcher) {
+        val (vm, _) = buildVm()
+        advanceUntilIdle()
+        // With empty transactions/categories the calculator produces an empty
+        // list rather than throwing — sanity-check the StateFlow wiring.
+        assertEquals(emptyList<Insight>(), vm.insights.value)
+    }
 }
 
 // ---- fakes ----

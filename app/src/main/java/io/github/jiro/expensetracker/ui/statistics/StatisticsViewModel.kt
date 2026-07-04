@@ -79,6 +79,11 @@ class StatisticsViewModel @Inject constructor(
             .stateIn(viewModelScope, SharingStarted.Eagerly,
                 YearOverYear("", "", 0L, 0L, 0f, false))
 
+    val insights: StateFlow<List<Insight>> =
+        combine(transactionRepository.observeAll(), cats, home, rates) { t, c, h, r ->
+            InsightsCalculator.compute(t, c, h, r, System.currentTimeMillis())
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
     val topCatsRange: StateFlow<LongRange> =
         rangeRepository.observe(StatisticsTab.TOP_CATS)
             .stateIn(viewModelScope, SharingStarted.Eagerly, defaultRange())
