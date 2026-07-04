@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -77,6 +78,26 @@ class StatisticsViewModel @Inject constructor(
             }
             .stateIn(viewModelScope, SharingStarted.Eagerly,
                 YearOverYear("", "", 0L, 0L, 0f, false))
+
+    val topCatsRange: StateFlow<LongRange> =
+        rangeRepository.observe(StatisticsTab.TOP_CATS)
+            .stateIn(viewModelScope, SharingStarted.Eagerly, defaultRange())
+
+    val savingsRange: StateFlow<LongRange> =
+        rangeRepository.observe(StatisticsTab.SAVINGS)
+            .stateIn(viewModelScope, SharingStarted.Eagerly, defaultRange())
+
+    val patternsRange: StateFlow<LongRange> =
+        rangeRepository.observe(StatisticsTab.PATTERNS)
+            .stateIn(viewModelScope, SharingStarted.Eagerly, defaultRange())
+
+    val yoyRange: StateFlow<LongRange> =
+        rangeRepository.observe(StatisticsTab.YOY)
+            .stateIn(viewModelScope, SharingStarted.Eagerly, defaultRange())
+
+    private fun defaultRange(): LongRange = runBlocking {
+        rangeRepository.defaultFor(StatisticsTab.TOP_CATS, System.currentTimeMillis())
+    }
 
     fun onRangeSelected(tab: StatisticsTab, range: LongRange) {
         viewModelScope.launch { rangeRepository.set(tab, range) }

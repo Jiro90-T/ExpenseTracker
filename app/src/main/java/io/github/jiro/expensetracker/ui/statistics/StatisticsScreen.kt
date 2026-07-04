@@ -1,7 +1,6 @@
 package io.github.jiro.expensetracker.ui.statistics
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,12 +18,15 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -49,11 +51,20 @@ fun StatisticsScreen(
     val savings by viewModel.savings.collectAsStateWithLifecycle()
     val dayOfWeek by viewModel.dayOfWeek.collectAsStateWithLifecycle()
     val yoy by viewModel.yoy.collectAsStateWithLifecycle()
+    val topCatsRange by viewModel.topCatsRange.collectAsStateWithLifecycle()
+    val savingsRange by viewModel.savingsRange.collectAsStateWithLifecycle()
+    val patternsRange by viewModel.patternsRange.collectAsStateWithLifecycle()
+    val yoyRange by viewModel.yoyRange.collectAsStateWithLifecycle()
     StatisticsContent(
         topCategories = topCategories,
         savings = savings,
         dayOfWeek = dayOfWeek,
         yoy = yoy,
+        topCatsRange = topCatsRange,
+        savingsRange = savingsRange,
+        patternsRange = patternsRange,
+        yoyRange = yoyRange,
+        onRangeSelected = viewModel::onRangeSelected,
         modifier = modifier,
     )
 }
@@ -64,58 +75,144 @@ internal fun StatisticsContent(
     savings: SavingsAndAverage,
     dayOfWeek: List<DayOfWeekBucket>,
     yoy: YearOverYear,
+    topCatsRange: LongRange,
+    savingsRange: LongRange,
+    patternsRange: LongRange,
+    yoyRange: LongRange,
+    onRangeSelected: (StatisticsTab, LongRange) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val tabs = listOf(StatTab.TopCats, StatTab.Savings, StatTab.Patterns, StatTab.YoY)
+    val tabs = listOf(StatisticsTab.TOP_CATS, StatisticsTab.SAVINGS, StatisticsTab.PATTERNS, StatisticsTab.YOY)
     val pagerState = rememberPagerState(pageCount = { tabs.size })
     val scope = rememberCoroutineScope()
+
+    // Per-tab sheet state — only one sheet open at a time, keyed by the currently visible tab.
+    var sheetTab by remember { mutableStateOf<StatisticsTab?>(null) }
+    val rangesByTab = mapOf(
+        StatisticsTab.TOP_CATS to topCatsRange,
+        StatisticsTab.SAVINGS to savingsRange,
+        StatisticsTab.PATTERNS to patternsRange,
+        StatisticsTab.YOY to yoyRange,
+    )
+
     Column(modifier = modifier.fillMaxSize()) {
         TabRow(selectedTabIndex = pagerState.currentPage) {
             tabs.forEachIndexed { i, tab ->
                 Tab(
                     selected = pagerState.currentPage == i,
-                    onClick = {
-                        scope.launch { pagerState.animateScrollToPage(i) }
-                    },
-                    text = { Text(stringResource(tab.labelRes)) },
+                    onClick = { scope.launch { pagerState.animateScrollToPage(i) } },
+                    text = { Text(stringResource(tab.labelRes())) },
                 )
             }
         }
         HorizontalPager(state = pagerState) { page ->
-            when (tabs[page]) {
-                StatTab.TopCats -> TopCatsTab(topCategories, Modifier.fillMaxSize())
-                StatTab.Savings -> SavingsTab(savings, Modifier.fillMaxSize())
-                StatTab.Patterns -> PatternsTab(dayOfWeek, Modifier.fillMaxSize())
-                StatTab.YoY -> YoyTab(yoy, Modifier.fillMaxSize())
+            val tab = tabs[page]
+            val range = rangesByTab.getValue(tab)
+            val isDefault = range == defaultFor(tab)
+            when (tab) {
+                StatisticsTab.TOP_CATS -> TopCatsTab(
+                    result = topCategories,
+                    range = range,
+                    isDefault = isDefault,
+                    onChipClick = { sheetTab = tab },
+                    onReset = { onRangeSelected(tab, defaultFor(tab)) },
+                )
+                StatisticsTab.SAVINGS -> SavingsTab(
+                    savings = savings,
+                    range = range,
+                    isDefault = isDefault,
+                    onChipClick = { sheetTab = tab },
+                    onReset = { onRangeSelected(tab, defaultFor(tab)) },
+                )
+                StatisticsTab.PATTERNS -> PatternsTab(
+                    buckets = dayOfWeek,
+                    range = range,
+                    isDefault = isDefault,
+                    onChipClick = { sheetTab = tab },
+                    onReset = { onRangeSelected(tab, defaultFor(tab)) },
+                )
+                StatisticsTab.YOY -> YoyTab(
+                    result = yoy,
+                    range = range,
+                    isDefault = isDefault,
+                    onChipClick = { sheetTab = tab },
+                    onReset = { onRangeSelected(tab, defaultFor(tab)) },
+                )
             }
         }
     }
+
+    sheetTab?.let { tab ->
+        val r = rangesByTab.getValue(tab)
+        RangePickerSheet(
+            currentStartMs = r.first,
+            currentEndMs = r.last,
+            onDismiss = { sheetTab = null },
+            onConfirm = { s, e ->
+                onRangeSelected(tab, s..e)
+                sheetTab = null
+            },
+        )
+    }
 }
 
-internal enum class StatTab(val labelRes: Int) {
-    TopCats(R.string.stats_tab_top_cats),
-    Savings(R.string.stats_tab_savings),
-    Patterns(R.string.stats_tab_patterns),
-    YoY(R.string.stats_tab_yoy),
+private fun defaultFor(tab: StatisticsTab): LongRange {
+    val now = System.currentTimeMillis()
+    val zone = java.time.ZoneId.systemDefault()
+    val date = java.time.Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+    val ym = java.time.YearMonth.of(date.year, date.monthValue)
+    val start = ym.atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
+    val end = ym.plusMonths(1).atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
+    return start..end
 }
 
-// ---------- Top Cats ----------
+private fun StatisticsTab.labelRes(): Int = when (this) {
+    StatisticsTab.TOP_CATS -> R.string.stats_tab_top_cats
+    StatisticsTab.SAVINGS  -> R.string.stats_tab_savings
+    StatisticsTab.PATTERNS -> R.string.stats_tab_patterns
+    StatisticsTab.YOY      -> R.string.stats_tab_yoy
+}
+
+// ---- per-tab composables ----
 
 @Composable
-private fun TopCatsTab(result: TopCategoriesResult, modifier: Modifier = Modifier) {
+private fun TopCatsTab(
+    result: TopCategoriesResult,
+    range: LongRange,
+    isDefault: Boolean,
+    onChipClick: () -> Unit,
+    onReset: () -> Unit,
+) {
     Column(
-        modifier = modifier.padding(16.dp),
+        modifier = Modifier.padding(16.dp).fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(
-            text = stringResource(R.string.stats_top_cats_header, result.monthLabel),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-        val pieSlices = result.slices.map {
-            CategoryBreakdown(it.categoryId, it.categoryName, it.amountMinor)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.stats_top_cats_header, result.monthLabel),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+            )
+            RangeChip(
+                startMs = range.first,
+                endMs = range.last,
+                isDefault = isDefault,
+                onClick = onChipClick,
+            )
         }
-        PieChartWithLegend(slices = pieSlices)
+        if (result.slices.isEmpty()) {
+            EmptyRangeState(onReset = onReset)
+        } else {
+            val pieSlices = result.slices.map {
+                CategoryBreakdown(it.categoryId, it.categoryName, it.amountMinor)
+            }
+            PieChartWithLegend(slices = pieSlices)
+        }
         if (result.missingRateCount > 0) {
             Surface(
                 shape = RoundedCornerShape(8.dp),
@@ -131,19 +228,36 @@ private fun TopCatsTab(result: TopCategoriesResult, modifier: Modifier = Modifie
     }
 }
 
-// ---------- Savings ----------
-
 @Composable
-private fun SavingsTab(savings: SavingsAndAverage, modifier: Modifier = Modifier) {
+private fun SavingsTab(
+    savings: SavingsAndAverage,
+    range: LongRange,
+    isDefault: Boolean,
+    onChipClick: () -> Unit,
+    onReset: () -> Unit,
+) {
     Column(
-        modifier = modifier.padding(16.dp),
+        modifier = Modifier.padding(16.dp).fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(
-            text = stringResource(R.string.stats_savings_header, savings.monthLabel),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.stats_savings_header, savings.monthLabel),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+            )
+            RangeChip(
+                startMs = range.first,
+                endMs = range.last,
+                isDefault = isDefault,
+                onClick = onChipClick,
+            )
+        }
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -173,9 +287,99 @@ private fun SavingsTab(savings: SavingsAndAverage, modifier: Modifier = Modifier
 }
 
 @Composable
+private fun PatternsTab(
+    buckets: List<DayOfWeekBucket>,
+    range: LongRange,
+    isDefault: Boolean,
+    onChipClick: () -> Unit,
+    onReset: () -> Unit,
+) {
+    Column(
+        modifier = Modifier.padding(16.dp).fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.stats_patterns_header),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+            )
+            RangeChip(
+                startMs = range.first,
+                endMs = range.last,
+                isDefault = isDefault,
+                onClick = onChipClick,
+            )
+        }
+        if (buckets.all { it.amountMinor == 0L }) {
+            EmptyRangeState(onReset = onReset)
+        } else {
+            DayOfWeekBars(buckets = buckets)
+        }
+    }
+}
+
+@Composable
+private fun YoyTab(
+    result: YearOverYear,
+    range: LongRange,
+    isDefault: Boolean,
+    onChipClick: () -> Unit,
+    onReset: () -> Unit,
+) {
+    Column(
+        modifier = Modifier.padding(16.dp).fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.stats_yoy_header, result.currentWindowLabel, result.previousWindowLabel),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+            )
+            RangeChip(
+                startMs = range.first,
+                endMs = range.last,
+                isDefault = isDefault,
+                onClick = onChipClick,
+            )
+        }
+        YoyCompareCard(result = result)
+    }
+}
+
+@Composable
+private fun EmptyRangeState(onReset: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.stats_empty_in_range),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        TextButton(onClick = onReset) {
+            Text(stringResource(R.string.stats_empty_reset))
+        }
+    }
+}
+
+@Composable
 private fun StatTile(
     primary: String,
-    primaryColor: Color = MaterialTheme.colorScheme.onSurface,
+    primaryColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface,
     label: String,
     subLabel: String? = null,
     modifier: Modifier = Modifier,
@@ -225,48 +429,4 @@ private fun NetRow(savings: SavingsAndAverage) {
         style = MaterialTheme.typography.titleMedium,
         color = color,
     )
-}
-
-// ---------- Patterns ----------
-
-@Composable
-private fun PatternsTab(buckets: List<DayOfWeekBucket>, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier.padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text(
-            text = stringResource(R.string.stats_patterns_header),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-        if (buckets.all { it.amountMinor == 0L }) {
-            Box(modifier = Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) {
-                Text(
-                    text = stringResource(R.string.stats_no_data),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        } else {
-            DayOfWeekBars(buckets = buckets)
-        }
-    }
-}
-
-// ---------- YoY ----------
-
-@Composable
-private fun YoyTab(result: YearOverYear, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier.padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text(
-            text = stringResource(R.string.stats_yoy_header, result.currentMonthLabel, result.previousMonthLabel),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-        YoyCompareCard(result = result)
-    }
 }
