@@ -147,6 +147,19 @@
     <string name="stats_yoy_new">No spending last year</string>
     <string name="stats_yoy_no_change">No change</string>
 
+    <!-- Statistics screen (Phase 2.13b) — date-range picker -->
+    <string name="stats_range_chip_label">Range</string>
+    <string name="stats_preset_last_7d">Last 7 days</string>
+    <string name="stats_preset_last_30d">Last 30 days</string>
+    <string name="stats_preset_this_month">This month</string>
+    <string name="stats_preset_last_month">Last month</string>
+    <string name="stats_preset_this_year">This year</string>
+    <string name="stats_picker_title">Pick a range</string>
+    <string name="stats_picker_apply">Apply</string>
+    <string name="stats_picker_cancel">Cancel</string>
+    <string name="stats_empty_in_range">No transactions in this range</string>
+    <string name="stats_empty_reset">Reset to this month</string>
+
     <!-- Trends (Phase 2.5) -->
     <string name="trends_tap_hint">Tap a month to see details</string>
     <string name="trends_detail_title">%1$s</string>
