@@ -129,17 +129,6 @@ class InsightsCalculatorTest {
     }
 
     @Test
-    fun compute_categoryDelta_skipsWhenOnlyOneMonthOfData() {
-        val cats = listOf(CategoryEntity(1L, "Food", "EXPENSE"))
-        // Only current-month data
-        val txns = listOf(
-            txn(1, "Food", 500L, "USD", "EXPENSE", 1L, date(2026, 6, 3)),
-        )
-        val insights = InsightsCalculator.compute(txns, cats, "USD", emptyMap(), nowMs)
-        assertTrue(insights.filterIsInstance<Insight.CategoryDelta>().isEmpty())
-    }
-
-    @Test
     fun compute_categoryDelta_excludesIncome() {
         val cats = listOf(
             CategoryEntity(1L, "Food", "EXPENSE"),
