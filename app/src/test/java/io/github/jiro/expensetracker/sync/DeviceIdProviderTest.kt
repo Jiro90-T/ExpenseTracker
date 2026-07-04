@@ -1,8 +1,10 @@
 package io.github.jiro.expensetracker.sync
 
+import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -11,6 +13,15 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33])
 class DeviceIdProviderTest {
+
+    @Before
+    fun clearSyncPrefs() {
+        ApplicationProvider.getApplicationContext<Context>()
+            .getSharedPreferences("sync_prefs", Context.MODE_PRIVATE)
+            .edit()
+            .clear()
+            .commit()
+    }
 
     private fun newProvider(): DefaultDeviceIdProvider =
         DefaultDeviceIdProvider(ApplicationProvider.getApplicationContext())
