@@ -57,10 +57,24 @@ object StatisticsCalculator {
         return startMs to endMs
     }
 
-    internal fun monthLabel(nowMs: Long): String {
-        val date = Instant.ofEpochMilli(nowMs).atZone(ZoneId.systemDefault()).toLocalDate()
-        val month = date.month.name.lowercase().replaceFirstChar { it.uppercase() }
-        return "$month ${date.year}"
+    internal fun rangeLabel(startMs: Long, endMs: Long): String {
+        val zone = ZoneId.systemDefault()
+        val startDate = Instant.ofEpochMilli(startMs).atZone(zone).toLocalDate()
+        // endMs is the exclusive upper bound (half-open interval). Step back one day in
+        // calendar terms to get the inclusive last day of the window.
+        val endDate = Instant.ofEpochMilli(endMs).atZone(zone).toLocalDate().minusDays(1)
+
+        val fmt = java.time.format.DateTimeFormatter.ofPattern("MMM d, yyyy", java.util.Locale.US)
+        val monthFmt = java.time.format.DateTimeFormatter.ofPattern("MMMM yyyy", java.util.Locale.US)
+
+        return when {
+            startDate.year == endDate.year && startDate.month == endDate.month ->
+                startDate.format(monthFmt)
+            startDate.year == endDate.year ->
+                "${startDate.format(java.time.format.DateTimeFormatter.ofPattern("MMM d", java.util.Locale.US))} – ${endDate.format(java.time.format.DateTimeFormatter.ofPattern("MMM d", java.util.Locale.US))}, ${endDate.year}"
+            else ->
+                "${startDate.format(fmt)} – ${endDate.format(fmt)}"
+        }
     }
 
     fun topCategories(
@@ -100,7 +114,7 @@ object StatisticsCalculator {
         val withOther = if (rest.isEmpty()) slices
         else slices + CategorySpend(categoryId = -1L, categoryName = "Other", amountMinor = rest.sumOf { it.value })
 
-        return TopCategoriesResult(monthLabel(nowMs), withOther, missingRateCount)
+        return TopCategoriesResult(rangeLabel(monthStart, monthEnd), withOther, missingRateCount)
     }
 
     fun savingsAndAverage(
@@ -157,7 +171,7 @@ object StatisticsCalculator {
         val averageMonthlyExpenseMinor = if (monthsWithData >= 3) sumPrior / 6L else 0L
 
         return SavingsAndAverage(
-            monthLabel = monthLabel(nowMs),
+            monthLabel = rangeLabel(monthStart, monthEnd),
             incomeMinor = incomeMinor,
             expenseMinor = expenseMinor,
             netMinor = netMinor,
@@ -219,10 +233,8 @@ object StatisticsCalculator {
         val isNewSpending = previousExpenseMinor == 0L && currentExpenseMinor > 0L
 
         return YearOverYear(
-            currentMonthLabel = monthLabel(nowMs),
-            previousMonthLabel = monthLabel(
-                previous.atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-            ),
+            currentMonthLabel = rangeLabel(curStart, curEnd),
+            previousMonthLabel = rangeLabel(prevStart, prevEnd),
             currentExpenseMinor = currentExpenseMinor,
             previousExpenseMinor = previousExpenseMinor,
             percentChange = percentChange,

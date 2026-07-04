@@ -32,18 +32,6 @@ class StatisticsCalculatorTest {
         StatisticsCalculator.monthBounds(2026, 13)
     }
 
-    @Test
-    fun monthLabel_june() {
-        val ms = LocalDate.of(2026, 6, 17).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        assertEquals("June 2026", StatisticsCalculator.monthLabel(ms))
-    }
-
-    @Test
-    fun monthLabel_january() {
-        val ms = LocalDate.of(2026, 1, 1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        assertEquals("January 2026", StatisticsCalculator.monthLabel(ms))
-    }
-
     // ---- helpers ----
 
     private fun date(year: Int, month: Int, day: Int): Long =
@@ -421,5 +409,30 @@ class StatisticsCalculatorTest {
         assertEquals(88_000L, out.previousExpenseMinor)
         // (110000 - 88000) / 88000 = 0.25
         assertEquals(0.25f, out.percentChange, 0.001f)
+    }
+
+    // ---- rangeLabel ----
+
+    @Test
+    fun rangeLabel_sameMonth_returnsMonthYear() {
+        val start = date(2026, 6, 1)
+        val end = date(2026, 7, 1)
+        assertEquals("June 2026", StatisticsCalculator.rangeLabel(start, end))
+    }
+
+    @Test
+    fun rangeLabel_crossMonthSameYear_returnsStartEndYear() {
+        // endMs is exclusive — pass the day after the last calendar day in the window.
+        val start = date(2026, 1, 15)
+        val end = date(2026, 2, 15)
+        // "Jan 15 – Feb 14, 2026"  (en dash U+2013, not hyphen)
+        assertEquals("Jan 15 – Feb 14, 2026", StatisticsCalculator.rangeLabel(start, end))
+    }
+
+    @Test
+    fun rangeLabel_crossYear_returnsFullDates() {
+        val start = date(2025, 12, 28)
+        val end = date(2026, 1, 5)
+        assertEquals("Dec 28, 2025 – Jan 4, 2026", StatisticsCalculator.rangeLabel(start, end))
     }
 }
