@@ -129,9 +129,12 @@ private fun Insight.headlineArgs(): Array<Any> = when (this) {
         (kotlin.math.abs(percentChange) * 100f).roundToInt(),
     )
     is Insight.WeekendVsWeekday -> arrayOf((weekendPercent * 100f).roundToInt())
-    is Insight.SavingsTrend -> arrayOf(
-        (kotlin.math.abs(currentRate - previousRate) * 100f).roundToInt(),
-    )
+    is Insight.SavingsTrend -> when (direction) {
+        Insight.Direction.UP, Insight.Direction.DOWN ->
+            arrayOf((kotlin.math.abs(currentRate - previousRate) * 100f).roundToInt())
+        Insight.Direction.UNCHANGED, Insight.Direction.NEW ->
+            arrayOf((currentRate * 100f).roundToInt())
+    }
     is Insight.TopExpenseSpotlight -> arrayOf(MoneyFormat.formatForDisplay(amountMinor))
 }
 
