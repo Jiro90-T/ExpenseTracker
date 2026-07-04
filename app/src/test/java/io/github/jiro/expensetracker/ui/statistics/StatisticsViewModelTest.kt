@@ -136,14 +136,16 @@ private class FakeRangeRepo : StatisticsRangeRepository {
     private val flows = mutableMapOf<StatisticsTab, MutableStateFlow<LongRange>>()
 
     override fun observe(tab: StatisticsTab): Flow<LongRange> =
-        flows.getOrPut(tab) { MutableStateFlow(defaultFor(tab, System.currentTimeMillis())) }
+        flows.getOrPut(tab) { MutableStateFlow(placeholderRange()) }
             .asStateFlow()
 
     override suspend fun set(tab: StatisticsTab, range: LongRange) {
-        flows.getOrPut(tab) { MutableStateFlow(defaultFor(tab, System.currentTimeMillis())) }.value = range
+        flows.getOrPut(tab) { MutableStateFlow(placeholderRange()) }.value = range
     }
 
-    override fun defaultFor(tab: StatisticsTab, nowMs: Long): LongRange {
+    private fun placeholderRange(): LongRange = 0L..1L
+
+    override suspend fun defaultFor(tab: StatisticsTab, nowMs: Long): LongRange {
         val zone = java.time.ZoneId.systemDefault()
         val date = java.time.Instant.ofEpochMilli(nowMs).atZone(zone).toLocalDate()
         val ym = java.time.YearMonth.of(date.year, date.monthValue)

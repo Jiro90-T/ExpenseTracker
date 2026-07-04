@@ -61,7 +61,7 @@ open class SettingsRepository @Inject constructor(
      * Empty when the user hasn't entered any rates (UI will show a warning).
      */
     private val _fxRates: MutableStateFlow<Map<String, Double>> by lazy { MutableStateFlow(loadFxRates()) }
-    val fxRates: StateFlow<Map<String, Double>> by lazy { _fxRates.asStateFlow() }
+    open val fxRates: StateFlow<Map<String, Double>> by lazy { _fxRates.asStateFlow() }
 
     fun setFxRate(from: String, to: String, rate: Double) {
         if (from.isBlank() || to.isBlank() || rate < 0.0) return

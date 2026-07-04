@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.Flow
 open class CategoryRepository @Inject constructor(
     private val dao: CategoryDao,
 ) {
-    fun observeAll(): Flow<List<CategoryEntity>> = dao.observeAll()
+    open fun observeAll(): Flow<List<CategoryEntity>> = dao.observeAll()
 
     open fun observeByType(type: TransactionType): Flow<List<CategoryEntity>> =
         dao.observeByType(type.name)

@@ -125,6 +125,8 @@ dependencies {
     testImplementation(libs.org.json)
     // Robolectric: Android-context unit tests (DataStore requires an Application).
     testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.androidx.junit)
 
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.junit)
