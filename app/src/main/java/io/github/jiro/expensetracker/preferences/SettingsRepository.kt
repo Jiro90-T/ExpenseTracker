@@ -91,11 +91,29 @@ open class SettingsRepository @Inject constructor(
     private fun loadFxRates(): Map<String, Double> =
         FxConverter.decode(prefs.getString(KEY_FX_RATES, null).orEmpty())
 
+    // ---- Phase 2.14: balance visibility toggle ----
+
+    /**
+     * When true, every balance-bearing surface (dashboard totals, account
+     * list/header, etc.) renders the value as a masked string instead of
+     * the actual amount. Survives app restarts via SharedPreferences.
+     */
+    private val _balanceHidden: MutableStateFlow<Boolean> by lazy {
+        MutableStateFlow(prefs.getBoolean(KEY_BALANCE_HIDDEN, false))
+    }
+    open val balanceHidden: StateFlow<Boolean> by lazy { _balanceHidden.asStateFlow() }
+
+    open fun setBalanceHidden(value: Boolean) {
+        prefs.edit { putBoolean(KEY_BALANCE_HIDDEN, value) }
+        _balanceHidden.value = value
+    }
+
     companion object {
         const val PREFS_NAME = "expense_tracker_settings"
         const val KEY_THEME = "theme"
         const val KEY_HOME_CURRENCY = "home_currency"
         const val KEY_FX_RATES = "fx_rates"
+        const val KEY_BALANCE_HIDDEN = "balance_hidden"
         const val DEFAULT_HOME_CURRENCY = "USD"
     }
 }

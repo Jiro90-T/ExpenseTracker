@@ -10,7 +10,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import io.github.jiro.expensetracker.data.local.MoneyFormat
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -20,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.jiro.expensetracker.R
 import io.github.jiro.expensetracker.ui.charts.PieChartWithLegend
+import io.github.jiro.expensetracker.ui.components.BalanceText
 
 private val IncomeGreen = io.github.jiro.expensetracker.ui.theme.IncomeGreen
 
@@ -85,18 +85,13 @@ private fun StatColumn(
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Text(
-            text = formatCurrency(amountMinor, showSign = showSign),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
+        // BalanceText respects the global hide-balances toggle and renders
+        // MoneyFormat.formatForDisplay (with the +/- prefix handled here).
+        BalanceText(
+            amountMinor = amountMinor,
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
             color = color,
+            showSign = showSign,
         )
     }
-}
-
-// `showSign` adds a leading "+" for positives. MoneyFormat already handles
-// the "-" for negatives, so we never re-add it — that would yield "--X.XX".
-private fun formatCurrency(amountMinor: Long, showSign: Boolean = false): String {
-    val sign = if (showSign && amountMinor > 0) "+" else ""
-    return sign + MoneyFormat.formatForDisplay(amountMinor)
 }

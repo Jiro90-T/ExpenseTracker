@@ -21,6 +21,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -44,7 +46,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.jiro.expensetracker.R
-import io.github.jiro.expensetracker.data.local.MoneyFormat
 import io.github.jiro.expensetracker.data.repository.AccountWithBalance
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,6 +57,8 @@ fun AccountsListScreen(
     viewModel: AccountsListViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val balanceHidden = io.github.jiro.expensetracker.ui.components.rememberBalanceHidden()
+    val toggleBalance = io.github.jiro.expensetracker.ui.components.rememberBalanceHiddenToggler()
 
     Scaffold(
         topBar = {
@@ -66,6 +69,18 @@ fun AccountsListScreen(
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.action_back),
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = toggleBalance) {
+                        Icon(
+                            imageVector = if (balanceHidden) Icons.Filled.Visibility
+                            else Icons.Filled.VisibilityOff,
+                            contentDescription = stringResource(
+                                if (balanceHidden) R.string.action_show_balances
+                                else R.string.action_hide_balances
+                            ),
                         )
                     }
                 },
@@ -137,10 +152,9 @@ private fun HeaderCard(netBalanceInHome: String, count: Int) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(4.dp))
-        Text(
-            text = netBalanceInHome,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
+        io.github.jiro.expensetracker.ui.components.BalanceText(
+            preFormatted = netBalanceInHome,
+            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
             color = MaterialTheme.colorScheme.primary,
         )
         Text(
@@ -179,14 +193,13 @@ private fun AccountTile(
         )
         Spacer(Modifier.height(4.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = if (isNegative) {
-                    "−${MoneyFormat.formatForDisplay(-balance)} ${account.currencyCode}"
-                } else {
-                    "${MoneyFormat.formatForDisplay(balance)} ${account.currencyCode}"
-                },
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
+            // The AccountTile stores balance as a (possibly negative) Long.
+            // BalanceText consumes the raw minor value and handles sign +
+            // thousands grouping + currency-code suffix internally.
+            io.github.jiro.expensetracker.ui.components.BalanceText(
+                amountMinor = balance,
+                currencyCode = account.currencyCode,
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                 color = if (isNegative) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
             )
             if (archived) {

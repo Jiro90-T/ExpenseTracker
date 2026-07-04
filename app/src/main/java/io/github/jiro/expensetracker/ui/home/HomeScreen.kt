@@ -15,6 +15,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -61,6 +63,8 @@ fun HomeScreen(
     val period by viewModel.period.collectAsStateWithLifecycle()
     val undoState by viewModel.undo.collectAsStateWithLifecycle()
     val budgetAlerts by viewModel.budgetAlerts.collectAsStateWithLifecycle()
+    val balanceHidden = io.github.jiro.expensetracker.ui.components.rememberBalanceHidden()
+    val toggleBalance = io.github.jiro.expensetracker.ui.components.rememberBalanceHiddenToggler()
     val snackbarHostState = remember { SnackbarHostState() }
     val undoLabel = stringResource(R.string.action_undo)
     val deletedLabel = stringResource(R.string.snackbar_transaction_deleted)
@@ -83,6 +87,16 @@ fun HomeScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.home_title)) },
                 actions = {
+                    IconButton(onClick = toggleBalance) {
+                        Icon(
+                            imageVector = if (balanceHidden) Icons.Filled.Visibility
+                            else Icons.Filled.VisibilityOff,
+                            contentDescription = stringResource(
+                                if (balanceHidden) R.string.action_show_balances
+                                else R.string.action_hide_balances
+                            ),
+                        )
+                    }
                     IconButton(onClick = onSeeAllTransactions) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.List,

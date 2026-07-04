@@ -308,6 +308,11 @@
     <string name="filter_section_expand_cd">Show more filters</string>
     <string name="filter_section_collapse_cd">Hide filters</string>
 
+    <!-- Balance visibility (Phase 2.14) -->
+    <string name="action_show_balances">Show balances</string>
+    <string name="action_hide_balances">Hide balances</string>
+    <string name="balance_masked">••••</string>
+
     <!-- Accounts (Phase 2.16) -->
     <string name="accounts_title">Accounts</string>
     <string name="action_manage_accounts">Manage accounts</string>
