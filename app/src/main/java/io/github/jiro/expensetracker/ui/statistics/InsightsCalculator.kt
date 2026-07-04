@@ -85,6 +85,7 @@ object InsightsCalculator {
             val cur = currentByCat[id] ?: 0L
             val prev = priorByCat[id] ?: 0L
             if (cur == 0L && prev == 0L) return@mapNotNull null
+            if (cur == prev) return@mapNotNull null  // no change between months — no signal
             Scored(id, cur, prev)
         }
         if (scored.isEmpty()) return null
