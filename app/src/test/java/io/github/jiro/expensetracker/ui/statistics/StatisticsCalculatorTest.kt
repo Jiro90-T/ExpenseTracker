@@ -435,4 +435,32 @@ class StatisticsCalculatorTest {
         val end = date(2026, 1, 5)
         assertEquals("Dec 28, 2025 – Jan 4, 2026", StatisticsCalculator.rangeLabel(start, end))
     }
+
+    // ---- subtractOneYear ----
+
+    @Test
+    fun subtractOneYear_january_returnsJanuaryPrior() {
+        val ms = date(2026, 1, 15)
+        assertEquals(date(2025, 1, 15), StatisticsCalculator.subtractOneYear(ms))
+    }
+
+    @Test
+    fun subtractOneYear_leapDay_clampToFeb28() {
+        // Feb 29, 2024 -> Feb 28, 2023 (2023 is non-leap; clamp to last valid day).
+        val ms = date(2024, 2, 29)
+        assertEquals(date(2023, 2, 28), StatisticsCalculator.subtractOneYear(ms))
+    }
+
+    @Test
+    fun subtractOneYear_nonLeapDay_returnsSameDayPrior() {
+        val ms = date(2025, 6, 17)
+        assertEquals(date(2024, 6, 17), StatisticsCalculator.subtractOneYear(ms))
+    }
+
+    @Test
+    fun subtractOneYear_yearBoundary_dec31ToDec31() {
+        // Dec 31, 2026 → Dec 31, 2025 (both non-leap). Year-rolls-back.
+        val ms = date(2026, 12, 31)
+        assertEquals(date(2025, 12, 31), StatisticsCalculator.subtractOneYear(ms))
+    }
 }

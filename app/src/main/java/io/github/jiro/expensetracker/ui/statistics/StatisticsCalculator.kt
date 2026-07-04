@@ -77,6 +77,21 @@ object StatisticsCalculator {
         }
     }
 
+    internal fun subtractOneYear(ms: Long): Long {
+        val zone = ZoneId.systemDefault()
+        val date = Instant.ofEpochMilli(ms).atZone(zone).toLocalDate()
+        val candidate = date.minusYears(1)
+        // Clamp Feb 29 to Feb 28 when the prior year is non-leap.
+        val adjusted = if (candidate.monthValue == 2 && candidate.dayOfMonth == 29 &&
+            !java.time.Year.isLeap(candidate.year.toLong())
+        ) {
+            candidate.withDayOfMonth(28)
+        } else {
+            candidate
+        }
+        return adjusted.atStartOfDay(zone).toInstant().toEpochMilli()
+    }
+
     fun topCategories(
         txns: List<TransactionWithCategory>,
         cats: List<CategoryEntity>,
