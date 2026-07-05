@@ -154,6 +154,52 @@ class DropboxApiClientTest {
         }
     }
 
+    @Test
+    fun upload_throwsConflict_on409_withServerRev() = runBlocking {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(409)
+                .setBody(
+                    """{"error_summary": "path/conflict/file/...", "error": {".tag": "path", "path": {".tag": "conflict", "conflict": {".tag": "file"}}, "path_conflict": {"rev": "server-rev-abc"}}}""",
+                ),
+        )
+        try {
+            client.upload(existingRev = "client-rev-xyz", body = "{}")
+            fail("Expected Conflict")
+        } catch (e: DropboxApiException.Conflict) {
+            assertEquals("server-rev-abc", e.serverRev)
+        }
+
+        val req = server.takeRequest()
+        val arg = req.getHeader("Dropbox-API-Arg")
+        assertTrue(arg!!.contains("\"update\":\"client-rev-xyz\""))
+        assertTrue(arg.contains("\"/ExpenseTracker-sync.json\""))
+    }
+
+    @Test
+    fun getRev_returnsCurrentRev_onSuccess() = runBlocking {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setBody("""{"rev": "current-rev-123"}"""),
+        )
+        assertEquals("current-rev-123", client.getRev())
+
+        val req = server.takeRequest()
+        assertEquals("POST", req.method)
+        assertEquals("/2/files/get_metadata", req.path)
+        val arg = req.getHeader("Dropbox-API-Arg")
+        assertNotNull(arg)
+        assertTrue(arg!!.contains("\"/ExpenseTracker-sync.json\""))
+        assertEquals("Bearer test-access", req.getHeader("Authorization"))
+    }
+
+    @Test
+    fun getRev_returnsNull_on404() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(404))
+        assertNull(client.getRev())
+    }
+
     private companion object {
         val FIXED_TOKENS = DropboxSyncTokens(
             accessToken = "test-access",

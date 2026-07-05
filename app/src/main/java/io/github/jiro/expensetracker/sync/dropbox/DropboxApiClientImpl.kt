@@ -86,7 +86,7 @@ internal class DropboxApiClientImpl @Inject constructor(
                 200 -> resp.body?.string()
                 401, 403 -> throw DropboxApiException.AuthRevoked()
                 404 -> null
-                409 -> null // path/not_found/ — treat same as 404
+                409 -> handleConflict409(resp)
                 429 -> throw DropboxApiException.RateLimited()
                 in 500..599 -> throw DropboxApiException.ServerError()
                 else -> throw DropboxApiException.Generic("HTTP ${resp.code}: ${resp.body?.string()}")
@@ -143,5 +143,43 @@ internal class DropboxApiClientImpl @Inject constructor(
             ?.takeIf { it.isNotEmpty() }
     } catch (e: Exception) {
         null
+    }
+
+    /**
+     * Resolve a 409 from [download]. Dropbox returns 409 for both
+     * `path/not_found/` (treat as missing file → null) and
+     * `path/conflict/...` (real conflict → throw with the server's rev).
+     * The response body is consumed here exactly once; callers must not
+     * read `resp.body` again after invoking this.
+     */
+    private fun handleConflict409(resp: okhttp3.Response): String? {
+        val bodyText = try {
+            resp.body?.string() ?: ""
+        } catch (e: Exception) {
+            return null
+        }
+        val pathTag = try {
+            JSONObject(bodyText)
+                .optJSONObject("error")
+                ?.optJSONObject("path")
+                ?.optString(".tag")
+                ?: ""
+        } catch (e: Exception) {
+            ""
+        }
+        return if (pathTag == "not_found") {
+            null
+        } else {
+            val serverRev = try {
+                JSONObject(bodyText)
+                    .optJSONObject("error")
+                    ?.optJSONObject("path_conflict")
+                    ?.optString("rev")
+                    ?.takeIf { it.isNotEmpty() }
+            } catch (e: Exception) {
+                null
+            }
+            throw DropboxApiException.Conflict(serverRev = serverRev)
+        }
     }
 }
