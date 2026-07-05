@@ -293,14 +293,14 @@ The bus is `@Singleton`, so Hilt auto-injects.
 `pull()` (4a added the sealed arm; nothing currently populates it). 4d
 makes it actually reachable:
 
-1. `syncOnce()` pulls, then calls `pull().decide(localSnapshot, onConflictResult)`
-   helper:
-   - `PullResult.Success` → apply body via `BackupManager.applyBackupBodyToDb`, return `SyncResult.Pulled`.
+1. `syncOnce()` pulls, then handles each PullResult arm:
+   - `PullResult.Success(snapshot)` → apply body via `BackupManager.applyBackupBodyToDb(snapshot.body)`, return `SyncResult.Pulled(snapshot, ...)`.
    - `PullResult.NoRemoteSnapshot` → push local snapshot, return `SyncResult.Pushed` or `SyncResult.Failed`.
    - `PullResult.Failed` → return `SyncResult.Failed`.
    - `PullResult.Conflict(remote, local)` → return
-     `SyncResult.ConflictPending(remote, local)` (new variant). VM sets
-     `_conflictPending = true` and surfaces a banner. No auto-merge.
+     `SyncResult.ConflictPending(remote, local)` (new variant). The VM
+     sets `_conflictPending = true` and surfaces a banner. No
+     auto-merge.
 
 2. From `syncOnce()`'s new `ConflictPending` return, the Settings VM
    flips the banner flag. The banner stays sticky until the user
@@ -310,14 +310,9 @@ makes it actually reachable:
    - Two cards: "This device — modified at HH:mm" / "Cloud — modified at HH:mm".
    - Each card summarizes: tx count, account count, last-tx date.
    - Two action buttons:
-     - **Use cloud** → call `BackupManager.applyBackupBodyToDb(remote.body)`, then `repo.push(local)` to mark this device's claim (no — see below).
-     - **Use this device** → call `repo.push(local)` (overwrites remote with local snapshot; DropBox / Drive both have `update` semantics in 4b/4c).
+     - **Use cloud** → `BackupManager.applyBackupBodyToDb(remote.body)`. The local DB now matches the cloud snapshot. The conflict is cleared (`_conflictPending = false`); the next push will write whatever the user has changed locally since, applying normal LWW.
+     - **Use this device** → `repo.push(local)` (overwrites remote with local snapshot; both Dropbox / Drive providers have `update`-mode semantics in 4b/4c). The conflict is cleared.
    - Banner clears on either action; screen pops back to Settings.
-
-4. The "Use cloud" path simplifies to **apply remote body, then drop
-   push** — keeping the LWW clause for the next push. The conflict is
-   cleared because we now match cloud. The Settings VM's
-   `_conflictPending` flips to `false` after either action.
 
 `SyncResult` gains one new variant:
 
@@ -334,8 +329,10 @@ sealed class SyncResult {
 }
 ```
 
-`RoutingCloudSyncRepository.syncOnce()` maps both repo `Conflict`s to
-`ConflictPending` here, so the per-repo orchestrators are untouched.
+`RoutingCloudSyncRepository.syncOnce()` passes `ConflictPending`
+through unchanged, applying the snapshot's body to local DB only when
+the result is `Pulled`. The per-repo `syncOnce()` maps are updated to
+emit `ConflictPending` directly (see "Modified files" below).
 
 ## Sync triggers — concrete wiring
 
@@ -496,7 +493,9 @@ ignores the `receiptPath` column and writes only the row data. A future
 
 ### Modified files (production)
 
-- `app/src/main/java/io/github/jiro/expensetracker/sync/CloudSyncRepository.kt` — add `SyncResult.ConflictPending(remote, local)` (sealed arm addition; **non-breaking** because callers `when`-exhaustive).
+- `app/src/main/java/io/github/jiro/expensetracker/sync/CloudSyncRepository.kt` — add `SyncResult.ConflictPending(remote, local)` sealed arm. The two existing per-repo orchestrators' `syncOnce()` (which currently map `PullResult.Conflict` → `SyncResult.Failed("Conflict on remote", null)`) are updated in the same change to map `Conflict` → `ConflictPending(remote, local)`. This is a **required** source update, not a behaviour-preserving sealed-arm addition — the variant is needed because `Failed`'s message-only signature loses the snapshot data the router needs to surface the conflict.
+- `app/src/main/java/io/github/jiro/expensetracker/sync/dropbox/DropboxCloudSyncRepository.kt` — `syncOnce()` maps `PullResult.Conflict(remote, local)` → `SyncResult.ConflictPending(remote, local)` instead of `SyncResult.Failed`. One-line change.
+- `app/src/main/java/io/github/jiro/expensetracker/sync/google/GoogleDriveCloudSyncRepository.kt` — same one-line change.
 - `app/src/main/java/io/github/jiro/expensetracker/sync/dropbox/DropboxApiClientImpl.kt` — replace `tokensProvider: () -> DropboxSyncTokens?` with `tokens: DropboxSyncTokensRepository`. Drop the `requireToken()` helper; inline `tokens.load()?.accessToken ?: throw AuthRevoked()` at each call site.
 - `app/src/main/java/io/github/jiro/expensetracker/sync/google/DriveApiClientImpl.kt` — same refactor.
 - `app/src/main/java/io/github/jiro/expensetracker/di/SyncModule.kt` — change `@Binds bindCloudSyncRepository(impl: DropboxCloudSyncRepository)` to `RoutingCloudSyncRepository`.
@@ -518,9 +517,8 @@ ignores the `receiptPath` column and writes only the row data. A future
 
 - `app/src/test/java/io/github/jiro/expensetracker/sync/dropbox/DropboxApiClientImplTest.kt` (if exists in 4c) — replace lambda arg with `FakeDropboxSyncTokensRepository`.
 - `app/src/test/java/io/github/jiro/expensetracker/sync/google/DriveApiClientImplTest.kt` (if exists in 4b) — same on Drive side.
-- Existing orchestrator tests (`DropboxCloudSyncRepositoryTest`,
-  `GoogleDriveCloudSyncRepositoryTest`) — unchanged; tests already
-  construct the impl manually.
+- `app/src/test/java/io/github/jiro/expensetracker/sync/dropbox/DropboxCloudSyncRepositoryTest.kt` — add one test: `syncOnce_returnsConflictPending_onPullConflict` (replaces the historical `Failed("Conflict on remote")` expectation).
+- `app/src/test/java/io/github/jiro/expensetracker/sync/google/GoogleDriveCloudSyncRepositoryTest.kt` — same addition.
 
 ## New strings
 
