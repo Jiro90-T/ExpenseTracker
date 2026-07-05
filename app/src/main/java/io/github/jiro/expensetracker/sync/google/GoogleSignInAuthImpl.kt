@@ -41,7 +41,9 @@ internal class GoogleSignInAuthImpl @Inject constructor(
             val task = GoogleSignIn.getSignedInAccountFromIntent(data)
             try {
                 task.await().toSnapshot()
-            } catch (e: Exception) {
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: com.google.android.gms.common.api.ApiException) {
                 null
             }
         }
