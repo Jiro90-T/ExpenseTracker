@@ -36,6 +36,12 @@ android {
             "DROPBOX_CLIENT_ID",
             "\"${localProps.getProperty("dropbox.client.id", "")}\"",
         )
+
+        // AppAuth-Android's manifest declares <data android:scheme="${appAuthRedirectScheme}"/>.
+        // The real OAuth deep-link (and redirect activity registration) lands in Task 7
+        // (manifest deep-link + Hilt wiring). For now we provide a placeholder so unit
+        // tests can compile before the redirect activity exists.
+        manifestPlaceholders["appAuthRedirectScheme"] = "io.github.jiro.expensetracker.dropbox.redirect"
     }
 
     signingConfigs {
