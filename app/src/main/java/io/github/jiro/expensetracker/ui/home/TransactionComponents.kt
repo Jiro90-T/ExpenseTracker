@@ -1,15 +1,21 @@
 package io.github.jiro.expensetracker.ui.home
 
 import android.text.format.DateUtils
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -24,21 +30,27 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import io.github.jiro.expensetracker.R
 import io.github.jiro.expensetracker.data.local.TransactionWithCategory
@@ -50,6 +62,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 /** A single row in a transaction list. Tap to edit (caller wires the click). */
 @Composable
@@ -232,8 +245,16 @@ internal fun CategoryIconBadge(name: String, size: Int) {
     }
 }
 
-/** Wraps a [TransactionRow] in a Material 3 SwipeToDismissBox (delete on end→start swipe). */
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Wraps a [TransactionRow] in a custom swipe-to-reveal layout. Dragging
+ * right→left exposes an `errorContainer` Delete button on the trailing
+ * edge; the row settles revealed once the drag clears a 50% threshold
+ * and snaps back otherwise. The deletion is committed only when the
+ * user taps the Delete button — never by the swipe gesture alone —
+ * keeping the post-delete undo Snackbar in the caller's hands.
+ *
+ * Tap on the row while revealed collapses the reveal without editing.
+ */
 @Composable
 internal fun SwipeableTransactionRow(
     row: TransactionWithCategory,
@@ -241,42 +262,105 @@ internal fun SwipeableTransactionRow(
     onDelete: () -> Unit,
     searchQuery: String? = null,
 ) {
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { value ->
-            if (value == SwipeToDismissBoxValue.EndToStart) {
-                onDelete()
-                true
-            } else {
-                false
-            }
-        },
-    )
-    SwipeToDismissBox(
-        state = dismissState,
-        enableDismissFromStartToEnd = false,
-        enableDismissFromEndToStart = true,
-        backgroundContent = { DeleteBackground(dismissState.dismissDirection) },
-    ) {
-        TransactionRow(row = row, onClick = onEdit, searchQuery = searchQuery)
-    }
-}
+    val density = LocalDensity.current
+    val actionWidth = 88.dp
+    val actionWidthPx = with(density) { actionWidth.toPx() }
+    val offsetX = remember { Animatable(0f) }
+    var revealed by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-internal fun DeleteBackground(direction: SwipeToDismissBoxValue) {
-    val color = MaterialTheme.colorScheme.errorContainer
+    // Collapse when the row identity changes (after delete + list
+    // re-key, or on scroll-recycle).
+    LaunchedEffect(row.transaction.id) {
+        if (offsetX.value != 0f) offsetX.animateTo(0f)
+        revealed = false
+    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(color)
-            .padding(horizontal = 24.dp),
-        contentAlignment = Alignment.CenterEnd,
+            .height(IntrinsicSize.Min),
     ) {
-        if (direction == SwipeToDismissBoxValue.EndToStart) {
-            Icon(
-                imageVector = Icons.Filled.Delete,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onErrorContainer,
+        // Reveal background: errorContainer panel with a Delete icon
+        // button. fillMaxSize fills the Box once the IntrinsicSize pass
+        // resolves the row height.
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.errorContainer),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(
+                onClick = {
+                    // Snap the row back so the row disappears smoothly;
+                    // the caller's onDelete schedules the actual removal
+                    // (and the undo Snackbar).
+                    scope.launch { offsetX.animateTo(0f) }
+                    revealed = false
+                    onDelete()
+                },
+                modifier = Modifier.size(actionWidth),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    contentDescription = stringResource(R.string.action_delete),
+                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            }
+        }
+
+        // Foreground: the row, draggable horizontally. Right→left
+        // (negative dragAmount) reveals the action; left→right is
+        // ignored so the row content never goes off the left edge.
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .offset { IntOffset(offsetX.value.toInt(), 0) }
+                .pointerInput(row.transaction.id) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            scope.launch {
+                                val target =
+                                    if (offsetX.value <= -actionWidthPx / 2f) {
+                                        -actionWidthPx
+                                    } else {
+                                        0f
+                                    }
+                                offsetX.animateTo(target)
+                                revealed = target != 0f
+                            }
+                        },
+                        onDragCancel = {
+                            scope.launch {
+                                offsetX.animateTo(0f)
+                                revealed = false
+                            }
+                        },
+                    ) { _, dragAmount ->
+                        if (dragAmount < 0f) {
+                            scope.launch {
+                                offsetX.snapTo(
+                                    (offsetX.value + dragAmount)
+                                        .coerceIn(-actionWidthPx, 0f),
+                                )
+                            }
+                        }
+                    }
+                },
+            color = MaterialTheme.colorScheme.surface,
+        ) {
+            TransactionRow(
+                row = row,
+                onClick = {
+                    if (revealed) {
+                        scope.launch { offsetX.animateTo(0f) }
+                        revealed = false
+                    } else {
+                        onEdit()
+                    }
+                },
+                searchQuery = searchQuery,
             )
         }
     }
