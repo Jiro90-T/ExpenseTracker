@@ -2,6 +2,7 @@ package io.github.jiro.expensetracker.preferences
 
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import io.github.jiro.expensetracker.sync.SyncProviderId
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -53,5 +54,26 @@ class SettingsRepositoryTest {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val other = SettingsRepository(context)
         assertTrue(other.balanceHidden.first())
+    }
+
+    // ---- Phase 4d: cloud-sync provider selection ----
+
+    @Test
+    fun syncProvider_isDropbox_byDefault() = runTest {
+        assertEquals(SyncProviderId.DROPBOX, repo.syncProvider.first())
+    }
+
+    @Test
+    fun setSyncProvider_persistsAndUpdatesFlow() = runTest {
+        repo.setSyncProvider(SyncProviderId.GOOGLE_DRIVE)
+        assertEquals(SyncProviderId.GOOGLE_DRIVE, repo.syncProvider.first())
+    }
+
+    @Test
+    fun settings_constructedTwice_sharePrefsKey_returnsSameProvider() = runTest {
+        repo.setSyncProvider(SyncProviderId.GOOGLE_DRIVE)
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val second = SettingsRepository(context)
+        assertEquals(SyncProviderId.GOOGLE_DRIVE, second.syncProvider.first())
     }
 }

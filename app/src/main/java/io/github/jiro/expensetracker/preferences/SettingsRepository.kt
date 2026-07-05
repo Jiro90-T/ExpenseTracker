@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.core.content.edit
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.jiro.expensetracker.domain.FxConverter
+import io.github.jiro.expensetracker.sync.SyncProviderId
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -108,12 +109,36 @@ open class SettingsRepository @Inject constructor(
         _balanceHidden.value = value
     }
 
+    // ---- Phase 4d: cloud-sync provider selection ----
+
+    /**
+     * The cloud-sync provider the user has selected. Persists across launches
+     * via SharedPreferences and is observed by
+     * [io.github.jiro.expensetracker.sync.RoutingCloudSyncRepository] to switch
+     * between Dropbox and Google Drive on the fly. Defaults to
+     * [SyncProviderId.DROPBOX] (4c is the older provider; users who set up
+     * Drive explicitly still get Drive).
+     */
+    private val _syncProvider: MutableStateFlow<SyncProviderId> by lazy {
+        MutableStateFlow(loadSyncProvider())
+    }
+    open val syncProvider: StateFlow<SyncProviderId> by lazy { _syncProvider.asStateFlow() }
+
+    open fun setSyncProvider(value: SyncProviderId) {
+        prefs.edit { putString(KEY_SYNC_PROVIDER, value.displayKey) }
+        _syncProvider.value = value
+    }
+
+    private fun loadSyncProvider(): SyncProviderId =
+        SyncProviderId.fromKey(prefs.getString(KEY_SYNC_PROVIDER, null))
+
     companion object {
         const val PREFS_NAME = "expense_tracker_settings"
         const val KEY_THEME = "theme"
         const val KEY_HOME_CURRENCY = "home_currency"
         const val KEY_FX_RATES = "fx_rates"
         const val KEY_BALANCE_HIDDEN = "balance_hidden"
+        const val KEY_SYNC_PROVIDER = "sync_provider"
         const val DEFAULT_HOME_CURRENCY = "USD"
     }
 }
