@@ -121,6 +121,7 @@ dependencies {
     implementation(libs.androidx.room.ktx)
 
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.play.services)
 
     implementation(libs.androidx.exifinterface)
     implementation(libs.mlkit.text.recognition)
