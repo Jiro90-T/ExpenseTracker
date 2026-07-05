@@ -14,7 +14,6 @@ import io.github.jiro.expensetracker.sync.dropbox.DropboxSyncTokensRepository
 import io.github.jiro.expensetracker.sync.dropbox.KeystoreTokenCrypto
 import io.github.jiro.expensetracker.sync.dropbox.TokenCrypto
 import javax.inject.Singleton
-import okhttp3.OkHttpClient
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -35,10 +34,6 @@ internal abstract class DropboxModule {
     ): DropboxSyncTokensRepository
 
     companion object {
-        @Provides
-        @Singleton
-        fun provideOkHttpClient(): OkHttpClient = OkHttpClient.Builder().build()
-
         @Provides
         @Singleton
         fun provideTokenCrypto(): TokenCrypto = KeystoreTokenCrypto()

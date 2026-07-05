@@ -43,10 +43,6 @@ internal abstract class GoogleDriveModule {
     companion object {
         @Provides
         @Singleton
-        fun provideOkHttpClient(): OkHttpClient = OkHttpClient.Builder().build()
-
-        @Provides
-        @Singleton
         fun provideTokenCrypto(): TokenCrypto = KeystoreTokenCrypto()
 
         @Provides
