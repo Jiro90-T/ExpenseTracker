@@ -5,16 +5,20 @@ import android.content.Intent
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.jiro.expensetracker.BuildConfig
 import io.github.jiro.expensetracker.sync.CloudSyncRepository
+import io.github.jiro.expensetracker.sync.Operation
 import io.github.jiro.expensetracker.sync.PullResult
 import io.github.jiro.expensetracker.sync.PushResult
 import io.github.jiro.expensetracker.sync.SignInResult
+import io.github.jiro.expensetracker.sync.SyncErrorCode
 import io.github.jiro.expensetracker.sync.SyncResult
 import io.github.jiro.expensetracker.sync.SyncSnapshot
 import io.github.jiro.expensetracker.sync.SyncSnapshotCodec
 import io.github.jiro.expensetracker.sync.SyncState
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -38,8 +42,8 @@ internal class GoogleDriveCloudSyncRepository @Inject constructor(
     private val nowProvider: () -> Long = { System.currentTimeMillis() },
 ) : CloudSyncRepository {
 
-    private val scope = kotlinx.coroutines.CoroutineScope(
-        kotlinx.coroutines.SupervisorJob() + Dispatchers.Unconfined,
+    private val scope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Unconfined,
     )
     private val _state = MutableStateFlow<SyncState>(SyncState.SignedOut)
     private val _lastSyncedAtEpochMillis = MutableStateFlow<Long?>(null)
@@ -59,10 +63,9 @@ internal class GoogleDriveCloudSyncRepository @Inject constructor(
             _state.value = SyncState.SignedIn(PROVIDER_ID)
             return@withContext SignInResult.Success
         }
-        // Try silent re-auth via Play Services
-        val account = googleAuth.getLastSignedInAccount()
-            ?: return@withContext SignInResult.Failed("Not signed in")
-        return@withContext refreshTokens(account)
+        // Caller launches signInIntent when this returns Failed. Silent re-auth
+        // isn't wired in 4b; a future refresh flow can replace this branch.
+        SignInResult.Failed("Not signed in")
     }
 
     override suspend fun handleSignInResult(data: Intent?): SignInResult = withContext(Dispatchers.IO) {
@@ -83,16 +86,11 @@ internal class GoogleDriveCloudSyncRepository @Inject constructor(
             )
             _state.value = SyncState.SignedIn(PROVIDER_ID)
             SignInResult.Success
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             SignInResult.Failed("Token exchange failed: ${e.message}", e)
         }
-    }
-
-    private suspend fun refreshTokens(account: GoogleAccountSnapshot): SignInResult {
-        // For 4b, we don't yet implement actual refresh — if cached token is
-        // expired, prompt re-auth via signInIntent. 4c may add refresh.
-        _state.value = SyncState.SignedOut
-        return SignInResult.Failed("Session expired — please sign in again")
     }
 
     override suspend fun signOut() = withContext(Dispatchers.IO) {
@@ -105,18 +103,25 @@ internal class GoogleDriveCloudSyncRepository @Inject constructor(
         if (current !is SyncState.SignedIn) {
             return@withLock PushResult.Failed("Not signed in", null)
         }
-        _state.value = SyncState.Syncing(io.github.jiro.expensetracker.sync.Operation.PUSH)
+        _state.value = SyncState.Syncing(Operation.PUSH)
         try {
             val body = SyncSnapshotCodec.encode(snapshot)
             val cached = tokens.load()
             val existingId = cached?.snapshotFileId
             val newId = api.upload(existingId, body, MIME_TYPE)
-            if (existingId == null && cached != null) {
-                tokens.save(cached.copy(snapshotFileId = newId))
+            if (existingId == null) {
+                // SignedIn state implies tokens exist (saved by handleSignInResult);
+                // reload to be safe against signOut races rather than trust the cached ref.
+                val current2 = tokens.load()
+                if (current2 != null) {
+                    tokens.save(current2.copy(snapshotFileId = newId))
+                }
             }
             _state.value = SyncState.SignedIn(PROVIDER_ID)
             _lastSyncedAtEpochMillis.value = snapshot.lastModifiedEpochMillis
             PushResult.Pushed(pushedAtEpochMillis = snapshot.lastModifiedEpochMillis)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: DriveApiException.AuthRevoked) {
             tokens.clear()
             _state.value = SyncState.SignedOut
@@ -134,7 +139,7 @@ internal class GoogleDriveCloudSyncRepository @Inject constructor(
         if (fileId == null) {
             return@withLock PullResult.NoRemoteSnapshot
         }
-        _state.value = SyncState.Syncing(io.github.jiro.expensetracker.sync.Operation.PULL)
+        _state.value = SyncState.Syncing(Operation.PULL)
         try {
             val body = api.download(fileId)
                 ?: return@withLock PullResult.NoRemoteSnapshot.also { _state.value = SyncState.SignedIn(PROVIDER_ID) }
@@ -142,6 +147,8 @@ internal class GoogleDriveCloudSyncRepository @Inject constructor(
             _state.value = SyncState.SignedIn(PROVIDER_ID)
             _lastSyncedAtEpochMillis.value = snapshot.lastModifiedEpochMillis
             PullResult.Success(snapshot, pulledAtEpochMillis = nowProvider())
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: DriveApiException.NotFound) {
             _state.value = SyncState.SignedIn(PROVIDER_ID)
             PullResult.NoRemoteSnapshot
@@ -155,11 +162,11 @@ internal class GoogleDriveCloudSyncRepository @Inject constructor(
         } catch (e: io.github.jiro.expensetracker.sync.SyncException) {
             _state.value = SyncState.SignedIn(PROVIDER_ID)
             PullResult.Failed(when (e.code) {
-                io.github.jiro.expensetracker.sync.SyncErrorCode.CHECKSUM_MISMATCH ->
+                SyncErrorCode.CHECKSUM_MISMATCH ->
                     "Remote snapshot failed integrity check"
-                io.github.jiro.expensetracker.sync.SyncErrorCode.SCHEMA_INCOMPATIBLE ->
+                SyncErrorCode.SCHEMA_INCOMPATIBLE ->
                     "Remote snapshot was written by a newer app version"
-                io.github.jiro.expensetracker.sync.SyncErrorCode.MALFORMED ->
+                SyncErrorCode.MALFORMED ->
                     "Remote snapshot is corrupted"
             }, e)
         } catch (e: Exception) {
