@@ -80,8 +80,8 @@ intent-filter on MainActivity).
 
 ```kotlin
 internal interface DropboxAuth {
-    /** Build a CustomTabs-backed OAuth Intent. Caller launches it. */
-    suspend fun buildAuthIntent(): Intent
+    /** Build a CustomTabs-backed OAuth Intent. Caller launches it. Sync — no I/O. */
+    fun buildAuthIntent(): Intent
 
     /** Parse the OAuth redirect Intent returned by the launcher. */
     suspend fun handleAuthResult(data: Intent?): DropboxAccountSnapshot?
@@ -113,7 +113,7 @@ internal class AppAuthDropboxAuth @Inject constructor(
         AuthorizationService(context)
     }
 
-    override suspend fun buildAuthIntent(): Intent = withContext(Dispatchers.IO) {
+    override fun buildAuthIntent(): Intent {
         val request = AuthorizationRequest.Builder(
             AuthorizationConfiguration(
                 AuthorizationEndpoint(TOKEN_ENDPOINT_URI),  // see below
@@ -127,7 +127,7 @@ internal class AppAuthDropboxAuth @Inject constructor(
         )
             .setScope("account_info.read files.content.read files.content.write")
             .build()
-        authService.getAuthorizationRequestIntent(request)
+        return authService.getAuthorizationRequestIntent(request)
     }
 
     override suspend fun handleAuthResult(data: Intent?): DropboxAccountSnapshot? =
@@ -340,7 +340,7 @@ internal class DropboxCloudSyncRepository @Inject constructor(
         .map { it is SyncState.SignedIn }
         .stateIn(scope, SharingStarted.Eagerly, false)
 
-    override val signInIntent: Intent by lazy { runBlocking { dropboxAuth.buildAuthIntent() } }
+    override val signInIntent: Intent = dropboxAuth.buildAuthIntent()
 
     override suspend fun signIn(): SignInResult = withContext(Dispatchers.IO) {
         val cached = tokens.load()
