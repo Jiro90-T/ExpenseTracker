@@ -5,13 +5,11 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import io.github.jiro.expensetracker.sync.CloudSyncRepository
 import io.github.jiro.expensetracker.sync.google.DefaultSyncTokensRepository
 import io.github.jiro.expensetracker.sync.google.DefaultTokenExchangeClient
 import io.github.jiro.expensetracker.sync.google.DriveApiClient
 import io.github.jiro.expensetracker.sync.google.DriveApiClientImpl
 import io.github.jiro.expensetracker.sync.google.GoogleAuth
-import io.github.jiro.expensetracker.sync.google.GoogleDriveCloudSyncRepository
 import io.github.jiro.expensetracker.sync.google.GoogleSignInAuthImpl
 import io.github.jiro.expensetracker.sync.google.KeystoreTokenCrypto
 import io.github.jiro.expensetracker.sync.google.SyncTokensRepository
@@ -23,12 +21,6 @@ import okhttp3.OkHttpClient
 @Module
 @InstallIn(SingletonComponent::class)
 internal abstract class GoogleDriveModule {
-
-    @Binds
-    @Singleton
-    abstract fun bindCloudSyncRepository(
-        impl: GoogleDriveCloudSyncRepository,
-    ): CloudSyncRepository
 
     @Binds
     @Singleton
