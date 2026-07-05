@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -19,6 +21,16 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
+
+        val localProps = Properties().apply {
+            val f = rootProject.file("local.properties")
+            if (f.exists()) f.inputStream().use { load(it) }
+        }
+        buildConfigField(
+            "String",
+            "DEFAULT_WEB_CLIENT_ID",
+            "\"${localProps.getProperty("google.web.client.id", "")}\"",
+        )
     }
 
     signingConfigs {
@@ -117,6 +129,10 @@ dependencies {
 
     implementation(libs.androidx.glance.appwidget)
 
+    implementation(libs.okhttp)
+    implementation(libs.play.services.auth)
+    implementation(libs.play.services.base)
+
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.androidx.room.testing)
@@ -127,6 +143,7 @@ dependencies {
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.androidx.junit)
+    testImplementation(libs.okhttp.mockwebserver)
 
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.junit)
