@@ -64,11 +64,15 @@ class DropboxSyncTokensRepositoryTest {
 
     @Test
     fun load_wipesPrefs_whenAccessTokenDecryptFails() = kotlinx.coroutines.runBlocking {
-        // Seed prefs with a corrupted access-token value
+        // Seed prefs with a valid base64 ciphertext ("AAAA" → 3-byte payload)
+        // so the failure occurs at the crypto layer, not at Base64.decode.
+        // With FakeTokenCrypto this would round-trip; FailingTokenCrypto
+        // throws on decrypt to simulate a wiped AndroidKeyStore (factory
+        // reset, app uninstall, hardware rollback).
         ApplicationProvider.getApplicationContext<Context>()
             .getSharedPreferences("dropbox_sync_tokens", Context.MODE_PRIVATE)
             .edit()
-            .putString("access_token_b64", "garbage-not-base64-valid-encrypted-blob")
+            .putString("access_token_b64", "AAAA")
             .commit()
 
         // Use a FailingTokenCrypto to simulate the case where Keystore is gone

@@ -27,21 +27,41 @@ internal class DefaultDropboxSyncTokensRepository @Inject constructor(
     private val prefs: SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
+    // Lenient-vs-strict asymmetry: required fields (access, expires, email)
+    // use `?: wipeAndNull()` — a missing key or decrypt failure wipes the
+    // prefs because the row is unrecoverable. Nullable fields (refreshToken,
+    // snapshotRev) tolerate a missing key as valid null, but still wipe on
+    // decrypt failure so a tampered prefs file can't survive a load.
     override suspend fun load(): DropboxSyncTokens? = withContext(Dispatchers.IO) {
-        val access = prefs.getString(K_ACCESS, null)?.let { runCatching { crypto.decrypt(it) }.getOrNull() }
-            ?: return@withContext wipeAndNull()
+        val access = prefs.getString(K_ACCESS, null)?.let {
+            try { crypto.decrypt(it) }
+            catch (e: kotlinx.coroutines.CancellationException) { throw e }
+            catch (e: Exception) { null }
+        } ?: return@withContext wipeAndNull()
         // refreshToken is nullable by design (AppAuth PKCE issues none). Treat
         // a missing key as valid null; only wipe on decrypt failure.
-        val refresh = prefs.getString(K_REFRESH, null)
-            ?.let { runCatching { crypto.decrypt(it) }.getOrNull() ?: return@withContext wipeAndNull() }
-        val expires = prefs.getString(K_EXPIRES, null)?.let { runCatching { crypto.decrypt(it) }.getOrNull() }
-            ?: return@withContext wipeAndNull()
-        val email = prefs.getString(K_EMAIL, null)?.let { runCatching { crypto.decrypt(it) }.getOrNull() }
-            ?: return@withContext wipeAndNull()
+        val refresh = prefs.getString(K_REFRESH, null)?.let {
+            try { crypto.decrypt(it) }
+            catch (e: kotlinx.coroutines.CancellationException) { throw e }
+            catch (e: Exception) { return@withContext wipeAndNull() }
+        }
+        val expires = prefs.getString(K_EXPIRES, null)?.let {
+            try { crypto.decrypt(it) }
+            catch (e: kotlinx.coroutines.CancellationException) { throw e }
+            catch (e: Exception) { null }
+        } ?: return@withContext wipeAndNull()
+        val email = prefs.getString(K_EMAIL, null)?.let {
+            try { crypto.decrypt(it) }
+            catch (e: kotlinx.coroutines.CancellationException) { throw e }
+            catch (e: Exception) { null }
+        } ?: return@withContext wipeAndNull()
         // snapshotRev is nullable (no snapshot pushed yet). Treat a missing key
         // as valid null; only wipe on decrypt failure.
-        val rev = prefs.getString(K_REV, null)
-            ?.let { runCatching { crypto.decrypt(it) }.getOrNull() ?: return@withContext wipeAndNull() }
+        val rev = prefs.getString(K_REV, null)?.let {
+            try { crypto.decrypt(it) }
+            catch (e: kotlinx.coroutines.CancellationException) { throw e }
+            catch (e: Exception) { return@withContext wipeAndNull() }
+        }
 
         DropboxSyncTokens(
             accessToken = access,
