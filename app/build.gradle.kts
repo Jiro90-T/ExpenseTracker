@@ -31,6 +31,11 @@ android {
             "DEFAULT_WEB_CLIENT_ID",
             "\"${localProps.getProperty("google.web.client.id", "")}\"",
         )
+        buildConfigField(
+            "String",
+            "DROPBOX_CLIENT_ID",
+            "\"${localProps.getProperty("dropbox.client.id", "")}\"",
+        )
     }
 
     signingConfigs {
@@ -133,6 +138,8 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.play.services.auth)
     implementation(libs.play.services.base)
+
+    implementation(libs.appauth)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
