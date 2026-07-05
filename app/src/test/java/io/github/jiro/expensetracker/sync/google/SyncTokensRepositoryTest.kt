@@ -31,23 +31,15 @@ class SyncTokensRepositoryTest {
      * Mimics the behavior of KeystoreTokenCrypto when the underlying
      * key has been destroyed (factory reset, app uninstall, hardware
      * rollback): the AndroidKeyStore provider surfaces this as
-     * KeyPermanentlyInvalidatedException. The repo's load() must
-     * catch it and wipe the prefs.
-     *
-     * The repo wipes prefs only when a non-leading field fails to
-     * decrypt (the access-token path short-circuits with null without
-     * wiping). To exercise the wipe code path, this fake decrypts the
-     * first ciphertext successfully and then throws on every subsequent
-     * call.
+     * KeyPermanentlyInvalidatedException on every decrypt() call.
+     * The repo's load() must catch it on the access-token field and
+     * wipe the prefs before returning null.
      */
     private class FailingTokenCrypto : TokenCrypto {
         override fun encrypt(plaintext: String): String = plaintext
         override fun decrypt(ciphertextB64: String): String {
-            if (alreadySucceeded) throw android.security.keystore.KeyPermanentlyInvalidatedException()
-            alreadySucceeded = true
-            return ciphertextB64
+            throw android.security.keystore.KeyPermanentlyInvalidatedException()
         }
-        private var alreadySucceeded = false
     }
 
     private lateinit var context: Context

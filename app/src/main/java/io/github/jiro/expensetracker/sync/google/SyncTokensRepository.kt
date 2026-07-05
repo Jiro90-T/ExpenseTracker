@@ -29,7 +29,7 @@ internal class DefaultSyncTokensRepository @Inject constructor(
 
     override suspend fun load(): SyncTokens? = withContext(Dispatchers.IO) {
         val access = prefs.getString(K_ACCESS, null)?.let { runCatching { crypto.decrypt(it) }.getOrNull() }
-            ?: return@withContext null
+            ?: return@withContext wipeAndNull()
         val refresh = prefs.getString(K_REFRESH, null)?.let { runCatching { crypto.decrypt(it) }.getOrNull() }
             ?: return@withContext wipeAndNull()
         val expires = prefs.getString(K_EXPIRES, null)?.let { runCatching { crypto.decrypt(it) }.getOrNull() }
