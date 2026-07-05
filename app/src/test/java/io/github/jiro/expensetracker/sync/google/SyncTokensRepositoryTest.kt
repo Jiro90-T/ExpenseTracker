@@ -27,6 +27,29 @@ class SyncTokensRepositoryTest {
         override fun decrypt(ciphertextB64: String): String = ciphertextB64
     }
 
+    /**
+     * Mimics the behavior of KeystoreTokenCrypto when the underlying
+     * key has been destroyed (factory reset, app uninstall, hardware
+     * rollback): the AndroidKeyStore provider surfaces this as
+     * KeyPermanentlyInvalidatedException. The repo's load() must
+     * catch it and wipe the prefs.
+     *
+     * The repo wipes prefs only when a non-leading field fails to
+     * decrypt (the access-token path short-circuits with null without
+     * wiping). To exercise the wipe code path, this fake decrypts the
+     * first ciphertext successfully and then throws on every subsequent
+     * call.
+     */
+    private class FailingTokenCrypto : TokenCrypto {
+        override fun encrypt(plaintext: String): String = plaintext
+        override fun decrypt(ciphertextB64: String): String {
+            if (alreadySucceeded) throw android.security.keystore.KeyPermanentlyInvalidatedException()
+            alreadySucceeded = true
+            return ciphertextB64
+        }
+        private var alreadySucceeded = false
+    }
+
     private lateinit var context: Context
     private lateinit var repo: SyncTokensRepository
 
@@ -70,5 +93,40 @@ class SyncTokensRepositoryTest {
     @Test
     fun load_returnsNull_afterClearWithoutPriorSave() = runBlocking {
         assertNull(repo.load())
+    }
+
+    @Test
+    fun load_returnsNull_andWipesPrefs_whenDecryptThrowsKeyPermanentlyInvalidated() = runBlocking {
+        // Pre-populate the prefs file with FakeTokenCrypto ciphertext so
+        // the repo has something to attempt to decrypt.
+        repo.save(
+            SyncTokens(
+                accessToken = "stale-access",
+                refreshToken = "stale-refresh",
+                expiresAtEpochMillis = 1_700_000_000_000L,
+                accountEmail = "user@example.com",
+                snapshotFileId = "drive-file-id-1",
+            ),
+        )
+        val prefs = context.getSharedPreferences("sync_tokens", Context.MODE_PRIVATE)
+        assertEquals("prefs should be populated before invalidation",
+            "stale-access", prefs.getString("access_token_b64", null))
+
+        // Construct a new repo with FailingTokenCrypto so decrypt() throws
+        // KeyPermanentlyInvalidatedException on every call.
+        val failingRepo = DefaultSyncTokensRepository(context, FailingTokenCrypto())
+
+        // First decrypt failure on accessToken should wipe and return null.
+        assertNull(failingRepo.load())
+        assertEquals("access should be wiped",
+            null, prefs.getString("access_token_b64", null))
+        assertEquals("refresh should be wiped",
+            null, prefs.getString("refresh_token_b64", null))
+        assertEquals("expires should be wiped",
+            null, prefs.getString("expires_at_b64", null))
+        assertEquals("email should be wiped",
+            null, prefs.getString("account_email_b64", null))
+        assertEquals("file id should be wiped",
+            null, prefs.getString("snapshot_file_id_b64", null))
     }
 }

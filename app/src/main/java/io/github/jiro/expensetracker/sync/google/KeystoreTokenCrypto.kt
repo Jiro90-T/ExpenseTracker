@@ -15,9 +15,10 @@ import android.util.Base64
  * (12 bytes) are prepended to ciphertext; base64 is used for storage.
  *
  * User authentication is NOT required (setUserAuthenticationRequired(false))
- * so the sync flow stays non-interactive. The Keystore-backed key is
- * strong enough without a biometric gate; on lock-screen change the key
- * is invalidated and this class throws — caller wipes DataStore.
+ * so the sync flow stays non-interactive. If the Keystore key is ever
+ * destroyed (factory reset, app uninstall, or hardware rollback),
+ * decryption throws and the caller wipes the SharedPreferences-backed
+ * token store.
  */
 internal class KeystoreTokenCrypto : TokenCrypto {
 
