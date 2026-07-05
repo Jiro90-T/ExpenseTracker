@@ -41,9 +41,9 @@ internal class DriveApiClientImpl @Inject constructor(
                 .build()
 
             val url = if (fileId == null) {
-                "$baseUrl/upload/drive/v3/files"
+                "$baseUrl/upload/drive/v3/files?uploadType=multipart"
             } else {
-                "$baseUrl/upload/drive/v3/files/$fileId"
+                "$baseUrl/upload/drive/v3/files/$fileId?uploadType=multipart"
             }
 
             val request = Request.Builder()

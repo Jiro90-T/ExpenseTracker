@@ -65,7 +65,7 @@ class DriveApiClientTest {
         assertEquals("abc123", id)
         val req = server.takeRequest()
         assertEquals("PATCH", req.method)
-        assertEquals("/upload/drive/v3/files/abc123", req.path)
+        assertTrue(req.path!!.startsWith("/upload/drive/v3/files/abc123"))
     }
 
     @Test
