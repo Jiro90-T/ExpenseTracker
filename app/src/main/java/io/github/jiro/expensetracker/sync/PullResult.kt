@@ -1,6 +1,9 @@
 package io.github.jiro.expensetracker.sync
 
-internal data class PushResult(val pushedAtEpochMillis: Long)
+internal sealed class PushResult {
+    internal data class Pushed(val pushedAtEpochMillis: Long) : PushResult()
+    internal data class Failed(val message: String, val cause: Throwable? = null) : PushResult()
+}
 
 internal sealed class PullResult<out T> {
     internal data class Success<T>(val snapshot: T, val pulledAtEpochMillis: Long) : PullResult<T>()

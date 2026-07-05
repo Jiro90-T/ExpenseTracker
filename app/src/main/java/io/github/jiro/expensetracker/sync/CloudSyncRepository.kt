@@ -1,5 +1,6 @@
 package io.github.jiro.expensetracker.sync
 
+import android.content.Intent
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -17,7 +18,26 @@ internal interface CloudSyncRepository {
     val lastSyncedAtEpochMillis: StateFlow<Long?>
     val isSignedIn: StateFlow<Boolean>
 
+    /**
+     * Pre-built OAuth sign-in Intent. The caller (typically a 4d Activity)
+     * launches this via `ActivityResultLauncher<Intent>` and forwards the
+     * result back via [handleSignInResult].
+     */
+    val signInIntent: Intent
+
+    /**
+     * Consumes the OAuth result Intent returned by [signInIntent]'s
+     * launcher. Returns Success when tokens are persisted and the state
+     * transitions to SignedIn, Failed otherwise.
+     */
+    suspend fun handleSignInResult(data: Intent?): SignInResult
+
+    /**
+     * Silent sign-in path: returns Success if a cached token is still
+     * valid (or refreshed), Failed otherwise. Does NOT launch UI.
+     */
     suspend fun signIn(): SignInResult
+
     suspend fun signOut()
     suspend fun push(snapshot: SyncSnapshot): PushResult
     suspend fun pull(): PullResult<SyncSnapshot>

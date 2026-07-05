@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -74,5 +75,15 @@ class NoOpCloudSyncRepositoryTest {
     @Test
     fun syncOnce_returnsNoRemoteSnapshot() = runTest {
         assertEquals(SyncResult.NoRemoteSnapshot, repo.syncOnce())
+    }
+
+    @Test
+    fun signInIntent_isNonNullEmptyIntent() = runTest {
+        assertNotNull(repo.signInIntent)
+    }
+
+    @Test
+    fun handleSignInResult_returnsSuccess() = runTest {
+        assertEquals(SignInResult.Success, repo.handleSignInResult(null))
     }
 }
