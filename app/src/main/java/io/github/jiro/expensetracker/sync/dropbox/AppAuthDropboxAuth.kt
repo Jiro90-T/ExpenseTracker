@@ -66,9 +66,11 @@ internal class AppAuthDropboxAuth @Inject constructor(
             val tokenReq = resp.createTokenExchangeRequest()
             val tokenResp = try {
                 performTokenRequest(tokenReq)
-            } catch (e: CancellationException) {
+            } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: net.openid.appauth.AuthorizationException) {
+                return@withContext null
+            } catch (e: IllegalArgumentException) {
                 return@withContext null
             }
             val accessToken = tokenResp.accessToken ?: return@withContext null
@@ -76,6 +78,12 @@ internal class AppAuthDropboxAuth @Inject constructor(
             DropboxAccountSnapshot(email = email, accessToken = accessToken)
         }
 
+    /**
+     * Always returns null. AppAuth is configured without a [net.openid.appauth.TokenStore]
+     * (so we can bridge tokens into our Keystore-protected
+     * [DefaultDropboxSyncTokensRepository] instead). The orchestrator must consult
+     * [DropboxSyncTokensRepository.load] directly to determine sign-in state.
+     */
     override suspend fun getLastAuthState(): DropboxAccountSnapshot? = null
 
     private suspend fun performTokenRequest(

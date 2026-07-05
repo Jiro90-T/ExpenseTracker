@@ -17,6 +17,10 @@ internal interface DropboxAuth {
     /** Parse the OAuth redirect Intent returned by the launcher. */
     suspend fun handleAuthResult(data: Intent?): DropboxAccountSnapshot?
 
-    /** Return cached account if a valid token is available, else null. */
+    /**
+     * Return cached account if a valid token is available, else null.
+     * Note: AppAuth-based impls return null because tokens are not stored
+     * by AppAuth — see [DropboxSyncTokensRepository] instead.
+     */
     suspend fun getLastAuthState(): DropboxAccountSnapshot?
 }
