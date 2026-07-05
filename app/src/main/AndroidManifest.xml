@@ -8,6 +8,8 @@
         android:maxSdkVersion="28" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:name=".ExpenseTrackerApp"
         android:allowBackup="true"

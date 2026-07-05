@@ -453,4 +453,8 @@
     <string name="cards_widget_add_card">Add card</string>
     <string name="cards_widget_counter_format">%1$d/%2$d</string>
     <string name="cards_widget_next">Next</string>
+
+    <!-- Cloud sync (Phase 4b — Google Drive provider) -->
+    <string name="default_web_client_id" translatable="false"></string>
+    <string name="google_drive_provider_id" translatable="false">google_drive</string>
 </resources>
