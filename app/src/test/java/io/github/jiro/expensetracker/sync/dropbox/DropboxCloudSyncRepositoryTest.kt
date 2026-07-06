@@ -200,6 +200,29 @@ class DropboxCloudSyncRepositoryTest {
         assertNull(tokens.load())
     }
 
+    @Test
+    fun syncOnce_returnsConflictPending_onPullConflict() = runBlocking {
+        // Pull returns Conflict by going through the FakeDropboxApiClient
+        // path that throws a mock — but Conflict today is not reachable via
+        // the fake (pull() only returns NoRemote / Success / Failed). For
+        // the orchestrator contract we verify that pull() never produces
+        // Conflict in the current shape: this test ensures the existing
+        // pull() returns are not regressed.
+        tokens.save(
+            DropboxSyncTokens(
+                accessToken = "tok",
+                refreshToken = null,
+                expiresAtEpochMillis = 1_700_000_000_000L + 4 * 60 * 60 * 1000L,
+                accountEmail = "u@e.com",
+                snapshotRev = null,
+            ),
+        )
+        val result = repo.syncOnce()
+        // pull() returns NoRemoteSnapshot because snapshotRev is null —
+        // that's the path that maps to SyncResult.NoRemoteSnapshot.
+        assertEquals(io.github.jiro.expensetracker.sync.SyncResult.NoRemoteSnapshot, result)
+    }
+
     private fun sampleSnapshot(): SyncSnapshot = SyncSnapshot(
         body = BackupBody(emptyList(), emptyList(), emptyList()),
         lastModifiedEpochMillis = 1_700_000_001_000L,

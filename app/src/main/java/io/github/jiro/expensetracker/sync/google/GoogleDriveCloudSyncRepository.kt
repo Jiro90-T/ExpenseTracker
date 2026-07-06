@@ -183,7 +183,10 @@ internal class GoogleDriveCloudSyncRepository @Inject constructor(
             )
             PullResult.NoRemoteSnapshot -> SyncResult.NoRemoteSnapshot
             is PullResult.Failed -> SyncResult.Failed(result.message, result.cause)
-            is PullResult.Conflict -> SyncResult.Failed("Unexpected conflict", null)
+            is PullResult.Conflict -> SyncResult.ConflictPending(
+                remote = result.remote,
+                local = result.local,
+            )
         }
     }
 

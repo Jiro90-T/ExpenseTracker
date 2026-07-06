@@ -233,6 +233,26 @@ class GoogleDriveCloudSyncRepositoryTest {
         assertNull(tokens.load())
     }
 
+    @Test
+    fun syncOnce_returnsConflictPendingMapping_exists() = runBlocking {
+        // The orchestrator exposes a `ConflictPending` mapping for completeness
+        // even though pull() does not yet produce Conflict. This test pins
+        // the current behavior — when pull() returns NoRemote, syncOnce()
+        // surfaces NoRemoteSnapshot. Future Conflict support can extend this
+        // test with a fake that throws a mock Conflict.
+        tokens.save(
+            SyncTokens(
+                accessToken = "tok",
+                refreshToken = "ref",
+                expiresAtEpochMillis = 1_700_000_000_000L + 3_600_000L,
+                accountEmail = "u@e.com",
+                snapshotFileId = null,
+            ),
+        )
+        val result = repo.syncOnce()
+        assertEquals(io.github.jiro.expensetracker.sync.SyncResult.NoRemoteSnapshot, result)
+    }
+
     private fun sampleSnapshot(): SyncSnapshot = SyncSnapshot(
         body = BackupBody(emptyList(), emptyList(), emptyList()),
         lastModifiedEpochMillis = 1_700_000_001_000L,

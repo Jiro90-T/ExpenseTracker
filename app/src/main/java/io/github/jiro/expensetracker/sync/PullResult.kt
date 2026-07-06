@@ -16,6 +16,7 @@ internal sealed class SyncResult {
     internal data class Pushed(val pushedAtEpochMillis: Long) : SyncResult()
     internal data class Pulled(val snapshot: SyncSnapshot, val pulledAtEpochMillis: Long) : SyncResult()
     internal object NoRemoteSnapshot : SyncResult()
+    internal data class ConflictPending(val remote: SyncSnapshot, val local: SyncSnapshot) : SyncResult()
     internal data class Failed(val message: String, val cause: Throwable? = null) : SyncResult()
 }
 
