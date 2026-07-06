@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -31,6 +32,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -317,6 +320,25 @@ fun SettingsScreen(
                     }
                 }
             }
+
+            // --- Cloud sync ---
+            SettingsSectionHeader(stringResource(R.string.settings_sync_section_title))
+            val cloudSession by viewModel.cloudSyncSession.collectAsStateWithLifecycle()
+            val signInLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.StartActivityForResult(),
+            ) { result -> viewModel.onSignInResult(result.data) }
+            CloudSyncSection(
+                session = cloudSession,
+                dropboxConfigured = true,
+                googleDriveConfigured = BuildConfig.DEFAULT_WEB_CLIENT_ID.isNotEmpty() &&
+                    BuildConfig.DEFAULT_WEB_CLIENT_ID != "changeme",
+                onProviderSelected = viewModel::setSyncProvider,
+                onSignInClick = { signInLauncher.launch(viewModel.signInIntent) },
+                onSignOutClick = viewModel::onSignOutClick,
+                onSyncNowClick = viewModel::onSyncNow,
+                onConflictClick = { },
+            )
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
             // --- About ---
             SettingsSectionHeader(stringResource(R.string.settings_section_about))
@@ -796,4 +818,143 @@ private fun ImportRowItem(row: ResolvedImportRow) {
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
         )
     }
+}
+
+@Composable
+internal fun CloudSyncSection(
+    session: io.github.jiro.expensetracker.sync.CloudSyncSessionState,
+    dropboxConfigured: Boolean,
+    googleDriveConfigured: Boolean,
+    onProviderSelected: (io.github.jiro.expensetracker.sync.SyncProviderId) -> Unit,
+    onSignInClick: () -> Unit,
+    onSignOutClick: () -> Unit,
+    onSyncNowClick: () -> Unit,
+    onConflictClick: () -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        if (session.conflictPending) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .clickable(onClick = onConflictClick),
+                color = MaterialTheme.colorScheme.errorContainer,
+                shape = RoundedCornerShape(8.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_sync_conflict_banner),
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    modifier = Modifier.padding(16.dp),
+                )
+            }
+        }
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_sync_section_title),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                val isSignedIn = session.state is io.github.jiro.expensetracker.sync.SyncState.SignedIn
+                Text(
+                    text = if (isSignedIn) {
+                        val providerLabel = when (session.providerId) {
+                            io.github.jiro.expensetracker.sync.SyncProviderId.DROPBOX -> stringResource(R.string.settings_sync_provider_dropbox)
+                            io.github.jiro.expensetracker.sync.SyncProviderId.GOOGLE_DRIVE -> stringResource(R.string.settings_sync_provider_google_drive)
+                        }
+                        stringResource(
+                            R.string.settings_sync_status_signed_in,
+                            session.accountEmail ?: "?",
+                            providerLabel,
+                        )
+                    } else {
+                        stringResource(R.string.settings_sync_status_signed_out)
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    text = when (val ls = session.lastSyncedAtEpochMillis) {
+                        null -> stringResource(R.string.settings_sync_last_synced_never)
+                        else -> stringResource(
+                            R.string.settings_sync_last_synced_format,
+                            android.text.format.DateUtils.getRelativeTimeSpanString(ls),
+                        )
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                Text(
+                    text = stringResource(R.string.settings_sync_provider_label),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    ProviderChip(
+                        label = stringResource(R.string.settings_sync_provider_dropbox),
+                        enabled = dropboxConfigured,
+                        selected = session.providerId == io.github.jiro.expensetracker.sync.SyncProviderId.DROPBOX,
+                        onClick = { onProviderSelected(io.github.jiro.expensetracker.sync.SyncProviderId.DROPBOX) },
+                    )
+                    Spacer(Modifier.size(8.dp))
+                    ProviderChip(
+                        label = stringResource(R.string.settings_sync_provider_google_drive),
+                        enabled = googleDriveConfigured,
+                        selected = session.providerId == io.github.jiro.expensetracker.sync.SyncProviderId.GOOGLE_DRIVE,
+                        onClick = { onProviderSelected(io.github.jiro.expensetracker.sync.SyncProviderId.GOOGLE_DRIVE) },
+                    )
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (isSignedIn) {
+                        TextButton(onClick = onSignOutClick) {
+                            Text(stringResource(R.string.settings_sync_action_sign_out))
+                        }
+                    } else {
+                        Button(
+                            onClick = onSignInClick,
+                            enabled = (dropboxConfigured || googleDriveConfigured),
+                        ) {
+                            Text(stringResource(R.string.settings_sync_action_sign_in))
+                        }
+                    }
+                    TextButton(
+                        onClick = onSyncNowClick,
+                        enabled = isSignedIn,
+                    ) {
+                        Text(stringResource(R.string.settings_sync_action_sync_now))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProviderChip(
+    label: String,
+    enabled: Boolean,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val colors = if (selected) {
+        FilterChipDefaults.filterChipColors(
+            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+        )
+    } else FilterChipDefaults.filterChipColors()
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        enabled = enabled,
+        label = { Text(label) },
+        colors = colors,
+    )
 }
