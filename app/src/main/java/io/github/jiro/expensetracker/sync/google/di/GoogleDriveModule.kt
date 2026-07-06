@@ -15,6 +15,7 @@ import io.github.jiro.expensetracker.sync.google.KeystoreTokenCrypto
 import io.github.jiro.expensetracker.sync.google.SyncTokensRepository
 import io.github.jiro.expensetracker.sync.google.TokenCrypto
 import io.github.jiro.expensetracker.sync.google.TokenExchangeClient
+import javax.inject.Named
 import javax.inject.Singleton
 import okhttp3.OkHttpClient
 
@@ -49,5 +50,17 @@ internal abstract class GoogleDriveModule {
         @Singleton
         fun provideTokenExchangeClient(httpClient: OkHttpClient): TokenExchangeClient =
             DefaultTokenExchangeClient(httpClient)
+
+        private const val DRIVE_BASE_URL = "https://www.googleapis.com"
+
+        @Provides
+        @Singleton
+        @Named("driveBaseUrl")
+        fun provideDriveBaseUrl(): String = DRIVE_BASE_URL
+
+        @Provides
+        @Singleton
+        @Named("googleDriveNowProvider")
+        fun provideNowProvider(): () -> Long = { System.currentTimeMillis() }
     }
 }

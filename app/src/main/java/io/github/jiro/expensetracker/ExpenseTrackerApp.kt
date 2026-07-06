@@ -11,6 +11,7 @@ import androidx.work.WorkManager
 import dagger.hilt.android.HiltAndroidApp
 import io.github.jiro.expensetracker.data.local.AccountSeeder
 import io.github.jiro.expensetracker.data.local.CategorySeeder
+import io.github.jiro.expensetracker.sync.CloudSyncRepository
 import io.github.jiro.expensetracker.work.RecurringTransactionWorker
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -25,6 +26,7 @@ class ExpenseTrackerApp : Application(), Configuration.Provider {
     @Inject lateinit var categorySeeder: CategorySeeder
     @Inject lateinit var accountSeeder: AccountSeeder
     @Inject lateinit var workerFactory: HiltWorkerFactory
+    @Inject internal lateinit var cloudSyncRepository: CloudSyncRepository
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -39,6 +41,12 @@ class ExpenseTrackerApp : Application(), Configuration.Provider {
         appScope.launch {
             categorySeeder.seedIfEmpty()
             accountSeeder.syncDefaultCurrency()
+        }
+        appScope.launch {
+            if (cloudSyncRepository.isSignedIn.value) {
+                runCatching { cloudSyncRepository.syncOnce() }
+                    .onFailure { android.util.Log.w(TAG, "Launch sync failed", it) }
+            }
         }
         scheduleRecurringTransactionJob()
         triggerRecurringTransactionCheckOnLaunch()
@@ -81,5 +89,6 @@ class ExpenseTrackerApp : Application(), Configuration.Provider {
     companion object {
         const val RecurringTransactionJobName = "recurring-transaction-worker"
         const val RecurringTransactionCheckOnLaunchJobName = "recurring-transaction-check-on-launch"
+        private const val TAG = "ExpenseTrackerApp"
     }
 }

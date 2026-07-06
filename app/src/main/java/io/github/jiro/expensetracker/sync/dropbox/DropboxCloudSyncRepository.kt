@@ -15,6 +15,7 @@ import io.github.jiro.expensetracker.sync.SyncSnapshot
 import io.github.jiro.expensetracker.sync.SyncSnapshotCodec
 import io.github.jiro.expensetracker.sync.SyncState
 import javax.inject.Inject
+import javax.inject.Named
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -36,7 +37,7 @@ internal class DropboxCloudSyncRepository @Inject constructor(
     private val dropboxAuth: DropboxAuth,
     private val api: DropboxApiClient,
     private val tokens: DropboxSyncTokensRepository,
-    private val nowProvider: () -> Long = { System.currentTimeMillis() },
+    @Named("dropboxNowProvider") private val nowProvider: () -> Long,
 ) : CloudSyncRepository {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)

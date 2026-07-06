@@ -1,6 +1,7 @@
 package io.github.jiro.expensetracker.sync.dropbox
 
 import javax.inject.Inject
+import javax.inject.Named
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -31,8 +32,8 @@ private val OCTET_STREAM_BODY: okhttp3.RequestBody = "".toRequestBody(JSON.toMed
 internal class DropboxApiClientImpl @Inject constructor(
     private val httpClient: OkHttpClient,
     private val tokens: DropboxSyncTokensRepository,
-    private val contentHost: String = HOST_CONTENT,
-    private val apiHost: String = HOST_API,
+    @Named("dropboxContentHost") private val contentHost: String,
+    @Named("dropboxApiHost") private val apiHost: String,
 ) : DropboxApiClient {
 
     private suspend fun accessToken(): String =

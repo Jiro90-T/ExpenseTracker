@@ -2,6 +2,7 @@ package io.github.jiro.expensetracker.sync.google
 
 import java.io.IOException
 import javax.inject.Inject
+import javax.inject.Named
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -17,7 +18,7 @@ import org.json.JSONObject
 internal class DriveApiClientImpl @Inject constructor(
     private val httpClient: OkHttpClient,
     private val tokens: SyncTokensRepository,
-    private val baseUrl: String = "https://www.googleapis.com",
+    @Named("driveBaseUrl") private val baseUrl: String,
 ) : DriveApiClient {
 
     private suspend fun accessToken(): String =

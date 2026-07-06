@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
+import javax.inject.Named
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -35,8 +36,8 @@ import android.net.Uri
 internal class AppAuthDropboxAuth @Inject constructor(
     @ApplicationContext private val context: Context,
     private val httpClient: OkHttpClient,
-    private val clientId: String = io.github.jiro.expensetracker.BuildConfig.DROPBOX_CLIENT_ID,
-    private val redirectUri: String = "io.github.jiro.expensetracker:/oauth2redirect",
+    @Named("dropboxClientId") private val clientId: String,
+    @Named("dropboxRedirectUri") private val redirectUri: String,
 ) : DropboxAuth {
 
     private val authService: AuthorizationService by lazy {

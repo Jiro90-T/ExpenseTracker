@@ -15,6 +15,7 @@ import io.github.jiro.expensetracker.sync.SyncSnapshot
 import io.github.jiro.expensetracker.sync.SyncSnapshotCodec
 import io.github.jiro.expensetracker.sync.SyncState
 import javax.inject.Inject
+import javax.inject.Named
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,8 +39,8 @@ internal class GoogleDriveCloudSyncRepository @Inject constructor(
     private val googleAuth: GoogleAuth,
     private val api: DriveApiClient,
     private val tokens: SyncTokensRepository,
-    private val tokenExchangeClient: TokenExchangeClient = DefaultTokenExchangeClient(OkHttpClient()),
-    private val nowProvider: () -> Long = { System.currentTimeMillis() },
+    private val tokenExchangeClient: TokenExchangeClient,
+    @Named("googleDriveNowProvider") private val nowProvider: () -> Long,
 ) : CloudSyncRepository {
 
     private val scope = CoroutineScope(
