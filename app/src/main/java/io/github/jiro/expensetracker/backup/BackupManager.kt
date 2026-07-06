@@ -9,6 +9,7 @@ import io.github.jiro.expensetracker.data.local.AppDatabase
 import io.github.jiro.expensetracker.data.local.CategoryEntity
 import io.github.jiro.expensetracker.data.local.TransactionEntity
 import io.github.jiro.expensetracker.data.repository.ReceiptRepository
+import io.github.jiro.expensetracker.sync.BackupBody
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -160,6 +161,74 @@ class BackupManager @Inject constructor(
     }
 
     /**
+     * Apply a parsed [BackupBody] to the local database without going through
+     * a Uri. Used by cloud sync — the pull result already deserialised the
+     * body; the router just wants to "replace local with remote". Receipt
+     * binaries are out of scope for cloud pull: rows keep a `receiptPath`
+     * reference that resolves to a file the receiving device doesn't have,
+     * but the row data still applies.
+     */
+    internal suspend fun applyBackupBodyToDb(body: BackupBody): Unit = withContext(Dispatchers.IO) {
+        database.withTransaction {
+            database.transactionDao().deleteAll()
+            database.accountDao().deleteAll()
+            database.categoryDao().deleteAllNonBuiltIn()
+            database.accountDao().insertAllReplacing(
+                body.accounts.map { a ->
+                    AccountEntity(
+                        id = a.id,
+                        name = a.name,
+                        type = a.type,
+                        icon = a.icon,
+                        color = a.color,
+                        currencyCode = a.currencyCode,
+                        openingBalanceMinor = a.openingBalanceMinor,
+                        createdAtEpochMillis = a.createdAtEpochMillis,
+                        archived = a.archived,
+                        archivedAtEpochMillis = a.archivedAtEpochMillis,
+                        sortOrder = a.sortOrder,
+                    )
+                },
+            )
+            database.categoryDao().insertAllReplacing(
+                body.categories.map { c ->
+                    CategoryEntity(
+                        id = c.id,
+                        name = c.name,
+                        type = c.type,
+                        sortOrder = c.sortOrder,
+                        isBuiltIn = c.isBuiltIn,
+                    )
+                },
+            )
+            database.transactionDao().insertAll(
+                body.transactions.map { t ->
+                    TransactionEntity(
+                        id = t.id,
+                        title = t.title,
+                        amountMinor = t.amountMinor,
+                        currencyCode = t.currencyCode,
+                        type = t.type,
+                        categoryId = t.categoryId ?: 0L,
+                        accountId = t.accountId,
+                        transferAccountId = t.transferAccountId,
+                        occurredAtEpochMillis = t.occurredAtEpochMillis,
+                        note = t.note,
+                        createdAtEpochMillis = t.createdAtEpochMillis,
+                        recurringGroupId = t.recurringGroupId,
+                        recurrenceKind = t.recurrenceKind,
+                        recurrenceInterval = t.recurrenceInterval,
+                        recurrenceEndAt = t.recurrenceEndAt,
+                        recurrenceMaxOccurrences = t.recurrenceMaxOccurrences,
+                        recurrenceNextAt = t.recurrenceNextAt,
+                        receiptPath = t.receiptPath,
+                    )
+                },
+            )
+        }
+    }
+
+    /**
      * Write the export to a file in the cache and return a content://
      * Uri to share via the system share sheet.
      */
@@ -201,69 +270,7 @@ class BackupManager @Inject constructor(
                 transactionFromJson(txnArr.getJSONObject(i))
             }
 
-            // Wipe + re-insert. Order matters: transactions FK-reference
-            // accounts, so accounts must exist before transactions are
-            // inserted. We use REPLACE so the original IDs from the backup
-            // are preserved.
-            database.withTransaction {
-                database.transactionDao().deleteAll()
-                database.accountDao().deleteAll()
-                database.categoryDao().deleteAllNonBuiltIn()
-                database.accountDao().insertAllReplacing(
-                    accounts.map { a ->
-                        AccountEntity(
-                            id = a.id,
-                            name = a.name,
-                            type = a.type,
-                            icon = a.icon,
-                            color = a.color,
-                            currencyCode = a.currencyCode,
-                            openingBalanceMinor = a.openingBalanceMinor,
-                            createdAtEpochMillis = a.createdAtEpochMillis,
-                            archived = a.archived,
-                            archivedAtEpochMillis = a.archivedAtEpochMillis,
-                            sortOrder = a.sortOrder,
-                        )
-                    }
-                )
-                database.categoryDao().insertAllReplacing(
-                    categories.map { c ->
-                        CategoryEntity(
-                            id = c.id,
-                            name = c.name,
-                            type = c.type,
-                            sortOrder = c.sortOrder,
-                            isBuiltIn = c.isBuiltIn,
-                        )
-                    }
-                )
-                database.transactionDao().insertAll(
-                    transactions.map { t ->
-                        TransactionEntity(
-                            id = t.id,
-                            title = t.title,
-                            amountMinor = t.amountMinor,
-                            currencyCode = t.currencyCode,
-                            type = t.type,
-                            // TRANSFER/ADJUSTMENT rows have no category; coerced to 0 for legacy export shape.
-                            // TODO: bump backup format and persist null categoryId.
-                            categoryId = t.categoryId ?: 0L,
-                            accountId = t.accountId,
-                            transferAccountId = t.transferAccountId,
-                            occurredAtEpochMillis = t.occurredAtEpochMillis,
-                            note = t.note,
-                            createdAtEpochMillis = t.createdAtEpochMillis,
-                            recurringGroupId = t.recurringGroupId,
-                            recurrenceKind = t.recurrenceKind,
-                            recurrenceInterval = t.recurrenceInterval,
-                            recurrenceEndAt = t.recurrenceEndAt,
-                            recurrenceMaxOccurrences = t.recurrenceMaxOccurrences,
-                            recurrenceNextAt = t.recurrenceNextAt,
-                            receiptPath = t.receiptPath,
-                        )
-                    }
-                )
-            }
+            applyBackupBodyToDb(BackupBody(accounts = accounts, categories = categories, transactions = transactions))
 
             ImportSummary(
                 accountsRestored = accounts.size,
