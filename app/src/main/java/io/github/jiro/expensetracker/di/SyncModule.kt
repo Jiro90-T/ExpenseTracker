@@ -7,7 +7,7 @@ import dagger.hilt.components.SingletonComponent
 import io.github.jiro.expensetracker.sync.CloudSyncRepository
 import io.github.jiro.expensetracker.sync.DefaultDeviceIdProvider
 import io.github.jiro.expensetracker.sync.DeviceIdProvider
-import io.github.jiro.expensetracker.sync.dropbox.DropboxCloudSyncRepository
+import io.github.jiro.expensetracker.sync.RoutingCloudSyncRepository
 import javax.inject.Singleton
 
 @Module
@@ -17,7 +17,7 @@ internal abstract class SyncModule {
     @Binds
     @Singleton
     abstract fun bindCloudSyncRepository(
-        impl: DropboxCloudSyncRepository,
+        impl: RoutingCloudSyncRepository,
     ): CloudSyncRepository
 
     @Binds

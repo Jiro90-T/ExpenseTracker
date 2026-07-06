@@ -197,3 +197,8 @@ abstract class AppDatabase : RoomDatabase() {
         }
     }
 }
+
+internal fun AppDatabase.Companion.buildForTesting(context: android.content.Context): AppDatabase =
+    androidx.room.Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+        .allowMainThreadQueries()
+        .build()
