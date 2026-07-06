@@ -11,6 +11,7 @@ import io.github.jiro.expensetracker.data.repository.TransactionRepository
 import io.github.jiro.expensetracker.domain.FxConverter
 import io.github.jiro.expensetracker.domain.model.TransactionType
 import io.github.jiro.expensetracker.preferences.SettingsRepository
+import io.github.jiro.expensetracker.sync.TransactionMutationBus
 import io.github.jiro.expensetracker.ui.charts.MonthlyTotals
 import io.github.jiro.expensetracker.ui.charts.computeMonthlyTotals
 import io.github.jiro.expensetracker.ui.transactions.DateRangePreset
@@ -70,6 +71,7 @@ class HomeViewModel @Inject constructor(
     private val categoryRepository: CategoryRepository,
     private val filtersRepository: FiltersRepository,
     private val budgetRepository: BudgetRepository,
+    private val transactionMutationBus: TransactionMutationBus,
 ) : ViewModel() {
 
     private val _period = MutableStateFlow<Period>(Period.currentMonth())
@@ -213,6 +215,7 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             repository.delete(row.transaction)
             _undo.value = UndoState(row)
+            transactionMutationBus.tryEmit()
         }
     }
 

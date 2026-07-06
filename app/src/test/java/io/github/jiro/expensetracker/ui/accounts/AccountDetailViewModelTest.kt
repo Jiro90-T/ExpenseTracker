@@ -10,6 +10,7 @@ import io.github.jiro.expensetracker.data.local.TransactionWithCategory
 import io.github.jiro.expensetracker.data.repository.AccountRepository
 import io.github.jiro.expensetracker.data.repository.ReceiptRepository
 import io.github.jiro.expensetracker.data.repository.TransactionRepository
+import io.github.jiro.expensetracker.sync.TransactionMutationBus
 import io.github.jiro.expensetracker.ui.navigation.Routes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -70,6 +71,7 @@ class AccountDetailViewModelTest {
             savedStateHandle = savedState,
             accountRepository = accountRepo,
             transactionRepository = txRepo,
+            transactionMutationBus = TransactionMutationBus(),
         )
         return vm to accountRepo
     }

@@ -8,6 +8,7 @@ import io.github.jiro.expensetracker.data.local.TransactionWithCategory
 import io.github.jiro.expensetracker.data.repository.AccountRepository
 import io.github.jiro.expensetracker.data.repository.AccountWithBalance
 import io.github.jiro.expensetracker.data.repository.TransactionRepository
+import io.github.jiro.expensetracker.sync.TransactionMutationBus
 import io.github.jiro.expensetracker.ui.navigation.Routes
 import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel
@@ -47,6 +48,7 @@ class AccountDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val accountRepository: AccountRepository,
     private val transactionRepository: TransactionRepository,
+    private val transactionMutationBus: TransactionMutationBus,
 ) : ViewModel() {
 
     private val accountId: Long = savedStateHandle.get<Long>(Routes.ACCOUNT_DETAIL_ARG_ID) ?: -1L
@@ -113,6 +115,7 @@ class AccountDetailViewModel @Inject constructor(
         viewModelScope.launch {
             accountRepository.delete(accountId)
             _state.update { it.copy(showDeleteConfirm = false, deleted = true) }
+            transactionMutationBus.tryEmit()
         }
     }
 

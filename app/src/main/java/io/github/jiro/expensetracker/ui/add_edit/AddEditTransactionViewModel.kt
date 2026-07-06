@@ -21,6 +21,7 @@ import io.github.jiro.expensetracker.data.repository.TransactionRepository
 import io.github.jiro.expensetracker.domain.model.TransactionType
 import io.github.jiro.expensetracker.domain.receipt.OcrFields
 import io.github.jiro.expensetracker.preferences.SettingsRepository
+import io.github.jiro.expensetracker.sync.TransactionMutationBus
 import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -106,6 +107,7 @@ class AddEditTransactionViewModel @Inject constructor(
     private val receiptRepository: ReceiptRepository,
     private val receiptOcrProcessor: ReceiptOcrProcessor,
     private val settingsRepository: SettingsRepository,
+    private val transactionMutationBus: TransactionMutationBus,
 ) : AndroidViewModel(application) {
 
     private val transactionId: Long? = savedStateHandle
@@ -397,6 +399,7 @@ class AddEditTransactionViewModel @Inject constructor(
             )
             if (s.id == null) transactionRepository.add(entity) else transactionRepository.update(entity)
             _state.update { it.copy(isSaving = false, saveComplete = true) }
+            transactionMutationBus.tryEmit()
         }
     }
 

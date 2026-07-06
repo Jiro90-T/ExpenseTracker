@@ -19,6 +19,7 @@ import io.github.jiro.expensetracker.domain.model.TransactionType
 import io.github.jiro.expensetracker.domain.receipt.OcrFields
 import io.github.jiro.expensetracker.domain.receipt.ReceiptReviewPipeline
 import io.github.jiro.expensetracker.preferences.SettingsRepository
+import io.github.jiro.expensetracker.sync.TransactionMutationBus
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -65,6 +66,7 @@ class AddReceiptViewModel @Inject constructor(
     private val receiptRepository: ReceiptRepository,
     private val receiptOcrProcessor: ReceiptOcrProcessor,
     private val settingsRepository: SettingsRepository,
+    private val transactionMutationBus: TransactionMutationBus,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : AndroidViewModel(application) {
 
@@ -198,6 +200,7 @@ class AddReceiptViewModel @Inject constructor(
             try {
                 transactionRepository.add(entity)
                 _state.update { it.copy(isSaving = false, saveComplete = true) }
+                transactionMutationBus.tryEmit()
             } catch (e: Exception) {
                 _state.update { it.copy(isSaving = false, error = AddReceiptError.RECEIPT_SAVE_FAILED) }
             }

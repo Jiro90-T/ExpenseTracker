@@ -18,6 +18,7 @@ import io.github.jiro.expensetracker.data.repository.TransactionRepository
 import io.github.jiro.expensetracker.domain.model.TransactionType
 import io.github.jiro.expensetracker.domain.receipt.OcrFields
 import io.github.jiro.expensetracker.preferences.SettingsRepository
+import io.github.jiro.expensetracker.sync.TransactionMutationBus
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -71,6 +72,7 @@ class AddReceiptViewModelTest {
             receiptRepository = FakeReceiptRepo(),
             receiptOcrProcessor = FakeOcrProcessor(OcrFields(null, null, null)),
             settingsRepository = FakeSettingsRepository(homeCurrency),
+            transactionMutationBus = TransactionMutationBus(),
             // Pin the pipeline's IO work to the test scheduler so
             // advanceUntilIdle actually waits for it. Otherwise the real
             // Dispatchers.IO thread pool runs the bitmap decode and our
