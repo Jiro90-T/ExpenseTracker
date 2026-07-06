@@ -83,6 +83,7 @@ import io.github.jiro.expensetracker.preferences.parseRates
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit = {},
+    onConflictClick: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val exportUri by viewModel.exportUri.collectAsStateWithLifecycle()
@@ -336,7 +337,7 @@ fun SettingsScreen(
                 onSignInClick = { signInLauncher.launch(viewModel.signInIntent) },
                 onSignOutClick = viewModel::onSignOutClick,
                 onSyncNowClick = viewModel::onSyncNow,
-                onConflictClick = { },
+                onConflictClick = onConflictClick,
             )
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 

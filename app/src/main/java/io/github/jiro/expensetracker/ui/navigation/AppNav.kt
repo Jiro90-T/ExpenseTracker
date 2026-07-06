@@ -35,11 +35,13 @@ import io.github.jiro.expensetracker.ui.cards.MemberCardDetailScreen
 import io.github.jiro.expensetracker.ui.cards.MemberCardEditScreen
 import io.github.jiro.expensetracker.ui.cards.MemberCardListScreen
 import io.github.jiro.expensetracker.ui.categories.CategoryManagementScreen
+import io.github.jiro.expensetracker.ui.conflict.ConflictScreen
 import io.github.jiro.expensetracker.ui.home.HomeScreen
 import io.github.jiro.expensetracker.ui.more.MoreScreen
 import io.github.jiro.expensetracker.ui.receipts.ReceiptViewerScreen
 import io.github.jiro.expensetracker.ui.recurring.ManageSeriesScreen
 import io.github.jiro.expensetracker.ui.settings.SettingsScreen
+import io.github.jiro.expensetracker.ui.settings.SettingsViewModel
 import io.github.jiro.expensetracker.ui.statistics.StatisticsScreen
 import io.github.jiro.expensetracker.ui.transactions.TransactionsScreen
 import io.github.jiro.expensetracker.ui.trends.TrendsScreen
@@ -76,6 +78,9 @@ object Routes {
     const val MEMBER_CARDS_EDIT_NO_ID = "member_cards/edit"
     const val MEMBER_CARDS_CROP = "member_cards/crop?uri={uri}"
     const val MEMBER_CARDS_CROP_ARG_URI = "uri"
+    const val CONFLICT = "conflict?remote={remote}&local={local}"
+    const val CONFLICT_ARG_REMOTE = "remote"
+    const val CONFLICT_ARG_LOCAL = "local"
 }
 
 fun addEditRoute(transactionId: Long? = null): String =
@@ -320,6 +325,56 @@ fun AppNavHost(
             composable(Routes.SETTINGS) {
                 SettingsScreen(
                     onBack = { navController.popBackStack() },
+                    onConflictClick = { navController.navigate(Routes.CONFLICT) },
+                )
+            }
+            composable(
+                route = Routes.CONFLICT,
+                arguments = listOf(
+                    navArgument(Routes.CONFLICT_ARG_REMOTE) {
+                        type = NavType.StringType
+                        defaultValue = ""
+                        nullable = true
+                    },
+                    navArgument(Routes.CONFLICT_ARG_LOCAL) {
+                        type = NavType.StringType
+                        defaultValue = ""
+                        nullable = true
+                    },
+                ),
+            ) { backStackEntry ->
+                val remoteB64 = backStackEntry.arguments?.getString(Routes.CONFLICT_ARG_REMOTE).orEmpty()
+                val localB64 = backStackEntry.arguments?.getString(Routes.CONFLICT_ARG_LOCAL).orEmpty()
+                val emptyBody = io.github.jiro.expensetracker.sync.BackupBody(
+                    accounts = emptyList(),
+                    categories = emptyList(),
+                    transactions = emptyList(),
+                )
+                val emptySnapshot = io.github.jiro.expensetracker.sync.SyncSnapshot(
+                    body = emptyBody,
+                    lastModifiedEpochMillis = 0L,
+                    deviceId = "",
+                    checksum = "",
+                )
+                val remote = runCatching {
+                    java.net.URLDecoder.decode(remoteB64, "UTF-8")
+                        .takeIf { it.isNotEmpty() }
+                        ?.let { io.github.jiro.expensetracker.sync.SyncSnapshotCodec.decode(it) }
+                }.getOrNull() ?: emptySnapshot
+                val local = runCatching {
+                    java.net.URLDecoder.decode(localB64, "UTF-8")
+                        .takeIf { it.isNotEmpty() }
+                        ?.let { io.github.jiro.expensetracker.sync.SyncSnapshotCodec.decode(it) }
+                }.getOrNull() ?: emptySnapshot
+                val settingsVm: SettingsViewModel = hiltViewModel()
+                ConflictScreen(
+                    remote = remote,
+                    local = local,
+                    onBack = { navController.popBackStack() },
+                    onResolved = {
+                        settingsVm.onConflictResolved()
+                        navController.popBackStack()
+                    },
                 )
             }
             composable(Routes.ADD_RECEIPT) {
