@@ -16,9 +16,12 @@ import org.json.JSONObject
 @Singleton
 internal class DriveApiClientImpl @Inject constructor(
     private val httpClient: OkHttpClient,
+    private val tokens: SyncTokensRepository,
     private val baseUrl: String = "https://www.googleapis.com",
-    private val tokenProvider: () -> String?,
 ) : DriveApiClient {
+
+    private suspend fun accessToken(): String =
+        tokens.load()?.accessToken ?: throw DriveApiException.AuthRevoked
 
     override suspend fun upload(fileId: String?, body: String, mimeType: String): String =
         withContext(Dispatchers.IO) {
@@ -48,10 +51,7 @@ internal class DriveApiClientImpl @Inject constructor(
 
             val request = Request.Builder()
                 .url(url)
-                .apply {
-                    val token = tokenProvider() ?: throw DriveApiException.AuthRevoked
-                    header("Authorization", "Bearer $token")
-                }
+                .header("Authorization", "Bearer ${accessToken()}")
                 .apply {
                     if (fileId == null) post(multipart) else patch(multipart)
                 }
@@ -69,10 +69,7 @@ internal class DriveApiClientImpl @Inject constructor(
         withContext(Dispatchers.IO) {
             val request = Request.Builder()
                 .url("$baseUrl/drive/v3/files/$fileId?alt=media")
-                .apply {
-                    val token = tokenProvider() ?: throw DriveApiException.AuthRevoked
-                    header("Authorization", "Bearer $token")
-                }
+                .header("Authorization", "Bearer ${accessToken()}")
                 .get()
                 .build()
 

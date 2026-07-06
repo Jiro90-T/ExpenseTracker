@@ -23,18 +23,20 @@ private const val JSON = "application/json"
 private val OCTET_STREAM_BODY: okhttp3.RequestBody = "".toRequestBody(JSON.toMediaType())
 
 /**
- * OkHttp-backed [DropboxApiClient]. Reads tokens via a closure (NOT a stored
- * reference) so the orchestrator can rotate tokens without rebuilding the
- * client. Retries 429 (via `Retry-After`) and 5xx up to 3 times with
- * exponential backoff; 401/403/404/409 do NOT retry.
+ * OkHttp-backed [DropboxApiClient]. Reads tokens via the injected
+ * [DropboxSyncTokensRepository]. Retries 429 (via `Retry-After`) and 5xx
+ * up to 3 times with exponential backoff; 401/403/404/409 do NOT retry.
  */
 @Singleton
 internal class DropboxApiClientImpl @Inject constructor(
     private val httpClient: OkHttpClient,
-    private val tokensProvider: () -> DropboxSyncTokens?,
+    private val tokens: DropboxSyncTokensRepository,
     private val contentHost: String = HOST_CONTENT,
     private val apiHost: String = HOST_API,
 ) : DropboxApiClient {
+
+    private suspend fun accessToken(): String =
+        tokens.load()?.accessToken ?: throw DropboxApiException.AuthRevoked()
 
     override suspend fun upload(existingRev: String?, body: String): String =
         withContext(Dispatchers.IO) {
@@ -56,7 +58,7 @@ internal class DropboxApiClientImpl @Inject constructor(
             }
             val req = Request.Builder()
                 .url("$contentHost$PATH_UPLOAD")
-                .header("Authorization", "Bearer ${requireToken()}")
+                .header("Authorization", "Bearer ${accessToken()}")
                 .header("Dropbox-API-Arg", arg.toString())
                 .header("Content-Type", OCTET_STREAM)
                 .post(body.toRequestBody(OCTET_STREAM.toMediaType()))
@@ -77,7 +79,7 @@ internal class DropboxApiClientImpl @Inject constructor(
         val arg = JSONObject().put("path", SNAPSHOT_PATH)
         val req = Request.Builder()
             .url("$contentHost$PATH_DOWNLOAD")
-            .header("Authorization", "Bearer ${requireToken()}")
+            .header("Authorization", "Bearer ${accessToken()}")
             .header("Dropbox-API-Arg", arg.toString())
             .get()
             .build()
@@ -98,7 +100,7 @@ internal class DropboxApiClientImpl @Inject constructor(
         val arg = JSONObject().put("path", SNAPSHOT_PATH)
         val req = Request.Builder()
             .url("$apiHost$PATH_GET_METADATA")
-            .header("Authorization", "Bearer ${requireToken()}")
+            .header("Authorization", "Bearer ${accessToken()}")
             .header("Dropbox-API-Arg", arg.toString())
             .post(OCTET_STREAM_BODY)
             .build()
@@ -113,9 +115,6 @@ internal class DropboxApiClientImpl @Inject constructor(
             }
         }
     }
-
-    private fun requireToken(): String =
-        tokensProvider()?.accessToken ?: error("No Dropbox token available")
 
     private suspend fun executeWithRetry(
         request: Request,

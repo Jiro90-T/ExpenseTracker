@@ -25,7 +25,7 @@ class DropboxApiClientTest {
         val baseUrl = server.url("/").toString().trimEnd('/')
         client = DropboxApiClientImpl(
             httpClient = OkHttpClient(),
-            tokensProvider = { FIXED_TOKENS },
+            tokens = FakeDropboxSyncTokensRepository(initial = FIXED_TOKENS),
             contentHost = baseUrl,
             apiHost = baseUrl,
         )
@@ -198,6 +198,22 @@ class DropboxApiClientTest {
     fun getRev_returnsNull_on404() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(404))
         assertNull(client.getRev())
+    }
+
+    @Test
+    fun upload_throwsAuthRevoked_whenTokenRepoReturnsNull() = runBlocking {
+        client = DropboxApiClientImpl(
+            httpClient = OkHttpClient(),
+            tokens = FakeDropboxSyncTokensRepository(initial = null),
+            contentHost = server.url("/").toString().trimEnd('/'),
+            apiHost = server.url("/").toString().trimEnd('/'),
+        )
+        try {
+            client.upload(existingRev = null, body = "{}")
+            fail("Expected AuthRevoked when token repo returns null")
+        } catch (e: DropboxApiException.AuthRevoked) {
+            // expected
+        }
     }
 
     private companion object {

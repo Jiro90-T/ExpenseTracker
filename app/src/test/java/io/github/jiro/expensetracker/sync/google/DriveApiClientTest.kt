@@ -27,8 +27,14 @@ class DriveApiClientTest {
         val baseUrl = server.url("/").toString().trimEnd('/')
         client = DriveApiClientImpl(
             httpClient = OkHttpClient(),
+            tokens = FakeDriveSyncTokensRepository(initial = SyncTokens(
+                accessToken = token,
+                refreshToken = "fake-refresh",
+                expiresAtEpochMillis = 0L,
+                accountEmail = "test@example.com",
+                snapshotFileId = null,
+            )),
             baseUrl = baseUrl,
-            tokenProvider = { token },
         )
     }
 
@@ -143,6 +149,21 @@ class DriveApiClientTest {
             fail("Expected DriveApiException.ServerError")
         } catch (e: DriveApiException.ServerError) {
             assertEquals(2, server.requestCount) // original + 1 retry
+        }
+    }
+
+    @Test
+    fun upload_throwsAuthRevoked_whenTokenRepoReturnsNull() = runBlocking {
+        client = DriveApiClientImpl(
+            httpClient = OkHttpClient(),
+            tokens = FakeDriveSyncTokensRepository(initial = null),
+            baseUrl = server.url("/").toString().trimEnd('/'),
+        )
+        try {
+            client.upload(fileId = null, body = "x", mimeType = "application/json")
+            fail("Expected DriveApiException.AuthRevoked")
+        } catch (e: DriveApiException.AuthRevoked) {
+            // expected
         }
     }
 }
