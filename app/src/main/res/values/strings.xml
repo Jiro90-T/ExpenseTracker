@@ -457,4 +457,37 @@
     <!-- Cloud sync (Phase 4b — Google Drive provider) -->
     <string name="default_web_client_id" translatable="false"></string>
     <string name="google_drive_provider_id" translatable="false">google_drive</string>
+
+    <!-- Phase 4d: Cloud sync UI -->
+    <string name="settings_sync_section_title">Cloud sync</string>
+    <string name="settings_sync_status_signed_out">Not signed in</string>
+    <string name="settings_sync_status_signed_in">Signed in as %1$s (%2$s)</string>
+    <string name="settings_sync_provider_label">Provider</string>
+    <string name="settings_sync_provider_dropbox">Dropbox</string>
+    <string name="settings_sync_provider_google_drive">Google Drive</string>
+    <string name="settings_sync_provider_unavailable">Not configured in this build</string>
+    <string name="settings_sync_action_sign_in">Sign in</string>
+    <string name="settings_sync_action_sign_out">Sign out</string>
+    <string name="settings_sync_action_sync_now">Sync now</string>
+    <string name="settings_sync_last_synced_format">Last synced: %1$s</string>
+    <string name="settings_sync_last_synced_never">Never synced</string>
+    <string name="settings_sync_conflict_banner">Conflict — sync tie. Tap to resolve.</string>
+
+    <string name="sync_now_done">Sync complete</string>
+    <string name="sync_now_failed">Sync failed: %1$s</string>
+    <string name="sync_now_no_remote">No remote snapshot — pushed local</string>
+    <string name="sync_now_conflict">Conflict detected — open Settings to resolve</string>
+    <string name="sync_sign_in_cancelled">Sign-in cancelled</string>
+    <string name="sync_sign_in_failed">Sign-in failed: %1$s</string>
+    <string name="sync_signed_out">Signed out</string>
+
+    <string name="conflict_screen_title">Resolve sync conflict</string>
+    <string name="conflict_local_card_title">This device</string>
+    <string name="conflict_remote_card_title">Cloud</string>
+    <string name="conflict_summary_format">%1$d transactions, %2$d accounts</string>
+    <string name="conflict_modified_format">modified at %1$s</string>
+    <string name="conflict_action_use_cloud">Use cloud</string>
+    <string name="conflict_action_use_local">Use this device</string>
+    <string name="conflict_resolved">Conflict resolved</string>
+    <string name="action_sign_in_done">Signed in</string>
 </resources>

@@ -19,13 +19,20 @@ import io.github.jiro.expensetracker.preferences.ThemePreference
 import io.github.jiro.expensetracker.preferences.addRate
 import io.github.jiro.expensetracker.preferences.parseRates
 import io.github.jiro.expensetracker.preferences.removeRate
+import io.github.jiro.expensetracker.sync.CloudSyncRepository
+import io.github.jiro.expensetracker.sync.CloudSyncSessionState
+import io.github.jiro.expensetracker.sync.SyncProviderId
+import io.github.jiro.expensetracker.sync.TransactionMutationBus
 import java.io.File
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -39,11 +46,13 @@ data class SettingsMessage(
 )
 
 @HiltViewModel
-class SettingsViewModel @Inject constructor(
+class SettingsViewModel @Inject internal constructor(
     @ApplicationContext private val appContext: Context,
     private val backupManager: BackupManager,
     private val settingsRepository: SettingsRepository,
     private val accountImportRepository: AccountImportRepository,
+    private val cloudSyncRepository: CloudSyncRepository,
+    private val transactionMutationBus: TransactionMutationBus,
 ) : ViewModel() {
 
     val theme: StateFlow<ThemePreference> = settingsRepository.theme
@@ -141,6 +150,100 @@ class SettingsViewModel @Inject constructor(
 
     fun consumeImportAppliedResult() {
         _importAppliedResult.value = null
+    }
+
+    private val _conflictPending = MutableStateFlow(false)
+
+    internal val cloudSyncSession: StateFlow<CloudSyncSessionState> = combine(
+        cloudSyncRepository.state,
+        cloudSyncRepository.lastSyncedAtEpochMillis,
+        settingsRepository.syncProvider,
+        _conflictPending,
+    ) { state, lastSynced, provider, conflict ->
+        CloudSyncSessionState(
+            providerId = provider,
+            state = state,
+            lastSyncedAtEpochMillis = lastSynced,
+            accountEmail = null,
+            conflictPending = conflict,
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = CloudSyncSessionState(
+            providerId = SyncProviderId.DROPBOX,
+            state = io.github.jiro.expensetracker.sync.SyncState.SignedOut,
+            lastSyncedAtEpochMillis = null,
+            accountEmail = null,
+            conflictPending = false,
+        ),
+    )
+
+    internal val signInIntent: android.content.Intent get() = cloudSyncRepository.signInIntent
+
+    fun setSyncProvider(id: SyncProviderId) {
+        settingsRepository.setSyncProvider(id)
+    }
+
+    fun onSyncNow() {
+        viewModelScope.launch {
+            val result = cloudSyncRepository.syncOnce()
+            val isError: Boolean
+            val msg = when (result) {
+                is io.github.jiro.expensetracker.sync.SyncResult.Pulled -> {
+                    isError = false
+                    appContext.getString(R.string.sync_now_done)
+                }
+                is io.github.jiro.expensetracker.sync.SyncResult.Pushed -> {
+                    isError = false
+                    appContext.getString(R.string.sync_now_done)
+                }
+                io.github.jiro.expensetracker.sync.SyncResult.NoRemoteSnapshot -> {
+                    isError = false
+                    appContext.getString(R.string.sync_now_no_remote)
+                }
+                is io.github.jiro.expensetracker.sync.SyncResult.ConflictPending -> {
+                    _conflictPending.value = true
+                    isError = true
+                    appContext.getString(R.string.sync_now_conflict)
+                }
+                is io.github.jiro.expensetracker.sync.SyncResult.Failed -> {
+                    isError = true
+                    appContext.getString(R.string.sync_now_failed, result.message)
+                }
+            }
+            _message.value = SettingsMessage(msg, isError = isError)
+        }
+    }
+
+    fun onSignInResult(intent: android.content.Intent?) {
+        viewModelScope.launch {
+            val result = cloudSyncRepository.handleSignInResult(intent)
+            _message.value = when (result) {
+                is io.github.jiro.expensetracker.sync.SignInResult.Success ->
+                    SettingsMessage(appContext.getString(R.string.action_sign_in_done))
+                is io.github.jiro.expensetracker.sync.SignInResult.Failed -> {
+                    val cancelled = result.message == "Sign-in cancelled"
+                    val text = if (cancelled) {
+                        appContext.getString(R.string.sync_sign_in_cancelled)
+                    } else {
+                        appContext.getString(R.string.sync_sign_in_failed, result.message)
+                    }
+                    SettingsMessage(text, isError = true)
+                }
+            }
+        }
+    }
+
+    fun onSignOutClick() {
+        viewModelScope.launch {
+            cloudSyncRepository.signOut()
+            _message.value = SettingsMessage(appContext.getString(R.string.sync_signed_out))
+        }
+    }
+
+    fun onConflictResolved() {
+        _conflictPending.value = false
     }
 
     /**
