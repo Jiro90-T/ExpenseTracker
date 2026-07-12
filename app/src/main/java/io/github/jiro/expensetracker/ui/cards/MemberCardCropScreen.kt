@@ -510,3 +510,26 @@ internal fun applyPan(
         offsetY = transform.offsetY + panDelta.y,
     )
 }
+
+internal fun clampTransform(
+    transform: ImageTransform,
+    boxSize: IntSize,
+    sourceBitmapSize: IntSize,
+    cropRectInScreen: androidx.compose.ui.geometry.Rect,
+): ImageTransform {
+    val drawnCenterX = boxSize.width / 2f + transform.offsetX
+    val drawnCenterY = boxSize.height / 2f + transform.offsetY
+    val drawnW = sourceBitmapSize.width * transform.scale
+    val drawnH = sourceBitmapSize.height * transform.scale
+    val drawnLeft = drawnCenterX - drawnW / 2f
+    val drawnTop = drawnCenterY - drawnH / 2f
+    val drawnRight = drawnLeft + drawnW
+    val drawnBottom = drawnTop + drawnH
+
+    val dx = (cropRectInScreen.left - drawnLeft)
+        .coerceAtLeast(cropRectInScreen.right - drawnRight)
+    val dy = (cropRectInScreen.top - drawnTop)
+        .coerceAtLeast(cropRectInScreen.bottom - drawnBottom)
+
+    return transform.copy(offsetX = transform.offsetX + dx, offsetY = transform.offsetY + dy)
+}
