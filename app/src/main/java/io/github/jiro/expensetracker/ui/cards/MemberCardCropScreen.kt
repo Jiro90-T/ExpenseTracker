@@ -480,3 +480,21 @@ internal data class ImageTransform(
     val offsetX: Float = 0f,
     val offsetY: Float = 0f,
 )
+
+internal fun applyZoomAround(
+    centroid: Offset,
+    zoomFactor: Float,
+    transform: ImageTransform,
+    boxSize: IntSize,
+    sourceBitmapSize: IntSize,
+): ImageTransform {
+    val oldScale = transform.scale
+    val newScale = (oldScale * zoomFactor).coerceIn(MIN_SCALE, MAX_SCALE)
+    val boxCenter = Offset(boxSize.width / 2f, boxSize.height / 2f)
+    val drawnCenterOld = boxCenter + Offset(transform.offsetX, transform.offsetY)
+    val scaleRatio = newScale / oldScale
+    val drawnCenterNew = centroid - (centroid - drawnCenterOld) * scaleRatio
+    val newOffsetX = drawnCenterNew.x - boxCenter.x
+    val newOffsetY = drawnCenterNew.y - boxCenter.y
+    return transform.copy(scale = newScale, offsetX = newOffsetX, offsetY = newOffsetY)
+}
