@@ -51,7 +51,7 @@ internal class DropboxCloudSyncRepository @Inject constructor(
         .map { it is SyncState.SignedIn }
         .stateIn(scope, SharingStarted.Eagerly, false)
 
-    override val signInIntent: Intent = dropboxAuth.buildAuthIntent()
+    override val signInIntent: Intent get() = dropboxAuth.buildAuthIntent()
 
     override suspend fun signIn(): SignInResult = withContext(Dispatchers.IO) {
         val cached = tokens.load()

@@ -56,7 +56,7 @@ internal class GoogleDriveCloudSyncRepository @Inject constructor(
         .map { it is SyncState.SignedIn }
         .stateIn(scope, SharingStarted.Eagerly, false)
 
-    override val signInIntent: Intent = googleAuth.buildSignInIntent()
+    override val signInIntent: Intent get() = googleAuth.buildSignInIntent()
 
     override suspend fun signIn(): SignInResult = withContext(Dispatchers.IO) {
         val cached = tokens.load()
