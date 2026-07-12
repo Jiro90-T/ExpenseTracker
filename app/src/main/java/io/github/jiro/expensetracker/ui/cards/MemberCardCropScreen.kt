@@ -498,3 +498,15 @@ internal fun applyZoomAround(
     val newOffsetY = drawnCenterNew.y - boxCenter.y
     return transform.copy(scale = newScale, offsetX = newOffsetX, offsetY = newOffsetY)
 }
+
+internal fun applyPan(
+    panDelta: Offset,
+    transform: ImageTransform,
+    boxSize: IntSize,
+): ImageTransform {
+    if (transform.scale == 1f) return transform
+    return transform.copy(
+        offsetX = transform.offsetX + panDelta.x,
+        offsetY = transform.offsetY + panDelta.y,
+    )
+}
