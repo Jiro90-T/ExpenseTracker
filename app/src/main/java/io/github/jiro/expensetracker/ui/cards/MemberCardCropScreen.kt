@@ -471,3 +471,12 @@ private fun cropAndEncode(
         if (!cropped.isRecycled) cropped.recycle()
     }
 }
+
+internal const val MIN_SCALE = 1f
+internal const val MAX_SCALE = 3f
+
+internal data class ImageTransform(
+    val scale: Float = 1f,
+    val offsetX: Float = 0f,
+    val offsetY: Float = 0f,
+)
