@@ -73,6 +73,25 @@ class ComputeBitmapCropRectTest {
     }
 
     @Test
+    fun scaleOneWithOffset_translatesSourceRect() {
+        val box = IntSize(1080, 1920)
+        val src = IntSize(800, 600)
+        val cropRect = Rect(560f, 970f, 660f, 1070f)
+        val t = ImageTransform(scale = 1f, offsetX = 20f, offsetY = 10f)
+        val out = computeBitmapCropRect(
+            boxSize = box,
+            cropRectInScreen = cropRect,
+            layout = layoutFor(box, src),
+            sourceBitmapSize = src,
+            imageTransform = t,
+        )
+        assertEquals(400, out.x)
+        assertEquals(300, out.y)
+        assertEquals(100, out.width)
+        assertEquals(100, out.height)
+    }
+
+    @Test
     fun clampsToSourceBounds_evenIfTransformWild() {
         val box = IntSize(1080, 1920)
         val src = IntSize(800, 600)
