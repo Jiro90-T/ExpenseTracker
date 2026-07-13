@@ -45,6 +45,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
@@ -290,6 +291,8 @@ private fun CropBody(
             mutableStateOf(Rect(rectLeft, rectTop, rectLeft + rectW, rectTop + rectH))
         }
 
+        var imageTransform by remember(bitmap) { mutableStateOf(ImageTransform()) }
+
         // Clamp helper — keeps the crop rect inside the image bounds.
         // The rectangle keeps its size; the user only drags it around.
         // Resize handles are intentionally out of scope.
@@ -329,7 +332,14 @@ private fun CropBody(
                 bitmap = bitmap.asImageBitmap(),
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        scaleX = imageTransform.scale
+                        scaleY = imageTransform.scale
+                        translationX = imageTransform.offsetX
+                        translationY = imageTransform.offsetY
+                    },
             )
             // Dimmed overlay with a cutout that exposes the un-dimmed image
             // inside the crop rect. Drawn as four rectangles around the crop
