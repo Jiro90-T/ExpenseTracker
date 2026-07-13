@@ -400,39 +400,45 @@ internal data class BitmapCropRect(
 
 /**
  * Map the on-screen crop rect (display-pixel coordinates) to a clipped
- * sub-rectangle in source-bitmap pixels. The display rect is centered and
- * uniformly scaled inside the bitmap (ContentScale.Fit), so we subtract
- * [layout.displayedLeft] and [layout.displayedTop] to remove the centering
- * offset and divide by [layout.scale] to invert the fit-scale.
+ * sub-rectangle in source-bitmap pixels. The bitmap is drawn centered in
+ * the box at width `sourceBitmapSize.width * imageTransform.scale`, with
+ * [imageTransform]'s offset translating the center from the box center.
+ * Un-projecting a screen point to a source pixel is therefore
+ * `(screen - drawnLeft) / imageTransform.scale`, where `drawnLeft` is the
+ * screen-x of the leftmost drawn source pixel.
  *
- * The result is clipped so it stays inside the bitmap bounds while
- * preserving the requested width/height when possible. Returns null only
- * when the bitmap dimensions are degenerate (zero/negative) or the rect
- * maps to a zero-area region (width or height ≤ 0).
+ * `srcLeft`/`srcTop` are clamped to leave at least a 1-pixel gap before
+ * the bitmap's far edge so the resulting `(x + width, y + height)` stays
+ * inside the source even when the input rect collapses to a point or
+ * the transform projects it past every source pixel.
  */
 internal fun computeBitmapCropRect(
-    cropRect: Rect,
+    boxSize: IntSize,
+    cropRectInScreen: Rect,
     layout: CropLayout,
-    sourceWidth: Int,
-    sourceHeight: Int,
-): BitmapCropRect? {
-    if (layout.scale <= 0f || sourceWidth <= 0 || sourceHeight <= 0) return null
-    if (cropRect.width <= 0f || cropRect.height <= 0f) return null
-    val imageX = ((cropRect.left - layout.displayedLeft) / layout.scale).toInt()
-    val imageY = ((cropRect.top - layout.displayedTop) / layout.scale).toInt()
-    val imageW = (cropRect.width / layout.scale).toInt()
-    val imageH = (cropRect.height / layout.scale).toInt()
-    // Shift the start inside the bitmap so the requested width/height still
-    // fits. coerceIn(0, maxX) where maxX = sourceWidth - imageW clamps the
-    // rect rather than shrinking it. When imageW exceeds sourceWidth, the
-    // rect is anchored at 0 and the width is shrunk below.
-    val safeX = imageX.coerceIn(0, (sourceWidth - imageW).coerceAtLeast(0))
-    val safeY = imageY.coerceIn(0, (sourceHeight - imageH).coerceAtLeast(0))
-    val maxW = (sourceWidth - safeX).coerceAtLeast(0)
-    val maxH = (sourceHeight - safeY).coerceAtLeast(0)
-    val safeW = imageW.coerceIn(0, maxW).coerceAtLeast(1)
-    val safeH = imageH.coerceIn(0, maxH).coerceAtLeast(1)
-    return BitmapCropRect(safeX, safeY, safeW, safeH)
+    sourceBitmapSize: IntSize,
+    imageTransform: ImageTransform,
+): BitmapCropRect {
+    val drawnCenterX = boxSize.width / 2f + imageTransform.offsetX
+    val drawnCenterY = boxSize.height / 2f + imageTransform.offsetY
+    val drawnLeft = drawnCenterX - sourceBitmapSize.width * imageTransform.scale / 2f
+    val drawnTop = drawnCenterY - sourceBitmapSize.height * imageTransform.scale / 2f
+
+    val srcLeft = ((cropRectInScreen.left - drawnLeft) / imageTransform.scale)
+        .toInt()
+        .coerceIn(0, sourceBitmapSize.width - 1)
+    val srcTop = ((cropRectInScreen.top - drawnTop) / imageTransform.scale)
+        .toInt()
+        .coerceIn(0, sourceBitmapSize.height - 1)
+    val srcRight = ((cropRectInScreen.right - drawnLeft) / imageTransform.scale)
+        .toInt()
+        .coerceIn(0, sourceBitmapSize.width)
+    val srcBottom = ((cropRectInScreen.bottom - drawnTop) / imageTransform.scale)
+        .toInt()
+        .coerceIn(0, sourceBitmapSize.height)
+    val width = (srcRight - srcLeft).coerceAtLeast(1)
+    val height = (srcBottom - srcTop).coerceAtLeast(1)
+    return BitmapCropRect(x = srcLeft, y = srcTop, width = width, height = height)
 }
 
 /**
@@ -452,11 +458,12 @@ private fun cropAndEncode(
     cacheDir: File,
 ): String? {
     val slice = computeBitmapCropRect(
-        cropRect = cropRect,
+        boxSize = IntSize(source.width, source.height),
+        cropRectInScreen = cropRect,
         layout = layout,
-        sourceWidth = source.width,
-        sourceHeight = source.height,
-    ) ?: return null
+        sourceBitmapSize = IntSize(source.width, source.height),
+        imageTransform = ImageTransform(),
+    )
     val cropped: Bitmap = runCatching {
         Bitmap.createBitmap(source, slice.x, slice.y, slice.width, slice.height)
     }.getOrNull() ?: return null
@@ -517,6 +524,7 @@ internal fun clampTransform(
     sourceBitmapSize: IntSize,
     cropRectInScreen: androidx.compose.ui.geometry.Rect,
 ): ImageTransform {
+    if (transform.scale == 1f) return transform
     val drawnCenterX = boxSize.width / 2f + transform.offsetX
     val drawnCenterY = boxSize.height / 2f + transform.offsetY
     val drawnW = sourceBitmapSize.width * transform.scale
