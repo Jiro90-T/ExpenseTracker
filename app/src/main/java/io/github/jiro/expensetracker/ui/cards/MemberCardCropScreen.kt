@@ -5,7 +5,7 @@ import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -315,15 +315,21 @@ private fun CropBody(
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(bitmap) {
-                    detectDragGestures(
-                        onDragStart = { /* offset is computed per-event */ },
-                    ) { change, dragAmount ->
-                        change.consume()
-                        val candidate = Rect(
-                            offset = cropRect.topLeft + dragAmount,
-                            size = cropRect.size,
+                    detectTransformGestures { centroid, pan, zoom, _ ->
+                        if (zoom != 1f) {
+                            imageTransform = applyZoomAround(centroid, zoom, imageTransform, boxSize, IntSize(bitmap.width, bitmap.height))
+                        } else if (imageTransform.scale == 1f) {
+                            val candidate = Rect(cropRect.topLeft + pan, cropRect.size)
+                            cropRect = clampRect(candidate)
+                        } else {
+                            imageTransform = applyPan(pan, imageTransform, boxSize)
+                        }
+                        imageTransform = clampTransform(
+                            imageTransform,
+                            boxSize = boxSize,
+                            sourceBitmapSize = IntSize(bitmap.width, bitmap.height),
+                            cropRectInScreen = cropRect,
                         )
-                        cropRect = clampRect(candidate)
                     }
                 },
         ) {
