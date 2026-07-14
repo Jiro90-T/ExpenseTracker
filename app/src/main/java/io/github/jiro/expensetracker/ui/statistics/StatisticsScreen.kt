@@ -112,39 +112,57 @@ internal fun StatisticsContent(
         }
         HorizontalPager(state = pagerState) { page ->
             val tab = tabs[page]
-            val range = rangesByTab.getValue(tab)
-            // Memoize isDefault off the range itself — recomputing defaultFor(tab)
-            // every frame could flicker the chip color across month boundaries.
-            val isDefault = remember(range) { range == defaultFor(tab) }
+            // Compute `range` and `isDefault` ONLY for tabs that have a persisted
+            // range. INSIGHTS doesn't appear in `rangesByTab` (it has no date
+            // window), so calling getValue(INSIGHTS) would throw NoSuchElementException
+            // and crash the app when the user clicked that tab.
             when (tab) {
-                StatisticsTab.TOP_CATS -> TopCatsTab(
-                    result = topCategories,
-                    range = range,
-                    isDefault = isDefault,
-                    onChipClick = { sheetTab = tab },
-                    onReset = { onRangeSelected(tab, defaultFor(tab)) },
-                )
-                StatisticsTab.SAVINGS -> SavingsTab(
-                    savings = savings,
-                    range = range,
-                    isDefault = isDefault,
-                    onChipClick = { sheetTab = tab },
-                    onReset = { onRangeSelected(tab, defaultFor(tab)) },
-                )
-                StatisticsTab.PATTERNS -> PatternsTab(
-                    buckets = dayOfWeek,
-                    range = range,
-                    isDefault = isDefault,
-                    onChipClick = { sheetTab = tab },
-                    onReset = { onRangeSelected(tab, defaultFor(tab)) },
-                )
-                StatisticsTab.YOY -> YoyTab(
-                    result = yoy,
-                    range = range,
-                    isDefault = isDefault,
-                    onChipClick = { sheetTab = tab },
-                    onReset = { onRangeSelected(tab, defaultFor(tab)) },
-                )
+                StatisticsTab.TOP_CATS -> {
+                    val range = rangesByTab.getValue(tab)
+                    // Memoize isDefault off the range itself — recomputing defaultFor(tab)
+                    // every frame could flicker the chip color across month boundaries.
+                    val isDefault = remember(range) { range == defaultFor(tab) }
+                    TopCatsTab(
+                        result = topCategories,
+                        range = range,
+                        isDefault = isDefault,
+                        onChipClick = { sheetTab = tab },
+                        onReset = { onRangeSelected(tab, defaultFor(tab)) },
+                    )
+                }
+                StatisticsTab.SAVINGS -> {
+                    val range = rangesByTab.getValue(tab)
+                    val isDefault = remember(range) { range == defaultFor(tab) }
+                    SavingsTab(
+                        savings = savings,
+                        range = range,
+                        isDefault = isDefault,
+                        onChipClick = { sheetTab = tab },
+                        onReset = { onRangeSelected(tab, defaultFor(tab)) },
+                    )
+                }
+                StatisticsTab.PATTERNS -> {
+                    val range = rangesByTab.getValue(tab)
+                    val isDefault = remember(range) { range == defaultFor(tab) }
+                    PatternsTab(
+                        buckets = dayOfWeek,
+                        range = range,
+                        isDefault = isDefault,
+                        onChipClick = { sheetTab = tab },
+                        onReset = { onRangeSelected(tab, defaultFor(tab)) },
+                    )
+                }
+                StatisticsTab.YOY -> {
+                    val range = rangesByTab.getValue(tab)
+                    val isDefault = remember(range) { range == defaultFor(tab) }
+                    YoyTab(
+                        result = yoy,
+                        range = range,
+                        isDefault = isDefault,
+                        onChipClick = { sheetTab = tab },
+                        onReset = { onRangeSelected(tab, defaultFor(tab)) },
+                    )
+                }
                 StatisticsTab.INSIGHTS -> InsightsTab(insights = insights)
             }
         }
