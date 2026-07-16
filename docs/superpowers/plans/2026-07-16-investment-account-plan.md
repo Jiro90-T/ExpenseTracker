@@ -655,7 +655,7 @@ In `app/src/main/java/io/github/jiro/expensetracker/data/local/AppDatabase.kt`:
                          costBasisMinor INTEGER NOT NULL,
                          currencyCode TEXT NOT NULL,
                          createdAtEpochMillis INTEGER NOT NULL,
-                         FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE CASCADE
+                         FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE RESTRICT
                        )
                    """.trimIndent())
                    db.execSQL("CREATE INDEX IF NOT EXISTS index_investment_holdings_accountId ON investment_holdings (accountId)")

@@ -9,6 +9,11 @@ import androidx.room.PrimaryKey
  * A position held inside an INVESTMENT account. One row per symbol per
  * account. Cost basis is the total amount paid (not per-share); the UI
  * shows per-share as `costBasisMinor / quantity`.
+ *
+ * The FK to accounts is RESTRICT (matches TransactionEntity/BudgetEntity)
+ * so the database will reject any future code that deletes an account
+ * row while holdings exist. The app enforces the same rule at the UI layer
+ * via DeleteGuard.BLOCK_HOLDINGS_EXIST.
  */
 @Entity(
     tableName = "investment_holdings",
@@ -21,7 +26,7 @@ import androidx.room.PrimaryKey
             entity = AccountEntity::class,
             parentColumns = ["id"],
             childColumns = ["accountId"],
-            onDelete = ForeignKey.CASCADE,
+            onDelete = ForeignKey.RESTRICT,
         ),
     ],
 )
