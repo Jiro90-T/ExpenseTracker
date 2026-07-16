@@ -100,4 +100,39 @@ object MoneyFormat {
             .replace(" ", "")
             .lowercase()
     }
+
+    /**
+     * Per-currency decimal-place map for prices that arrive as doubles
+     * (Yahoo Finance, FX rates). Most fiat is 2dp; JPY/KRW are 0dp; BTC/ETH
+     * use 2dp/5dp respectively. Unknown currencies default to 2dp.
+     */
+    private val CURRENCY_DECIMAL_PLACES: Map<String, Int> = mapOf(
+        "USD" to 2, "EUR" to 2, "GBP" to 2, "AUD" to 2, "CAD" to 2,
+        "CHF" to 2, "SGD" to 2, "HKD" to 2, "MYR" to 2, "CNY" to 2,
+        "JPY" to 0, "KRW" to 0,
+        "BTC" to 2, "ETH" to 5,
+    )
+
+    /** Convert a price expressed as a double (Yahoo precision) into minor units
+     *  for the given currency. Uses banker's-ish rounding (Math.round = half-up). */
+    fun priceToMinor(price: Double, currencyCode: String): Long {
+        val dp = CURRENCY_DECIMAL_PLACES[currencyCode.uppercase()] ?: 2
+        val multiplier = Math.pow(10.0, dp.toDouble())
+        return Math.round(price * multiplier).toLong()
+    }
+
+    /** Format minor units back to a display string with the currency's natural
+     *  decimal places (USD 2dp, JPY 0dp). Includes a thousands separator. */
+    fun minorToDisplay(minor: Long, currencyCode: String): String {
+        val dp = CURRENCY_DECIMAL_PLACES[currencyCode.uppercase()] ?: 2
+        val divisor = Math.pow(10.0, dp.toDouble()).toLong()
+        val isNegative = minor < 0
+        val absMinor = if (isNegative) -minor else minor
+        val whole = absMinor / divisor
+        val fraction = absMinor % divisor
+        val groupedWhole = groupThousands(whole)
+        val sign = if (isNegative) "-" else ""
+        return if (dp == 0) "$sign$groupedWhole"
+        else "$sign$groupedWhole.%0${dp}d".format(fraction)
+    }
 }
