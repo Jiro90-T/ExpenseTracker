@@ -328,3 +328,34 @@ Manual smoke (Phase plan verification):
 - Multiple API providers (Finnhub, Alpha Vantage) with provider selection
 - API key support for paid tiers
 - Tax reporting / realized gain/loss
+
+---
+
+## Pre-flight smoke review — 2026-07-17
+
+A code-level review of the 9-step smoke checklist (spec §7) was performed before the human-driven smoke run. Two blockers were found and fixed in commit `a12d211`.
+
+| # | Step | Pre-flight status | Notes |
+|---|------|-------------------|-------|
+| 1 | Add account "Brokerage", type=Investment, currency=USD | PASS | `AddEditAccountViewModel` has INVESTMENT preset + 📈 icon; route wired |
+| 2 | Add holding AAPL qty=10 cost=$1500 USD | PASS | Form validation + insert path correct |
+| 3 | Add holding 7203.T qty=100 cost=¥200,000 JPY | PASS | JPY in SUPPORTED_CURRENCIES; `.T` suffix infers JPY |
+| 4 | Set FX rate USD→JPY = 150 in Settings | PASS | `SettingsRepository.fxRates` + `SettingsScreen.AddRateDialog`; `FxConverter.rateKey` derives reverse rate |
+| 5 | Open account detail → refresh fires → prices appear → rollup shows USD total | PASS (after fix in a12d211) | Auto-refresh on open added via `LaunchedEffect(viewModel, state.holdings.isNotEmpty())` |
+| 6 | Toggle airplane mode → re-open account → still shows cached values with stale badge | PASS | `CachedQuoteDao.observeBySymbols` returns Room rows offline; stale threshold 6h |
+| 7 | Try to delete the account → blocked with "still holds N positions" message | PASS (after fix in a12d211) | Delete icon added to `InvestmentAccountDetailScreen`; two dialogs (blocked + confirm); `onDeleteClick` calls `countHoldings` to route |
+| 8 | Edit AAPL holding → save → list updates | PASS | AddEditHoldingScreen supports edit mode via `holdingId` route arg |
+| 9 | Add unknown symbol "ZZZZ" → row shows "No price" | PASS | Yahoo skips unknown; cache untouched; UI shows "No price" string |
+
+**Blockers found and fixed (commit a12d211):**
+1. VM was missing auto-refresh on init — fixed by moving the refresh trigger to a screen-level `LaunchedEffect`, preserving the VM test invariant (`refreshCount == 0` after `advanceUntilIdle()`).
+2. DeleteGuard `BLOCK_HOLDINGS_EXIST` was unreachable for investment accounts (no delete affordance on the investment detail screen) — fixed by adding a Delete icon, two dialogs, and a `deleteEvent` channel mirroring the close-event pattern.
+
+**Human smoke test status:** Pending. The code-level pre-flight is green; the human-driven end-to-end UX pass (account list → detail → add holding → refresh → FX rollup → offline cached → delete guard → edit → unknown symbol) still needs to run on a device/emulator.
+
+**Cross-cutting checks:**
+- DI: `MarketDataModule`, `SettingsModule`, `AccountManagementModule` all bind interfaces correctly.
+- Permissions: `INTERNET` declared in `AndroidManifest.xml`.
+- Migration: v8→v9 in `AppDatabase.MIGRATION_8_9` creates both new tables with FK RESTRICT.
+- Strings: All `R.string.*` references verified against `strings.xml`.
+- FX rate keying: `FxConverter.rateKey` produces `"JPY_to_USD"` format; UI parses the same.
