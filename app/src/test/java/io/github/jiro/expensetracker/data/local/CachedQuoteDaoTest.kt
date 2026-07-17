@@ -44,13 +44,15 @@ class CachedQuoteDaoTest {
         assertNull(dao.findBySymbol("MISSING"))
     }
 
-    @Test fun observeBySymbols_emitsMapOfRequestedSymbols() = runTest {
+    @Test fun observeBySymbols_emitsRowsForRequestedSymbols() = runTest {
         dao.upsert(CachedQuoteEntity("AAPL", 12345L, "USD", 1L))
         dao.upsert(CachedQuoteEntity("GOOG", 50000L, "USD", 1L))
-        val map = dao.observeBySymbols(listOf("AAPL", "GOOG", "MISSING")).first()
-        assertEquals(2, map.size)
-        assertEquals(12345L, map["AAPL"]?.priceMinor)
-        assertEquals(50000L, map["GOOG"]?.priceMinor)
+        val rows = dao.observeBySymbols(listOf("AAPL", "GOOG", "MISSING")).first()
+        assertEquals(2, rows.size)
+        val aapl = rows.single { it.symbol == "AAPL" }
+        val goog = rows.single { it.symbol == "GOOG" }
+        assertEquals(12345L, aapl.priceMinor)
+        assertEquals(50000L, goog.priceMinor)
     }
 
     @Test fun findBySymbols_returnsRowsForProvidedSymbols() = runTest {

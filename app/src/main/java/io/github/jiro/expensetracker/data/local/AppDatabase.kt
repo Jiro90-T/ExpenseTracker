@@ -12,8 +12,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         BudgetEntity::class,
         AccountEntity::class,
         MemberCardEntity::class,
+        InvestmentHoldingEntity::class,
+        CachedQuoteEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -22,6 +24,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun budgetDao(): BudgetDao
     abstract fun accountDao(): AccountDao
     abstract fun memberCardDao(): MemberCardDao
+    abstract fun investmentHoldingDao(): InvestmentHoldingDao
+    abstract fun cachedQuoteDao(): CachedQuoteDao
 
     companion object {
         const val NAME = "expense_tracker.db"
@@ -193,6 +197,42 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_7_8: Migration = object : Migration(7, 8) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE accounts ADD COLUMN archivedAtEpochMillis INTEGER")
+            }
+        }
+
+        /**
+         * v8 → v9: investment accounts. Adds `investment_holdings` and
+         * `cached_quotes` tables. No existing data is touched.
+         *
+         * The FK on `investment_holdings.accountId` is RESTRICT (not CASCADE)
+         * so the DB will reject any future code path that tries to delete an
+         * account row while holdings exist. The app enforces the same rule at
+         * the UI layer via DeleteGuard.BLOCK_HOLDINGS_EXIST (Task 10).
+         */
+        val MIGRATION_8_9: Migration = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS investment_holdings (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        accountId INTEGER NOT NULL,
+                        symbol TEXT NOT NULL,
+                        quantity REAL NOT NULL,
+                        costBasisMinor INTEGER NOT NULL,
+                        currencyCode TEXT NOT NULL,
+                        createdAtEpochMillis INTEGER NOT NULL,
+                        FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE RESTRICT
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_investment_holdings_accountId ON investment_holdings (accountId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_investment_holdings_symbol ON investment_holdings (symbol)")
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS cached_quotes (
+                        symbol TEXT NOT NULL PRIMARY KEY,
+                        priceMinor INTEGER NOT NULL,
+                        currencyCode TEXT NOT NULL,
+                        fetchedAtEpochMillis INTEGER NOT NULL
+                    )
+                """.trimIndent())
             }
         }
     }

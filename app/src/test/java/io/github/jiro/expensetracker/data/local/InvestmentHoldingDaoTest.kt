@@ -18,12 +18,21 @@ class InvestmentHoldingDaoTest {
     private lateinit var db: AppDatabase
     private lateinit var dao: InvestmentHoldingDao
 
-    @Before fun setup() {
+    @Before fun setup() = runTest {
         db = Room.inMemoryDatabaseBuilder(
             RuntimeEnvironment.getApplication(),
             AppDatabase::class.java,
         ).allowMainThreadQueries().build()
         dao = db.investmentHoldingDao()
+        // Seed a parent account so the FK on investment_holdings.accountId
+        // (RESTRICT) is satisfied by every test that inserts a holding.
+        db.accountDao().insert(
+            AccountEntity(
+                id = 1L, name = "Test Account", type = "CASH",
+                icon = "💵", color = -14934489, currencyCode = "USD",
+                createdAtEpochMillis = 0L,
+            ),
+        )
     }
 
     @After fun teardown() { db.close() }
@@ -35,7 +44,7 @@ class InvestmentHoldingDaoTest {
             createdAtEpochMillis = 1_000L,
         )
         val id = dao.insert(row)
-        assertEquals(1L, dao.countByAccount(1L))
+        assertEquals(1, dao.countByAccount(1L))
         val rows = dao.observeByAccount(1L).first()
         assertEquals(1, rows.size)
         assertEquals(id, rows[0].id)

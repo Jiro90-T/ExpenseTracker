@@ -10,7 +10,9 @@ import dagger.hilt.components.SingletonComponent
 import io.github.jiro.expensetracker.data.local.AccountDao
 import io.github.jiro.expensetracker.data.local.AppDatabase
 import io.github.jiro.expensetracker.data.local.BudgetDao
+import io.github.jiro.expensetracker.data.local.CachedQuoteDao
 import io.github.jiro.expensetracker.data.local.CategoryDao
+import io.github.jiro.expensetracker.data.local.InvestmentHoldingDao
 import io.github.jiro.expensetracker.data.local.MemberCardDao
 import io.github.jiro.expensetracker.data.local.TransactionDao
 import javax.inject.Singleton
@@ -30,6 +32,7 @@ object DatabaseModule {
                 AppDatabase.MIGRATION_5_6,
                 AppDatabase.MIGRATION_6_7,
                 AppDatabase.MIGRATION_7_8,
+                AppDatabase.MIGRATION_8_9,
             )
             .fallbackToDestructiveMigration()
             .build()
@@ -48,4 +51,10 @@ object DatabaseModule {
 
     @Provides
     fun provideMemberCardDao(db: AppDatabase): MemberCardDao = db.memberCardDao()
+
+    @Provides
+    fun provideInvestmentHoldingDao(db: AppDatabase): InvestmentHoldingDao = db.investmentHoldingDao()
+
+    @Provides
+    fun provideCachedQuoteDao(db: AppDatabase): CachedQuoteDao = db.cachedQuoteDao()
 }
