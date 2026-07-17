@@ -25,11 +25,11 @@ import kotlinx.coroutines.launch
 /** Stable identifiers for each user-facing error. */
 enum class AccountFormError { NAME_REQUIRED, NAME_DUPLICATE, CURRENCY_REQUIRED }
 
-/** The 5 presets; user can also pick "custom" and type their own. */
-val ACCOUNT_TYPE_PRESETS = listOf("CASH", "BANK", "CREDIT_CARD", "EWALLET", "OTHER")
+/** The 6 presets; user can also pick "custom" and type their own. */
+val ACCOUNT_TYPE_PRESETS = listOf("CASH", "BANK", "CREDIT_CARD", "EWALLET", "INVESTMENT", "OTHER")
 
 /** 8 emoji icons to pick from (matches the visual mockup). */
-val ACCOUNT_ICON_CHOICES = listOf("💵", "🏦", "💳", "📱", "💰", "💼", "🎯", "🏠")
+val ACCOUNT_ICON_CHOICES = listOf("💵", "🏦", "💳", "📱", "💰", "💼", "📈", "🏠")
 
 /** 8 preset colors (ARGB). Index 0 is the default blue. */
 val ACCOUNT_COLOR_CHOICES = listOf(

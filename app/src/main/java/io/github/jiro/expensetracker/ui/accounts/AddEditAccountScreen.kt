@@ -319,6 +319,7 @@ private fun presetLabel(preset: String): String = when (preset) {
     "BANK" -> stringResource(R.string.account_type_bank)
     "CREDIT_CARD" -> stringResource(R.string.account_type_credit_card)
     "EWALLET" -> stringResource(R.string.account_type_ewallet)
+    "INVESTMENT" -> stringResource(R.string.account_type_investment)
     "OTHER" -> stringResource(R.string.account_type_other)
     else -> preset
 }
