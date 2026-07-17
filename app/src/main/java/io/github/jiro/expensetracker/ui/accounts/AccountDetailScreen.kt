@@ -183,6 +183,16 @@ fun AccountDetailScreen(
                     }
                 },
             )
+            DeleteGuard.BLOCK_HOLDINGS_EXIST -> AlertDialog(
+                onDismissRequest = viewModel::onDeleteDismiss,
+                title = { Text(stringResource(R.string.account_delete_blocked_holdings_title)) },
+                text = { Text(stringResource(R.string.account_delete_blocked_holdings_message, account?.name.orEmpty(), state.holdingsCount)) },
+                confirmButton = {
+                    TextButton(onClick = viewModel::onDeleteDismiss) {
+                        Text(stringResource(R.string.action_ok))
+                    }
+                },
+            )
             null -> Unit
         }
     }

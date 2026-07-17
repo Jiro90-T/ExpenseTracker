@@ -7,16 +7,16 @@ class DeleteAccountLogicTest {
 
     @Test
     fun `count 0 returns ALLOW`() {
-        assertEquals(DeleteGuard.ALLOW, evaluateDelete(0))
+        assertEquals(DeleteGuard.ALLOW, evaluateDelete(referenceCount = 0, holdingsCount = 0))
     }
 
     @Test
     fun `count 1 returns BLOCK_TRANSACTIONS_EXIST`() {
-        assertEquals(DeleteGuard.BLOCK_TRANSACTIONS_EXIST, evaluateDelete(1))
+        assertEquals(DeleteGuard.BLOCK_TRANSACTIONS_EXIST, evaluateDelete(referenceCount = 1, holdingsCount = 0))
     }
 
     @Test
     fun `count 14 returns BLOCK_TRANSACTIONS_EXIST`() {
-        assertEquals(DeleteGuard.BLOCK_TRANSACTIONS_EXIST, evaluateDelete(14))
+        assertEquals(DeleteGuard.BLOCK_TRANSACTIONS_EXIST, evaluateDelete(referenceCount = 14, holdingsCount = 0))
     }
 }

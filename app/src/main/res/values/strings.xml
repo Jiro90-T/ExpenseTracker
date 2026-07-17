@@ -371,6 +371,8 @@
     <string name="account_delete_confirm_message">Delete account \'%1$s\'? This cannot be undone.</string>
     <string name="account_delete_blocked_title">Account has transactions</string>
     <string name="account_delete_blocked_message">Account \'%1$s\' has %2$d transactions referencing it. Delete them first or move them to another account.</string>
+    <string name="account_delete_blocked_holdings_title">Can\'t delete account</string>
+    <string name="account_delete_blocked_holdings_message">"%1$s" still holds %2$d investment position(s). Delete or move those holdings first.</string>
 
     <!-- Accounts (Phase 2.19 — Close account) -->
     <string name="account_close">Close account</string>

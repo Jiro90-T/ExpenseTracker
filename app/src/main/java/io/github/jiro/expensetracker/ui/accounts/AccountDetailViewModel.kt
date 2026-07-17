@@ -29,6 +29,7 @@ data class AccountDetailUiState(
     val showDeleteConfirm: Boolean = false,
     val deleteGuard: DeleteGuard? = null,
     val referenceCount: Int = 0,
+    val holdingsCount: Int = 0,
     val deleted: Boolean = false,    // signal to UI: pop back stack
     val errorMessage: String? = null,
     // Phase 2.19 close/reopen flow:
@@ -36,10 +37,18 @@ data class AccountDetailUiState(
     val showReopenConfirm: Boolean = false,
 )
 
-enum class DeleteGuard { ALLOW, BLOCK_TRANSACTIONS_EXIST }
+enum class DeleteGuard { ALLOW, BLOCK_TRANSACTIONS_EXIST, BLOCK_HOLDINGS_EXIST }
 
-fun evaluateDelete(referenceCount: Int): DeleteGuard =
-    if (referenceCount == 0) DeleteGuard.ALLOW else DeleteGuard.BLOCK_TRANSACTIONS_EXIST
+/**
+ * Decision order: transactions-block takes precedence over holdings-block so
+ * the existing UX (transactions are the older, more "destructive" reference)
+ * stays unchanged. Holdings-only is a new block in v1.
+ */
+fun evaluateDelete(referenceCount: Int, holdingsCount: Int): DeleteGuard = when {
+    referenceCount > 0 -> DeleteGuard.BLOCK_TRANSACTIONS_EXIST
+    holdingsCount > 0 -> DeleteGuard.BLOCK_HOLDINGS_EXIST
+    else -> DeleteGuard.ALLOW
+}
 
 private const val DEFAULT_ACCOUNT_ID = 1L
 
@@ -80,6 +89,7 @@ class AccountDetailViewModel @Inject constructor(
                         showDeleteConfirm = current.showDeleteConfirm,
                         deleteGuard = current.deleteGuard,
                         referenceCount = current.referenceCount,
+                        holdingsCount = current.holdingsCount,
                         deleted = current.deleted,
                         errorMessage = current.errorMessage,
                         showCloseConfirm = current.showCloseConfirm,
@@ -97,11 +107,13 @@ class AccountDetailViewModel @Inject constructor(
         if (accountId == DEFAULT_ACCOUNT_ID) return
         viewModelScope.launch {
             val count = transactionRepository.countReferencingAccount(accountId)
+            val holdings = accountRepository.countHoldings(accountId)
             _state.update {
                 it.copy(
                     showDeleteConfirm = true,
-                    deleteGuard = evaluateDelete(count),
+                    deleteGuard = evaluateDelete(count, holdings),
                     referenceCount = count,
+                    holdingsCount = holdings,
                 )
             }
         }
