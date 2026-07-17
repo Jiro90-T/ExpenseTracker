@@ -40,8 +40,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -50,6 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.jiro.expensetracker.R
 import io.github.jiro.expensetracker.data.local.MoneyFormat
 import io.github.jiro.expensetracker.ui.theme.IncomeGreen
+import java.util.Locale
 import kotlin.math.abs
 import kotlinx.coroutines.flow.collectLatest
 
@@ -162,8 +161,9 @@ fun InvestmentAccountDetailScreen(
 
 @Composable
 private fun TotalCard(state: InvestmentDetailUiState, currency: String) {
-    val ctx = LocalContext.current
-    val currencies = state.holdings.mapNotNull { it.cachedPriceCurrency }.distinct()
+    val currencies = remember(state.holdings) {
+        state.holdings.mapNotNull { it.cachedPriceCurrency }.distinct()
+    }
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = MoneyFormat.formatForDisplay(state.totalValueMinor) + " " + currency,
@@ -230,7 +230,6 @@ private fun FxWarningChip(pairs: List<String>) {
 
 @Composable
 private fun HoldingRowView(row: HoldingRow, currency: String, onClick: () -> Unit) {
-    val ctx = LocalContext.current
     val valueText = row.marketValueInAccountCurrencyMinor?.let {
         MoneyFormat.formatForDisplay(it) + " " + currency
     } ?: stringResource(R.string.investment_no_price)
@@ -258,7 +257,7 @@ private fun HoldingRowView(row: HoldingRow, currency: String, onClick: () -> Uni
                     Text(
                         text = stringResource(
                             R.string.investment_holding_subtitle,
-                            "%.4f".format(row.holding.quantity).trimEnd('0').trimEnd('.'),
+                            "%.4f".format(Locale.US, row.holding.quantity).trimEnd('0').trimEnd('.'),
                             row.holding.currencyCode,
                             avgCostPerShareText,
                         ),
