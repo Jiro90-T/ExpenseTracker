@@ -9,7 +9,6 @@ import io.github.jiro.expensetracker.data.local.InvestmentHoldingEntity
 import io.github.jiro.expensetracker.data.local.MoneyFormat
 import io.github.jiro.expensetracker.ui.navigation.Routes
 import javax.inject.Inject
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -52,11 +51,7 @@ class AddEditHoldingViewModel @Inject constructor(
 
     init {
         if (holdingId != null) {
-            // Use Unconfined so the existing-row hydration runs inline when the
-            // underlying DAO call doesn't truly suspend (e.g. test fakes). With
-            // the real Room DAO, the first true suspension point (the DB query)
-            // dispatches off-main, so production behaviour is unaffected.
-            viewModelScope.launch(Dispatchers.Unconfined) {
+            viewModelScope.launch {
                 val existing = holdingDao.findById(holdingId) ?: return@launch
                 _state.update {
                     it.copy(

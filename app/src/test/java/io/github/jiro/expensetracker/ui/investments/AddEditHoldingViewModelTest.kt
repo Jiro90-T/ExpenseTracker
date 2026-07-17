@@ -116,6 +116,7 @@ class AddEditHoldingViewModelTest {
             costBasisMinor = 150_000L, currencyCode = "USD", createdAtEpochMillis = 1L,
         ))
         val v = vm(accountId = 1L, holdingId = 7L)
+        advanceUntilIdle()  // let init's load-existing-row coroutine finish
         v.onQuantityChange("12")
         v.save()
         advanceUntilIdle()
