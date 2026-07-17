@@ -11,18 +11,18 @@ import kotlinx.coroutines.flow.map
 class QuoteRepository @Inject constructor(
     private val client: MarketDataClient,
     private val quoteDao: CachedQuoteDao,
-) {
+) : QuoteDataSource {
 
     fun observeCached(symbol: String): Flow<CachedQuoteEntity?> =
         quoteDao.observeBySymbols(listOf(symbol)).map { it.firstOrNull() }
 
-    fun observeAllCached(symbols: List<String>): Flow<Map<String, CachedQuoteEntity>> =
+    override fun observeAllCached(symbols: List<String>): Flow<Map<String, CachedQuoteEntity>> =
         quoteDao.observeBySymbols(symbols).map { rows -> rows.associateBy { it.symbol } }
 
     /** Fetches and writes-through. Per-symbol outcome reflects what
      *  actually happened. Re-throws [MarketDataException] on full transport
      *  failure so the caller can surface it. */
-    suspend fun refresh(symbols: List<String>): RefreshOutcome {
+    override suspend fun refresh(symbols: List<String>): RefreshOutcome {
         val perSymbol = mutableMapOf<String, SymbolOutcome>()
         val quotes = try {
             client.fetchQuotes(symbols)
@@ -61,4 +61,10 @@ sealed interface SymbolOutcome {
     object Fresh : SymbolOutcome
     object Unknown : SymbolOutcome
     data class Failed(val reason: String) : SymbolOutcome
+}
+
+/** VM-facing subset. */
+interface QuoteDataSource {
+    fun observeAllCached(symbols: List<String>): Flow<Map<String, CachedQuoteEntity>>
+    suspend fun refresh(symbols: List<String>): RefreshOutcome
 }

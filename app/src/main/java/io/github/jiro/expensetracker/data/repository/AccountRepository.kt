@@ -14,12 +14,12 @@ import kotlinx.coroutines.flow.combine
 open class AccountRepository @Inject constructor(
     private val dao: AccountDao,
     private val holdingDao: InvestmentHoldingDao,
-) {
-    fun observeActive(): Flow<List<AccountEntity>> = dao.observeActive()
+) : AccountDataSource {
+    override fun observeActive(): Flow<List<AccountEntity>> = dao.observeActive()
 
     suspend fun listActiveOnce(): List<AccountEntity> = dao.listActiveOnce()
 
-    suspend fun findById(id: Long): AccountEntity? = dao.findById(id)
+    override suspend fun findById(id: Long): AccountEntity? = dao.findById(id)
 
     suspend fun countActive(): Int = dao.countActive()
 
@@ -28,7 +28,7 @@ open class AccountRepository @Inject constructor(
      * DeleteGuard to BLOCK_HOLDINGS_EXIST before allowing an account to be
      * deleted (the FK from investment_holdings is RESTRICT, not CASCADE).
      */
-    suspend fun countHoldings(accountId: Long): Int = holdingDao.countByAccount(accountId)
+    override suspend fun countHoldings(accountId: Long): Int = holdingDao.countByAccount(accountId)
 
     /** Lowest-id active account, or null if every account is archived. */
     suspend fun findActiveDefault(): AccountEntity? = dao.findActiveDefault()
@@ -46,7 +46,7 @@ open class AccountRepository @Inject constructor(
 
     open suspend fun delete(id: Long): Int = dao.delete(id)
 
-    suspend fun close(id: Long) {
+    override suspend fun close(id: Long) {
         dao.close(id, System.currentTimeMillis())
     }
 
@@ -107,3 +107,12 @@ data class AccountWithBalance(
     val account: AccountEntity,
     val balanceMinor: Long,
 )
+
+/** VM-facing subset of AccountRepository. Tests can fake this without
+ *  standing up Room. */
+interface AccountDataSource {
+    fun observeActive(): Flow<List<AccountEntity>>
+    suspend fun findById(id: Long): AccountEntity?
+    suspend fun close(id: Long)
+    suspend fun countHoldings(id: Long): Int
+}

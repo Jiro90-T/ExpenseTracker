@@ -7,6 +7,7 @@ import io.github.jiro.expensetracker.domain.FxConverter
 import io.github.jiro.expensetracker.sync.SyncProviderId
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,10 +15,19 @@ import kotlinx.coroutines.flow.asStateFlow
 /** User-selectable theme override. */
 enum class ThemePreference { SYSTEM, LIGHT, DARK }
 
+/** VM-facing subset of SettingsRepository. Lets ViewModels observe the
+ *  home currency and FX-rate map without pulling in the full repository
+ *  (which has SharedPreferences-backed setters). Tests can fake this
+ *  without standing up Robolectric. */
+interface SettingsDataSource {
+    val fxRates: Flow<Map<String, Double>>
+    val homeCurrency: Flow<String>
+}
+
 @Singleton
 open class SettingsRepository @Inject constructor(
     @ApplicationContext context: Context,
-) {
+) : SettingsDataSource {
     // Lazily resolved so the constructor doesn't touch Android IO. JVM
     // tests can construct SettingsRepository with a stub Context (which
     // would throw on `getSharedPreferences`) without triggering the
@@ -46,7 +56,7 @@ open class SettingsRepository @Inject constructor(
      * Defaults to USD until the user picks something else.
      */
     private val _homeCurrency: MutableStateFlow<String> by lazy { MutableStateFlow(loadHomeCurrency()) }
-    open val homeCurrency: StateFlow<String> by lazy { _homeCurrency.asStateFlow() }
+    override val homeCurrency: StateFlow<String> by lazy { _homeCurrency.asStateFlow() }
 
     open fun setHomeCurrency(code: String) {
         prefs.edit { putString(KEY_HOME_CURRENCY, code) }
@@ -62,7 +72,7 @@ open class SettingsRepository @Inject constructor(
      * Empty when the user hasn't entered any rates (UI will show a warning).
      */
     private val _fxRates: MutableStateFlow<Map<String, Double>> by lazy { MutableStateFlow(loadFxRates()) }
-    open val fxRates: StateFlow<Map<String, Double>> by lazy { _fxRates.asStateFlow() }
+    override val fxRates: StateFlow<Map<String, Double>> by lazy { _fxRates.asStateFlow() }
 
     fun setFxRate(from: String, to: String, rate: Double) {
         if (from.isBlank() || to.isBlank() || rate < 0.0) return
