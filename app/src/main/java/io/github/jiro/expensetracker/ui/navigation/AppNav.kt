@@ -81,6 +81,11 @@ object Routes {
     const val CONFLICT = "conflict?remote={remote}&local={local}"
     const val CONFLICT_ARG_REMOTE = "remote"
     const val CONFLICT_ARG_LOCAL = "local"
+    const val INVESTMENT_ACCOUNT_DETAIL = "investment_account/{accountId}"
+    const val INVESTMENT_ACCOUNT_DETAIL_ARG_ID = "accountId"
+    const val INVESTMENT_HOLDING_EDIT = "investment_account/{accountId}/holding?id={holdingId}"
+    const val INVESTMENT_HOLDING_EDIT_ARG_ACCOUNT_ID = "accountId"
+    const val INVESTMENT_HOLDING_EDIT_ARG_HOLDING_ID = "holdingId"
 }
 
 fun addEditRoute(transactionId: Long? = null): String =
