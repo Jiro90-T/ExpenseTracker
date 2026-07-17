@@ -505,4 +505,19 @@
     <string name="error_holding_symbol_too_long">Symbol must be 12 characters or fewer</string>
     <string name="error_holding_quantity_invalid">Enter a quantity greater than zero</string>
     <string name="error_holding_cost_invalid">Enter a valid cost</string>
+
+    <!-- Investment account detail -->
+    <string name="investment_total_across">Across %1$d holdings, %2$d currencies</string>
+    <string name="investment_total_invested">Total invested: %1$s</string>
+    <string name="investment_total_current">Current: %1$s</string>
+    <string name="investment_unrealized">Unrealized: %1$s</string>
+    <string name="investment_fx_missing">FX rate missing: %1$s → %2$s — add in Settings</string>
+    <string name="investment_stale_updated">Updated %1$s ago</string>
+    <string name="investment_no_price">No price</string>
+    <string name="investment_holding_subtitle">%1$s · %2$s @ %3$s/share</string>
+    <string name="investment_refresh">Refresh prices</string>
+    <string name="investment_empty_title">No holdings yet</string>
+    <string name="investment_add_holding">Add holding</string>
+    <string name="investment_close_confirm_title">Close account?</string>
+    <string name="investment_close_confirm_message">Closing this account hides it from totals but keeps the history.</string>
 </resources>
