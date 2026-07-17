@@ -50,6 +50,8 @@ data class InvestmentDetailUiState(
     val isRefreshing: Boolean = false,
     val showCloseConfirm: Boolean = false,
     val showDeleteConfirm: Boolean = false,
+    val showDeleteBlocked: Boolean = false,
+    val holdingsCount: Int = 0,
     val errorMessage: String? = null,
 )
 
@@ -69,11 +71,16 @@ class InvestmentAccountDetailViewModel @Inject constructor(
 
     private val _showCloseConfirm = MutableStateFlow(false)
     private val _showDeleteConfirm = MutableStateFlow(false)
+    private val _showDeleteBlocked = MutableStateFlow(false)
+    private val _holdingsCount = MutableStateFlow(0)
     private val _isRefreshing = MutableStateFlow(false)
     private val _errorMessage = MutableStateFlow<String?>(null)
 
     private val _closeEvent = Channel<Long>(Channel.BUFFERED)
     val closeEvent: Flow<Long> = _closeEvent.receiveAsFlow()
+
+    private val _deleteEvent = Channel<Long>(Channel.BUFFERED)
+    val deleteEvent: Flow<Long> = _deleteEvent.receiveAsFlow()
 
     private data class Rollup(
         val accounts: List<AccountEntity>,
@@ -115,17 +122,42 @@ class InvestmentAccountDetailViewModel @Inject constructor(
         val homeCurrency: String,
     )
 
-    val state: StateFlow<InvestmentDetailUiState> = combine(
-        rollupFlow,
+    private data class DialogFlags(
+        val showClose: Boolean,
+        val showDelete: Boolean,
+        val showDeleteBlocked: Boolean,
+        val holdingsCount: Int,
+        val refreshing: Boolean,
+        val error: String?,
+    )
+
+    private val dialogFlagsFlow: Flow<DialogFlags> = combine(
         _showCloseConfirm,
         _showDeleteConfirm,
+        _showDeleteBlocked,
+        _holdingsCount,
         _isRefreshing,
         _errorMessage,
-    ) { rollup, showClose, showDelete, refreshing, error ->
+    ) { values: Array<Any?> ->
+        @Suppress("UNCHECKED_CAST")
+        DialogFlags(
+            showClose = values[0] as Boolean,
+            showDelete = values[1] as Boolean,
+            showDeleteBlocked = values[2] as Boolean,
+            holdingsCount = values[3] as Int,
+            refreshing = values[4] as Boolean,
+            error = values[5] as String?,
+        )
+    }
+
+    val state: StateFlow<InvestmentDetailUiState> = combine(
+        rollupFlow,
+        dialogFlagsFlow,
+    ) { rollup, flags ->
         buildState(
             rollup.accounts, rollup.holdings, rollup.cached,
             rollup.fxRates, rollup.homeCurrency,
-            showClose, showDelete, refreshing, error,
+            flags,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -171,8 +203,40 @@ class InvestmentAccountDetailViewModel @Inject constructor(
         }
     }
     fun onCloseDismiss() { _showCloseConfirm.value = false }
-    fun onDeleteClick() { _showDeleteConfirm.value = true }
-    fun onDeleteDismiss() { _showDeleteConfirm.value = false }
+
+    /**
+     * Mirrors AccountDetailViewModel.evaluateDelete: BLOCK_HOLDINGS_EXIST is
+     * the relevant guard for an investment account. Counts current holdings
+     * and routes the UI to either the blocked dialog (when > 0) or the
+     * confirm dialog (when 0).
+     */
+    fun onDeleteClick() {
+        viewModelScope.launch {
+            val count = accountRepository.countHoldings(accountId)
+            _holdingsCount.value = count
+            if (count > 0) {
+                _showDeleteBlocked.value = true
+            } else {
+                _showDeleteConfirm.value = true
+            }
+        }
+    }
+    fun onDeleteConfirm() {
+        viewModelScope.launch {
+            try {
+                accountRepository.close(accountId)
+                _showDeleteConfirm.value = false
+                _deleteEvent.send(accountId)
+            } catch (e: Throwable) {
+                _errorMessage.value = e.message ?: "Delete failed"
+                _showDeleteConfirm.value = false
+            }
+        }
+    }
+    fun onDeleteDismiss() {
+        _showDeleteConfirm.value = false
+        _showDeleteBlocked.value = false
+    }
 
     private fun buildState(
         accounts: List<AccountEntity>,
@@ -180,10 +244,7 @@ class InvestmentAccountDetailViewModel @Inject constructor(
         cached: Map<String, CachedQuoteEntity>,
         fxRates: Map<String, Double>,
         homeCurrency: String,
-        showClose: Boolean,
-        showDelete: Boolean,
-        refreshing: Boolean,
-        error: String?,
+        flags: DialogFlags,
     ): InvestmentDetailUiState {
         val account = accounts.firstOrNull { it.id == accountId }
         val targetCurrency = account?.currencyCode ?: homeCurrency
@@ -236,10 +297,12 @@ class InvestmentAccountDetailViewModel @Inject constructor(
             totalCostMinor = totalCost,
             unrealizedMinor = totalValue - totalCost,
             missingFxPairs = missingPairs.toList(),
-            isRefreshing = refreshing,
-            showCloseConfirm = showClose,
-            showDeleteConfirm = showDelete,
-            errorMessage = error,
+            isRefreshing = flags.refreshing,
+            showCloseConfirm = flags.showClose,
+            showDeleteConfirm = flags.showDelete,
+            showDeleteBlocked = flags.showDeleteBlocked,
+            holdingsCount = flags.holdingsCount,
+            errorMessage = flags.error,
         )
     }
 

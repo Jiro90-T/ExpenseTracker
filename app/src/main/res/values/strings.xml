@@ -520,4 +520,7 @@
     <string name="investment_add_holding">Add holding</string>
     <string name="investment_close_confirm_title">Close account?</string>
     <string name="investment_close_confirm_message">Closing this account hides it from totals but keeps the history.</string>
+    <string name="investment_delete_blocked_message">This account still holds %1$d position(s). Delete them first.</string>
+    <string name="investment_delete_confirm_title">Delete account?</string>
+    <string name="investment_delete_confirm_message">This permanently deletes the account and all its holdings.</string>
 </resources>

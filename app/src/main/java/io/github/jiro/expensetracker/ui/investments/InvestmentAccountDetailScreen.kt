@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
@@ -85,6 +86,12 @@ fun InvestmentAccountDetailScreen(
                         if (!account.archived) {
                             IconButton(onClick = viewModel::onCloseClick) {
                                 Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.account_close))
+                            }
+                            IconButton(onClick = viewModel::onDeleteClick) {
+                                Icon(
+                                    Icons.Filled.Delete,
+                                    contentDescription = stringResource(R.string.action_delete),
+                                )
                             }
                         }
                         IconButton(onClick = { onEditAccount(account.id) }) {
@@ -154,8 +161,54 @@ fun InvestmentAccountDetailScreen(
         )
     }
 
+    if (state.showDeleteBlocked) {
+        AlertDialog(
+            onDismissRequest = viewModel::onDeleteDismiss,
+            title = { Text(stringResource(R.string.account_delete_blocked_holdings_title)) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.investment_delete_blocked_message,
+                        state.holdingsCount,
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = viewModel::onDeleteDismiss) { Text(stringResource(R.string.action_cancel)) }
+            },
+        )
+    }
+
+    if (state.showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = viewModel::onDeleteDismiss,
+            title = { Text(stringResource(R.string.investment_delete_confirm_title)) },
+            text = { Text(stringResource(R.string.investment_delete_confirm_message)) },
+            confirmButton = {
+                TextButton(onClick = viewModel::onDeleteConfirm) { Text(stringResource(R.string.action_delete)) }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::onDeleteDismiss) { Text(stringResource(R.string.action_cancel)) }
+            },
+        )
+    }
+
     LaunchedEffect(viewModel) {
         viewModel.closeEvent.collectLatest { onBack() }
+    }
+
+    LaunchedEffect(viewModel) {
+        viewModel.deleteEvent.collectLatest { onBack() }
+    }
+
+    // Auto-refresh once when holdings first become non-empty. Done at the
+    // screen layer (not in VM init) to keep VM unit tests invariant-clean:
+    // tests assert refreshCount == 0 after advanceUntilIdle() with no UI
+    // attached, which this LaunchedEffect only fires inside the Compose tree.
+    LaunchedEffect(viewModel, state.holdings.isNotEmpty()) {
+        if (state.holdings.isNotEmpty()) {
+            viewModel.refresh()
+        }
     }
 }
 

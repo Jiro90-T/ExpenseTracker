@@ -49,8 +49,9 @@ class InvestmentAccountDetailViewModelTest {
         refreshResult: RefreshOutcome = RefreshOutcome(emptyMap()),
         refreshThrows: Boolean = false,
         closeThrows: Boolean = false,
+        holdingsCount: Int = 0,
     ): Pair<InvestmentAccountDetailViewModel, FakeQuoteRepository> {
-        val accountRepo = FakeAccountRepository(account, closeThrows)
+        val accountRepo = FakeAccountRepository(account, closeThrows, holdingsCount)
         val holdingDao = DetailFakeHoldingDao(holdingsFlow)
         val cachedDao = FakeCachedQuoteDao(cachedQuotes)
         val settings = FakeSettingsRepository(fxRates)
@@ -199,6 +200,38 @@ class InvestmentAccountDetailViewModelTest {
         assertEquals(false, v.state.value.showCloseConfirm)
         assertTrue(v.state.value.errorMessage != null)
     }
+
+    @Test fun delete_withHoldings_showsBlockedDialog() = runTest(dispatcher) {
+        val (v, _) = vm(accountId = 5L, holdingsCount = 3)
+        advanceUntilIdle()
+        v.onDeleteClick()
+        advanceUntilIdle()
+        assertEquals(true, v.state.value.showDeleteBlocked)
+        assertEquals(false, v.state.value.showDeleteConfirm)
+        assertEquals(3, v.state.value.holdingsCount)
+    }
+
+    @Test fun delete_noHoldings_showsConfirmDialog() = runTest(dispatcher) {
+        val (v, _) = vm(accountId = 5L, holdingsCount = 0)
+        advanceUntilIdle()
+        v.onDeleteClick()
+        advanceUntilIdle()
+        assertEquals(true, v.state.value.showDeleteConfirm)
+        assertEquals(false, v.state.value.showDeleteBlocked)
+    }
+
+    @Test fun delete_confirm_emitsDeleteEvent() = runTest(dispatcher) {
+        val (v, _) = vm(accountId = 5L, holdingsCount = 0)
+        advanceUntilIdle()
+        v.onDeleteClick()
+        advanceUntilIdle()
+        assertEquals(true, v.state.value.showDeleteConfirm)
+        v.onDeleteConfirm()
+        advanceUntilIdle()
+        assertEquals(false, v.state.value.showDeleteConfirm)
+        val emitted = v.deleteEvent.first()
+        assertEquals(5L, emitted)
+    }
 }
 
 // --- Fakes ---
@@ -212,10 +245,11 @@ private fun holding(id: Long, symbol: String, qty: Double, cost: Long, currency:
 private class FakeAccountRepository(
     val account: AccountEntity,
     val closeThrows: Boolean = false,
+    val holdingsCount: Int = 0,
 ) : AccountDataSource {
     override suspend fun findById(id: Long) = if (id == account.id) account else null
     override suspend fun close(id: Long) { if (closeThrows) error("close failed") }
-    override suspend fun countHoldings(id: Long) = 0
+    override suspend fun countHoldings(id: Long) = holdingsCount
     override fun observeActive(): Flow<List<AccountEntity>> = flowOf(listOf(account))
 }
 
