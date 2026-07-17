@@ -70,6 +70,7 @@ class InvestmentAccountDetailViewModel @Inject constructor(
     private val _showCloseConfirm = MutableStateFlow(false)
     private val _showDeleteConfirm = MutableStateFlow(false)
     private val _isRefreshing = MutableStateFlow(false)
+    private val _errorMessage = MutableStateFlow<String?>(null)
 
     private val _closeEvent = Channel<Long>(Channel.BUFFERED)
     val closeEvent: Flow<Long> = _closeEvent.receiveAsFlow()
@@ -87,19 +88,16 @@ class InvestmentAccountDetailViewModel @Inject constructor(
         holdingDao.observeByAccount(accountId),
         settingsRepository.fxRates,
         settingsRepository.homeCurrency,
-        holdingDao.observeByAccount(accountId).map { holdings ->
-            holdings.map { it.symbol }.distinct()
-        },
-    ) { accounts, holdings, fxRates, homeCurrency, symbols ->
-        Quint(
+    ) { accounts, holdings, fxRates, homeCurrency ->
+        Quad(
             accounts = accounts,
             holdings = holdings,
             fxRates = fxRates,
             homeCurrency = homeCurrency,
-            symbols = symbols,
         )
     }.flatMapLatest { q ->
-        cachedQuoteDao.observeBySymbols(q.symbols).map { cachedList ->
+        val symbols = q.holdings.map { it.symbol }.distinct()
+        cachedQuoteDao.observeBySymbols(symbols).map { cachedList ->
             Rollup(
                 accounts = q.accounts,
                 holdings = q.holdings,
@@ -110,12 +108,11 @@ class InvestmentAccountDetailViewModel @Inject constructor(
         }
     }
 
-    private data class Quint(
+    private data class Quad(
         val accounts: List<AccountEntity>,
         val holdings: List<InvestmentHoldingEntity>,
         val fxRates: Map<String, Double>,
         val homeCurrency: String,
-        val symbols: List<String>,
     )
 
     val state: StateFlow<InvestmentDetailUiState> = combine(
@@ -123,11 +120,12 @@ class InvestmentAccountDetailViewModel @Inject constructor(
         _showCloseConfirm,
         _showDeleteConfirm,
         _isRefreshing,
-    ) { rollup, showClose, showDelete, refreshing ->
+        _errorMessage,
+    ) { rollup, showClose, showDelete, refreshing, error ->
         buildState(
             rollup.accounts, rollup.holdings, rollup.cached,
             rollup.fxRates, rollup.homeCurrency,
-            showClose, showDelete, refreshing,
+            showClose, showDelete, refreshing, error,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -148,10 +146,11 @@ class InvestmentAccountDetailViewModel @Inject constructor(
                 .distinct()
             if (symbols.isEmpty()) return@launch
             _isRefreshing.value = true
+            _errorMessage.value = null
             try {
                 quoteRepository.refresh(symbols)
-            } catch (_: Throwable) {
-                // Snackbar handled by UI via state.errorMessage.
+            } catch (e: Throwable) {
+                _errorMessage.value = e.message ?: "Refresh failed"
             } finally {
                 _isRefreshing.value = false
             }
@@ -161,9 +160,14 @@ class InvestmentAccountDetailViewModel @Inject constructor(
     fun onCloseClick() { _showCloseConfirm.value = true }
     fun onCloseConfirm() {
         viewModelScope.launch {
-            accountRepository.close(accountId)
-            _showCloseConfirm.value = false
-            _closeEvent.send(accountId)
+            try {
+                accountRepository.close(accountId)
+                _closeEvent.send(accountId)
+            } catch (e: Throwable) {
+                _errorMessage.value = e.message ?: "Close failed"
+            } finally {
+                _showCloseConfirm.value = false
+            }
         }
     }
     fun onCloseDismiss() { _showCloseConfirm.value = false }
@@ -179,6 +183,7 @@ class InvestmentAccountDetailViewModel @Inject constructor(
         showClose: Boolean,
         showDelete: Boolean,
         refreshing: Boolean,
+        error: String?,
     ): InvestmentDetailUiState {
         val account = accounts.firstOrNull { it.id == accountId }
         val targetCurrency = account?.currencyCode ?: homeCurrency
@@ -234,6 +239,7 @@ class InvestmentAccountDetailViewModel @Inject constructor(
             isRefreshing = refreshing,
             showCloseConfirm = showClose,
             showDeleteConfirm = showDelete,
+            errorMessage = error,
         )
     }
 

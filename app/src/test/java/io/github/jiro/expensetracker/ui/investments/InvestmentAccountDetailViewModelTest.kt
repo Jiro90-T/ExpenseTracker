@@ -47,12 +47,14 @@ class InvestmentAccountDetailViewModelTest {
         cachedQuotes: List<CachedQuoteEntity> = emptyList(),
         fxRates: Map<String, Double> = emptyMap(),
         refreshResult: RefreshOutcome = RefreshOutcome(emptyMap()),
+        refreshThrows: Boolean = false,
+        closeThrows: Boolean = false,
     ): Pair<InvestmentAccountDetailViewModel, FakeQuoteRepository> {
-        val accountRepo = FakeAccountRepository(account)
+        val accountRepo = FakeAccountRepository(account, closeThrows)
         val holdingDao = DetailFakeHoldingDao(holdingsFlow)
         val cachedDao = FakeCachedQuoteDao(cachedQuotes)
         val settings = FakeSettingsRepository(fxRates)
-        val quoteRepo = FakeQuoteRepository(refreshResult)
+        val quoteRepo = FakeQuoteRepository(refreshResult, refreshThrows)
         val v = InvestmentAccountDetailViewModel(
             savedStateHandle = SavedStateHandle().apply {
                 set(Routes.INVESTMENT_ACCOUNT_DETAIL_ARG_ID, accountId)
@@ -174,6 +176,29 @@ class InvestmentAccountDetailViewModelTest {
         val emitted = v.closeEvent.first()
         assertEquals(5L, emitted)
     }
+
+    @Test fun refresh_failure_setsErrorMessage() = runTest(dispatcher) {
+        val (v, _) = vm(
+            holdingsFlow = listOf(holding(1L, "AAPL", 1.0, 100L, "USD")),
+            refreshThrows = true,
+        )
+        advanceUntilIdle()
+        v.refresh()
+        advanceUntilIdle()
+        assertTrue(v.state.value.errorMessage != null)
+    }
+
+    @Test fun onCloseConfirm_failure_keepsDialogClosed() = runTest(dispatcher) {
+        val (v, _) = vm(accountId = 5L, closeThrows = true)
+        advanceUntilIdle()
+        v.onCloseClick()
+        advanceUntilIdle()
+        assertEquals(true, v.state.value.showCloseConfirm)
+        v.onCloseConfirm()
+        advanceUntilIdle()
+        assertEquals(false, v.state.value.showCloseConfirm)
+        assertTrue(v.state.value.errorMessage != null)
+    }
 }
 
 // --- Fakes ---
@@ -184,9 +209,12 @@ private fun holding(id: Long, symbol: String, qty: Double, cost: Long, currency:
         costBasisMinor = cost, currencyCode = currency, createdAtEpochMillis = 0L,
     )
 
-private class FakeAccountRepository(val account: AccountEntity) : AccountDataSource {
+private class FakeAccountRepository(
+    val account: AccountEntity,
+    val closeThrows: Boolean = false,
+) : AccountDataSource {
     override suspend fun findById(id: Long) = if (id == account.id) account else null
-    override suspend fun close(id: Long) { /* no-op */ }
+    override suspend fun close(id: Long) { if (closeThrows) error("close failed") }
     override suspend fun countHoldings(id: Long) = 0
     override fun observeActive(): Flow<List<AccountEntity>> = flowOf(listOf(account))
 }
@@ -221,13 +249,17 @@ private class FakeSettingsRepository(
         MutableStateFlow(home)
 }
 
-private class FakeQuoteRepository(val result: RefreshOutcome) : QuoteDataSource {
+private class FakeQuoteRepository(
+    val result: RefreshOutcome,
+    val refreshThrows: Boolean = false,
+) : QuoteDataSource {
     var refreshCount = 0
     var lastRequestedSymbols: List<String> = emptyList()
     override fun observeAllCached(symbols: List<String>) = flowOf(emptyMap<String, CachedQuoteEntity>())
     override suspend fun refresh(symbols: List<String>): RefreshOutcome {
         refreshCount++
         lastRequestedSymbols = symbols
+        if (refreshThrows) error("refresh failed")
         return result
     }
 }
