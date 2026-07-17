@@ -347,8 +347,7 @@ fun AppNavHost(
                         defaultValue = -1L
                     },
                 ),
-            ) { backStackEntry ->
-                val accountId = backStackEntry.arguments?.getLong(Routes.INVESTMENT_HOLDING_EDIT_ARG_ACCOUNT_ID) ?: -1L
+            ) {
                 AddEditHoldingScreen(onBack = { navController.popBackStack() })
             }
             composable(Routes.MORE) {
