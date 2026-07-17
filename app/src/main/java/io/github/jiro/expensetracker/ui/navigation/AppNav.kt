@@ -37,6 +37,8 @@ import io.github.jiro.expensetracker.ui.cards.MemberCardListScreen
 import io.github.jiro.expensetracker.ui.categories.CategoryManagementScreen
 import io.github.jiro.expensetracker.ui.conflict.ConflictScreen
 import io.github.jiro.expensetracker.ui.home.HomeScreen
+import io.github.jiro.expensetracker.ui.investments.AddEditHoldingScreen
+import io.github.jiro.expensetracker.ui.investments.InvestmentAccountDetailScreen
 import io.github.jiro.expensetracker.ui.more.MoreScreen
 import io.github.jiro.expensetracker.ui.receipts.ReceiptViewerScreen
 import io.github.jiro.expensetracker.ui.recurring.ManageSeriesScreen
@@ -93,6 +95,10 @@ fun addEditRoute(transactionId: Long? = null): String =
 
 fun memberCardEditRoute(cardId: Long? = null): String =
     if (cardId == null) Routes.MEMBER_CARDS_EDIT_NO_ID else "member_cards/edit?id=$cardId"
+
+fun investmentHoldingEditRoute(accountId: Long, holdingId: Long?): String =
+    if (holdingId == null) "investment_account/$accountId/holding"
+    else "investment_account/$accountId/holding?id=$holdingId"
 
 /**
  * Build the crop route for a given source URI. The URI is URL-encoded so a
@@ -234,7 +240,13 @@ fun AppNavHost(
                 AccountsListScreen(
                     onBack = { navController.popBackStack() },
                     onAddAccount = { navController.navigate(Routes.ACCOUNT_EDIT) },
-                    onAccountClick = { id -> navController.navigate("account_detail/$id") },
+                    onAccountClick = { id, type ->
+                        if (type == "INVESTMENT") {
+                            navController.navigate("investment_account/$id")
+                        } else {
+                            navController.navigate("account_detail/$id")
+                        }
+                    },
                 )
             }
             composable(
@@ -312,6 +324,32 @@ fun AppNavHost(
                         navController.popBackStack()
                     },
                 )
+            }
+            composable(
+                route = Routes.INVESTMENT_ACCOUNT_DETAIL,
+                arguments = listOf(
+                    navArgument(Routes.INVESTMENT_ACCOUNT_DETAIL_ARG_ID) { type = NavType.LongType },
+                ),
+            ) {
+                InvestmentAccountDetailScreen(
+                    onBack = { navController.popBackStack() },
+                    onEditAccount = { id -> navController.navigate("account_edit/$id") },
+                    onAddHolding = { accountId -> navController.navigate(investmentHoldingEditRoute(accountId, null)) },
+                    onEditHolding = { accountId, holdingId -> navController.navigate(investmentHoldingEditRoute(accountId, holdingId)) },
+                )
+            }
+            composable(
+                route = Routes.INVESTMENT_HOLDING_EDIT,
+                arguments = listOf(
+                    navArgument(Routes.INVESTMENT_HOLDING_EDIT_ARG_ACCOUNT_ID) { type = NavType.LongType },
+                    navArgument(Routes.INVESTMENT_HOLDING_EDIT_ARG_HOLDING_ID) {
+                        type = NavType.LongType
+                        defaultValue = -1L
+                    },
+                ),
+            ) { backStackEntry ->
+                val accountId = backStackEntry.arguments?.getLong(Routes.INVESTMENT_HOLDING_EDIT_ARG_ACCOUNT_ID) ?: -1L
+                AddEditHoldingScreen(onBack = { navController.popBackStack() })
             }
             composable(Routes.MORE) {
                 MoreScreen(

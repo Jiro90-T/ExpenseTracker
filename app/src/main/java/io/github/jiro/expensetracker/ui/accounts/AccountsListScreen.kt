@@ -53,7 +53,7 @@ import io.github.jiro.expensetracker.data.repository.AccountWithBalance
 fun AccountsListScreen(
     onBack: () -> Unit,
     onAddAccount: () -> Unit,
-    onAccountClick: (Long) -> Unit,
+    onAccountClick: (accountId: Long, type: String) -> Unit,
     viewModel: AccountsListViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -131,7 +131,7 @@ fun AccountsListScreen(
                 AccountTile(
                     accountWithBalance = aw,
                     archived = aw.account.archived,
-                    onClick = { onAccountClick(aw.account.id) },
+                    onClick = { onAccountClick(aw.account.id, aw.account.type) },
                 )
             }
         }
