@@ -103,6 +103,18 @@ class YahooMarketDataClientTest {
         }
     }
 
+    @Test fun validJsonWrongShape_throwsMarketDataException() = runTest {
+        server.enqueue(MockResponse().setBody("""
+            {"finance":{"error":{"code":"Unauthorized","description":"Invalid CrumbStore"}}}
+        """.trimIndent()).setResponseCode(200))
+        try {
+            client.fetchQuotes(listOf("AAPL"))
+            fail("expected MarketDataException")
+        } catch (e: MarketDataException) {
+            // ok
+        }
+    }
+
     @Test fun requestUrl_includesAllSymbols() = runTest {
         server.enqueue(MockResponse().setBody("""
             {"quoteResponse":{"result":[],"error":null}}

@@ -36,30 +36,31 @@ class YahooMarketDataClient @Inject constructor(
                 throw MarketDataException("HTTP ${resp.code}")
             }
             val body = resp.body?.string() ?: throw MarketDataException("empty body")
-            val parsed = try {
-                JSONObject(body)
+            val bySymbol = try {
+                val parsed = JSONObject(body)
+                val result = parsed
+                    .getJSONObject("quoteResponse")
+                    .optJSONArray("result")
+                val map = mutableMapOf<String, Quote>()
+                if (result != null) {
+                    for (i in 0 until result.length()) {
+                        val obj = result.getJSONObject(i)
+                        val sym = obj.getString("symbol")
+                        val price = obj.optDouble("regularMarketPrice", Double.NaN)
+                        if (price.isNaN()) continue
+                        val currency = obj.optString("currency", "USD")
+                        val asOfSec = obj.optLong("regularMarketTime", 0L)
+                        map[sym] = Quote(
+                            symbol = sym,
+                            priceMinor = MoneyFormat.priceToMinor(price, currency),
+                            currencyCode = currency,
+                            asOfEpochMillis = asOfSec * 1000L,
+                        )
+                    }
+                }
+                map
             } catch (e: Throwable) {
                 throw MarketDataException("parse failure: ${e.message}", e)
-            }
-            val result = parsed
-                .getJSONObject("quoteResponse")
-                .optJSONArray("result")
-            val bySymbol = mutableMapOf<String, Quote>()
-            if (result != null) {
-                for (i in 0 until result.length()) {
-                    val obj = result.getJSONObject(i)
-                    val sym = obj.getString("symbol")
-                    val price = obj.optDouble("regularMarketPrice", Double.NaN)
-                    if (price.isNaN()) continue
-                    val currency = obj.optString("currency", "USD")
-                    val asOfSec = obj.optLong("regularMarketTime", 0L)
-                    bySymbol[sym] = Quote(
-                        symbol = sym,
-                        priceMinor = MoneyFormat.priceToMinor(price, currency),
-                        currencyCode = currency,
-                        asOfEpochMillis = asOfSec * 1000L,
-                    )
-                }
             }
             return symbols.map { bySymbol[it] }
         }
