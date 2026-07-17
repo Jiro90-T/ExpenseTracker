@@ -3,6 +3,7 @@ package io.github.jiro.expensetracker.data.repository
 import io.github.jiro.expensetracker.data.local.AccountBalanceRow
 import io.github.jiro.expensetracker.data.local.AccountDao
 import io.github.jiro.expensetracker.data.local.AccountEntity
+import io.github.jiro.expensetracker.data.local.InvestmentHoldingDao
 import io.github.jiro.expensetracker.data.accountimport.ResolvedImportRow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -12,6 +13,7 @@ import kotlinx.coroutines.flow.combine
 @Singleton
 open class AccountRepository @Inject constructor(
     private val dao: AccountDao,
+    private val holdingDao: InvestmentHoldingDao,
 ) {
     fun observeActive(): Flow<List<AccountEntity>> = dao.observeActive()
 
@@ -20,6 +22,13 @@ open class AccountRepository @Inject constructor(
     suspend fun findById(id: Long): AccountEntity? = dao.findById(id)
 
     suspend fun countActive(): Int = dao.countActive()
+
+    /**
+     * Number of investment holdings attached to this account. Used by the
+     * DeleteGuard to BLOCK_HOLDINGS_EXIST before allowing an account to be
+     * deleted (the FK from investment_holdings is RESTRICT, not CASCADE).
+     */
+    suspend fun countHoldings(accountId: Long): Int = holdingDao.countByAccount(accountId)
 
     /** Lowest-id active account, or null if every account is archived. */
     suspend fun findActiveDefault(): AccountEntity? = dao.findActiveDefault()

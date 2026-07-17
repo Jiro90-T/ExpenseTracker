@@ -43,7 +43,7 @@ class AccountImportRepositoryTest {
         db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries()
             .build()
-        accountRepo = AccountRepository(db.accountDao())
+        accountRepo = AccountRepository(db.accountDao(), db.investmentHoldingDao())
         txnRepo = TransactionRepository(db.transactionDao(), ReceiptRepository(context))
         repo = TestRepo(context, accountRepo, txnRepo)
     }

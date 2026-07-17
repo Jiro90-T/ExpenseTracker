@@ -5,6 +5,8 @@ import android.content.Context
 import android.net.Uri
 import io.github.jiro.expensetracker.data.local.AccountDao
 import io.github.jiro.expensetracker.data.local.AccountEntity
+import io.github.jiro.expensetracker.data.local.InvestmentHoldingDao
+import io.github.jiro.expensetracker.data.local.InvestmentHoldingEntity
 import io.github.jiro.expensetracker.data.local.CategoryDao
 import io.github.jiro.expensetracker.data.local.CategoryEntity
 import io.github.jiro.expensetracker.data.local.ReceiptOcrProcessor
@@ -189,7 +191,19 @@ class FakeCategoryRepo : CategoryRepository(
 
 class FakeAccountRepo : AccountRepository(
     dao = StubAccountDao(),
+    holdingDao = NoopInvestmentHoldingDao,
 )
+
+/** No-op InvestmentHoldingDao for tests that don't exercise holdings. */
+private object NoopInvestmentHoldingDao : InvestmentHoldingDao {
+    override suspend fun insert(row: InvestmentHoldingEntity): Long = 0L
+    override suspend fun update(row: InvestmentHoldingEntity) = Unit
+    override suspend fun delete(id: Long) = Unit
+    override fun observeByAccount(accountId: Long): Flow<List<InvestmentHoldingEntity>> =
+        MutableStateFlow<List<InvestmentHoldingEntity>>(emptyList()).asStateFlow()
+    override suspend fun findById(id: Long): InvestmentHoldingEntity? = null
+    override suspend fun countByAccount(accountId: Long): Int = 0
+}
 
 class FakeReceiptRepo : ReceiptRepository(
     context = NoopApplication(),

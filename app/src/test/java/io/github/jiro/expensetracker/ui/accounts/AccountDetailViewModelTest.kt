@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.lifecycle.SavedStateHandle
 import io.github.jiro.expensetracker.data.local.AccountDao
 import io.github.jiro.expensetracker.data.local.AccountEntity
+import io.github.jiro.expensetracker.data.local.InvestmentHoldingDao
+import io.github.jiro.expensetracker.data.local.InvestmentHoldingEntity
 import io.github.jiro.expensetracker.data.local.TransactionDao
 import io.github.jiro.expensetracker.data.local.TransactionEntity
 import io.github.jiro.expensetracker.data.local.TransactionWithCategory
@@ -206,12 +208,26 @@ private class NoopApplication : Application()
 
 private class FakeAccountRepository(
     accounts: List<AccountEntity>,
-) : AccountRepository(dao = StubAccountDao(accounts)) {
+) : AccountRepository(
+    dao = StubAccountDao(accounts),
+    holdingDao = NoopInvestmentHoldingDao,
+) {
     val deletedIds = mutableListOf<Long>()
     override suspend fun delete(id: Long): Int {
         deletedIds += id
         return 1
     }
+}
+
+/** No-op InvestmentHoldingDao for tests that don't exercise holdings. */
+private object NoopInvestmentHoldingDao : InvestmentHoldingDao {
+    override suspend fun insert(row: InvestmentHoldingEntity): Long = 0L
+    override suspend fun update(row: InvestmentHoldingEntity) = Unit
+    override suspend fun delete(id: Long) = Unit
+    override fun observeByAccount(accountId: Long): Flow<List<InvestmentHoldingEntity>> =
+        MutableStateFlow<List<InvestmentHoldingEntity>>(emptyList()).asStateFlow()
+    override suspend fun findById(id: Long): InvestmentHoldingEntity? = null
+    override suspend fun countByAccount(accountId: Long): Int = 0
 }
 
 private class FakeTransactionRepository(

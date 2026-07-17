@@ -3,6 +3,8 @@ package io.github.jiro.expensetracker.data.repository
 import io.github.jiro.expensetracker.data.local.AccountBalanceRow
 import io.github.jiro.expensetracker.data.local.AccountDao
 import io.github.jiro.expensetracker.data.local.AccountEntity
+import io.github.jiro.expensetracker.data.local.InvestmentHoldingDao
+import io.github.jiro.expensetracker.data.local.InvestmentHoldingEntity
 import io.github.jiro.expensetracker.data.accountimport.ResolvedImportRow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -54,7 +56,7 @@ class AccountCloseRepositoryTest {
 
     @Test fun close_passesSystemCurrentTimeMillisToDao() = runBlocking {
         val dao = CapturingDao()
-        val repo = AccountRepository(dao)
+        val repo = AccountRepository(dao, NoopInvestmentHoldingDao)
         val before = System.currentTimeMillis()
         repo.close(id = 7L)
         val after = System.currentTimeMillis()
@@ -66,7 +68,7 @@ class AccountCloseRepositoryTest {
 
     @Test fun reopen_passesIdToDao() = runBlocking {
         val dao = CapturingDao()
-        val repo = AccountRepository(dao)
+        val repo = AccountRepository(dao, NoopInvestmentHoldingDao)
         repo.reopen(id = 9L)
         assertEquals(9L, dao.lastReopenId)
     }
@@ -106,7 +108,7 @@ class AccountCloseRepositoryTest {
             override suspend fun reopen(id: Long) {}
             override suspend fun applyAccountImport(rows: List<ResolvedImportRow>, nowEpochMs: Long) {}
         }
-        val repo = AccountRepository(dao)
+        val repo = AccountRepository(dao, NoopInvestmentHoldingDao)
         val rows = repo.observeAllWithBalances().first()
         assertEquals(2, rows.size)
         val byId = rows.associateBy { it.account.id }
@@ -143,9 +145,20 @@ class AccountCloseRepositoryTest {
             override suspend fun reopen(id: Long) {}
             override suspend fun applyAccountImport(rows: List<ResolvedImportRow>, nowEpochMs: Long) {}
         }
-        val repo = AccountRepository(dao)
+        val repo = AccountRepository(dao, NoopInvestmentHoldingDao)
         val rows = repo.observeAllWithBalances().first()
         assertEquals(1, rows.size)
         assertEquals(1234L, rows[0].balanceMinor)  // fell back to openingBalanceMinor
     }
+}
+
+/** No-op InvestmentHoldingDao for tests that don't exercise holdings. */
+private object NoopInvestmentHoldingDao : InvestmentHoldingDao {
+    override suspend fun insert(row: InvestmentHoldingEntity): Long = 0L
+    override suspend fun update(row: InvestmentHoldingEntity) = Unit
+    override suspend fun delete(id: Long) = Unit
+    override fun observeByAccount(accountId: Long): Flow<List<InvestmentHoldingEntity>> =
+        flowOf(emptyList())
+    override suspend fun findById(id: Long): InvestmentHoldingEntity? = null
+    override suspend fun countByAccount(accountId: Long): Int = 0
 }
