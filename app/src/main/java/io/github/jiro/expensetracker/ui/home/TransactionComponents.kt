@@ -70,6 +70,7 @@ internal fun TransactionRow(
     row: TransactionWithCategory,
     onClick: () -> Unit,
     searchQuery: String? = null,
+    showTransactionDate: Boolean = false,
 ) {
     val txn = row.transaction
     val type = TransactionType.fromStorage(txn.type)
@@ -85,12 +86,14 @@ internal fun TransactionRow(
             onClick = onClick,
             searchQuery = trimmed,
             highlightStyle = highlightStyle,
+            showTransactionDate = showTransactionDate,
         )
         else -> StandardRow(
             row = row,
             onClick = onClick,
             searchQuery = trimmed,
             highlightStyle = highlightStyle,
+            showTransactionDate = showTransactionDate,
         )
     }
 }
@@ -101,6 +104,7 @@ private fun StandardRow(
     onClick: () -> Unit,
     searchQuery: String,
     highlightStyle: SpanStyle,
+    showTransactionDate: Boolean = false,
 ) {
     val txn = row.transaction
     val category = row.category
@@ -112,6 +116,25 @@ private fun StandardRow(
         IncomeGreen
     }
     val displayCategoryName = category?.name ?: stringResource(R.string.type_transfer)
+    val ctx = LocalContext.current
+    val txnDateText = remember(txn.occurredAtEpochMillis) {
+        DateUtils.formatDateTime(
+            ctx,
+            txn.occurredAtEpochMillis,
+            DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_ABBREV_MONTH or DateUtils.FORMAT_NO_YEAR,
+        )
+    }
+    val addedDateText = remember(txn.createdAtEpochMillis) {
+        if (txn.createdAtEpochMillis == 0L) null else {
+            DateUtils.formatDateTime(
+                ctx,
+                txn.createdAtEpochMillis,
+                DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_ABBREV_MONTH or DateUtils.FORMAT_NO_YEAR,
+            )
+        }
+    }
+    val showAddedDate = addedDateText != null &&
+        (txn.createdAtEpochMillis - txn.occurredAtEpochMillis) > DAY_MS
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -138,19 +161,23 @@ private fun StandardRow(
                     )
                 }
             }
-            val ctx = LocalContext.current
-            val addedText = remember(txn.createdAtEpochMillis) {
-                if (txn.createdAtEpochMillis == 0L) null else {
-                    DateUtils.formatDateTime(
-                        ctx,
-                        txn.createdAtEpochMillis,
-                        DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_ABBREV_MONTH or DateUtils.FORMAT_NO_YEAR,
+            if (showTransactionDate) {
+                Text(
+                    text = stringResource(R.string.transaction_date_on, txnDateText),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                if (showAddedDate) {
+                    Text(
+                        text = stringResource(R.string.transaction_added_on, addedDateText!!),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-            }
-            if (addedText != null) {
+            } else if (addedDateText != null) {
                 Text(
-                    text = stringResource(R.string.transaction_added_on, addedText),
+                    text = stringResource(R.string.transaction_added_on, addedDateText),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -178,10 +205,30 @@ private fun TransferRow(
     onClick: () -> Unit,
     searchQuery: String,
     highlightStyle: SpanStyle,
+    showTransactionDate: Boolean = false,
 ) {
     val txn = row.transaction
     val amountText = "${txn.amountMinor / 100}.${"%02d".format(txn.amountMinor % 100)} ${txn.currencyCode}"
     val destLabel = txn.transferAccountId?.let { "acct#$it" } ?: "—"
+    val ctx = LocalContext.current
+    val txnDateText = remember(txn.occurredAtEpochMillis) {
+        DateUtils.formatDateTime(
+            ctx,
+            txn.occurredAtEpochMillis,
+            DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_ABBREV_MONTH or DateUtils.FORMAT_NO_YEAR,
+        )
+    }
+    val addedDateText = remember(txn.createdAtEpochMillis) {
+        if (txn.createdAtEpochMillis == 0L) null else {
+            DateUtils.formatDateTime(
+                ctx,
+                txn.createdAtEpochMillis,
+                DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_ABBREV_MONTH or DateUtils.FORMAT_NO_YEAR,
+            )
+        }
+    }
+    val showAddedDate = addedDateText != null &&
+        (txn.createdAtEpochMillis - txn.occurredAtEpochMillis) > DAY_MS
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -197,19 +244,23 @@ private fun TransferRow(
                 text = highlightMatches(txn.title, searchQuery, highlightStyle),
                 style = MaterialTheme.typography.titleMedium,
             )
-            val ctx = LocalContext.current
-            val addedText = remember(txn.createdAtEpochMillis) {
-                if (txn.createdAtEpochMillis == 0L) null else {
-                    DateUtils.formatDateTime(
-                        ctx,
-                        txn.createdAtEpochMillis,
-                        DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_ABBREV_MONTH or DateUtils.FORMAT_NO_YEAR,
+            if (showTransactionDate) {
+                Text(
+                    text = stringResource(R.string.transaction_date_on, txnDateText),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                if (showAddedDate) {
+                    Text(
+                        text = stringResource(R.string.transaction_added_on, addedDateText!!),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-            }
-            if (addedText != null) {
+            } else if (addedDateText != null) {
                 Text(
-                    text = stringResource(R.string.transaction_added_on, addedText),
+                    text = stringResource(R.string.transaction_added_on, addedDateText),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
