@@ -55,6 +55,8 @@ object Routes {
     const val ADD_EDIT = "add_edit?id={id}"
     const val ADD_EDIT_ARG_ID = "id"
     const val ADD_EDIT_NO_ID = "add_edit"
+    const val ADD_EDIT_WITH_ACCOUNT = "add_edit?accountId={accountId}"
+    const val ADD_EDIT_ARG_ACCOUNT_ID = "accountId"
     const val BUDGET = "budget"
     const val TRENDS = "trends"
     const val STATISTICS = "statistics"
@@ -92,6 +94,9 @@ object Routes {
 
 fun addEditRoute(transactionId: Long? = null): String =
     if (transactionId == null) Routes.ADD_EDIT_NO_ID else "add_edit?id=$transactionId"
+
+fun addEditRoute(accountId: Long): String =
+    "add_edit?accountId=$accountId"
 
 fun memberCardEditRoute(cardId: Long? = null): String =
     if (cardId == null) Routes.MEMBER_CARDS_EDIT_NO_ID else "member_cards/edit?id=$cardId"
@@ -193,6 +198,10 @@ fun AppNavHost(
                         type = NavType.LongType
                         defaultValue = -1L
                     },
+                    navArgument(Routes.ADD_EDIT_ARG_ACCOUNT_ID) {
+                        type = NavType.LongType
+                        defaultValue = -1L
+                    },
                 ),
             ) {
                 AddEditTransactionScreen(
@@ -259,6 +268,7 @@ fun AppNavHost(
                     onBack = { navController.popBackStack() },
                     onEditAccount = { id -> navController.navigate("account_edit/$id") },
                     onTransactionClick = { txnId -> navController.navigate(addEditRoute(txnId)) },
+                    onAddTransaction = { accountId -> navController.navigate(addEditRoute(accountId)) },
                 )
             }
             composable(Routes.ACCOUNT_EDIT) {
