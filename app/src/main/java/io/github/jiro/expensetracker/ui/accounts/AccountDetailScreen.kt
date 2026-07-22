@@ -15,10 +15,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -53,6 +55,7 @@ fun AccountDetailScreen(
     onBack: () -> Unit,
     onEditAccount: (Long) -> Unit,
     onTransactionClick: (Long) -> Unit,
+    onAddTransaction: (accountId: Long) -> Unit,
     viewModel: AccountDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -83,6 +86,15 @@ fun AccountDetailScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        floatingActionButton = {
+            if (aw != null && !aw.account.archived) {
+                ExtendedFloatingActionButton(
+                    onClick = { onAddTransaction(aw.account.id) },
+                    text = { Text(stringResource(R.string.account_add_transaction)) },
+                    icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                )
+            }
+        },
         topBar = {
             TopAppBar(
                 title = { Text(aw?.account?.name ?: stringResource(R.string.accounts_title)) },
@@ -145,7 +157,11 @@ fun AccountDetailScreen(
                 }
             }
             items(state.transactions, key = { it.transaction.id }) { row ->
-                TransactionRow(row = row, onClick = { onTransactionClick(row.transaction.id) })
+                TransactionRow(
+                    row = row,
+                    onClick = { onTransactionClick(row.transaction.id) },
+                    showTransactionDate = true,
+                )
             }
         }
     }
