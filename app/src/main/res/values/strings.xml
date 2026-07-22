@@ -389,6 +389,8 @@
     <string name="account_filter_show_closed">Show closed accounts</string>
     <string name="account_closed_on">Closed on %1$s</string>
     <string name="transaction_added_on">Added %1$s</string>
+    <string name="account_add_transaction">Add transaction</string>
+    <string name="transaction_date_on">Date %1$s</string>
 
     <!-- Accounts (Phase 2.18 — CSV Balance Import) -->
     <string name="import_csv_section_title">Import accounts from CSV</string>
