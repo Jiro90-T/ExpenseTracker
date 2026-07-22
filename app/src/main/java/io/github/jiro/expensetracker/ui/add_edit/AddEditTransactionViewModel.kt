@@ -114,9 +114,19 @@ class AddEditTransactionViewModel @Inject constructor(
         .get<Long>("id")
         ?.takeIf { it >= 0 }
 
+    /**
+     * Account id pre-supplied by the navigation route (from Account detail's
+     * "Add transaction" FAB). Only honored in add mode — the existing-row
+     * prefill wins over the preset for the edit-mode case.
+     */
+    private val presetAccountId: Long? = savedStateHandle
+        .get<Long>("accountId")
+        ?.takeIf { it >= 0 }
+
     private val _state = MutableStateFlow(
         AddEditTransactionUiState(
             id = transactionId,
+            selectedAccountId = if (transactionId == null) presetAccountId else null,
             // Default new transactions to the user's home currency. Editing
             // an existing row overrides this with its own currencyCode below.
             currency = if (transactionId == null) settingsRepository.homeCurrency.value else "USD",
