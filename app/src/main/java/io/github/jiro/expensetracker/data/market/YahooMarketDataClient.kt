@@ -3,6 +3,7 @@ package io.github.jiro.expensetracker.data.market
 import io.github.jiro.expensetracker.data.local.MoneyFormat
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.delay
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -18,9 +19,17 @@ class YahooMarketDataClient @Inject constructor(
 
     override suspend fun fetchQuotes(symbols: List<String>): List<Quote?> {
         if (symbols.isEmpty()) return emptyList()
+        return symbols.mapIndexed { index, symbol ->
+            if (index > 0) delay(REQUEST_DELAY_MS)
+            fetchSingleQuote(symbol)
+        }
+    }
+
+    private fun fetchSingleQuote(symbol: String): Quote? {
         val url = baseUrlProvider().toHttpUrl().newBuilder()
-            .addPathSegments("v7/finance/quote")
-            .addQueryParameter("symbols", symbols.joinToString(","))
+            .addPathSegments("v8/finance/chart/$symbol")
+            .addQueryParameter("interval", "1d")
+            .addQueryParameter("range", "5d")
             .build()
         val request = Request.Builder()
             .url(url)
@@ -29,45 +38,36 @@ class YahooMarketDataClient @Inject constructor(
         val response = try {
             httpClient.newCall(request).execute()
         } catch (e: Throwable) {
-            throw MarketDataException("network failure: ${e.message}", e)
+            return null
         }
         response.use { resp ->
-            if (!resp.isSuccessful) {
-                throw MarketDataException("HTTP ${resp.code}")
-            }
-            val body = resp.body?.string() ?: throw MarketDataException("empty body")
-            val bySymbol = try {
-                val parsed = JSONObject(body)
-                val result = parsed
-                    .getJSONObject("quoteResponse")
-                    .optJSONArray("result")
-                val map = mutableMapOf<String, Quote>()
-                if (result != null) {
-                    for (i in 0 until result.length()) {
-                        val obj = result.getJSONObject(i)
-                        val sym = obj.getString("symbol")
-                        val price = obj.optDouble("regularMarketPrice", Double.NaN)
-                        if (price.isNaN()) continue
-                        val currency = obj.optString("currency", "USD")
-                        val asOfSec = obj.optLong("regularMarketTime", 0L)
-                        map[sym] = Quote(
-                            symbol = sym,
-                            priceMinor = MoneyFormat.priceToMinor(price, currency),
-                            currencyCode = currency,
-                            asOfEpochMillis = asOfSec * 1000L,
-                        )
-                    }
-                }
-                map
+            if (!resp.isSuccessful) return null
+            val body = resp.body?.string() ?: return null
+            return try {
+                val chart = JSONObject(body).getJSONObject("chart")
+                if (chart.optJSONObject("error") != null) return null
+                val result = chart.optJSONArray("result")
+                    ?.optJSONObject(0) ?: return null
+                val meta = result.getJSONObject("meta")
+                val currency = meta.optString("currency", "USD")
+                val price = meta.optDouble("regularMarketPrice", Double.NaN)
+                if (price.isNaN()) return null
+                val asOfSec = meta.optLong("regularMarketTime", 0L)
+                Quote(
+                    symbol = symbol,
+                    priceMinor = MoneyFormat.priceToMinor(price, currency),
+                    currencyCode = currency,
+                    asOfEpochMillis = asOfSec * 1000L,
+                )
             } catch (e: Throwable) {
-                throw MarketDataException("parse failure: ${e.message}", e)
+                null
             }
-            return symbols.map { bySymbol[it] }
         }
     }
 
     companion object {
         const val DEFAULT_BASE_URL = "https://query1.finance.yahoo.com"
         const val USER_AGENT = "Mozilla/5.0"
+        const val REQUEST_DELAY_MS = 50L
     }
 }

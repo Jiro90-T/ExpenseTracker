@@ -518,6 +518,7 @@
     <string name="investment_no_price">No price</string>
     <string name="investment_holding_subtitle">%1$s · %2$s @ %3$s/share</string>
     <string name="investment_refresh">Refresh prices</string>
+    <string name="investment_refresh_failed">Refresh failed: %1$s</string>
     <string name="investment_empty_title">No holdings yet</string>
     <string name="investment_add_holding">Add holding</string>
     <string name="investment_close_confirm_title">Close account?</string>
