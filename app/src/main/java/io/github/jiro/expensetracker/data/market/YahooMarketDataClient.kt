@@ -19,9 +19,12 @@ class YahooMarketDataClient @Inject constructor(
 
     override suspend fun fetchQuotes(symbols: List<String>): List<Quote?> {
         if (symbols.isEmpty()) return emptyList()
+        val failures = mutableMapOf<String, String>()
         val results = symbols.mapIndexed { index, symbol ->
             if (index > 0) delay(REQUEST_DELAY_MS)
-            fetchSingleQuote(symbol)
+            val outcome = fetchSingleQuote(symbol)
+            if (outcome == null) failures[symbol] = lastFailure ?: "unknown"
+            outcome
         }
         // If every symbol failed, surface a transport-level error so the
         // caller can show the user something concrete. Partial failures
@@ -29,10 +32,13 @@ class YahooMarketDataClient @Inject constructor(
         // the nulls are preserved, and any successfully fetched symbols
         // are written through.
         if (results.isNotEmpty() && results.all { it == null }) {
-            throw MarketDataException("All ${symbols.size} symbols failed to refresh")
+            val details = failures.entries.joinToString("; ") { (s, why) -> "$s: $why" }
+            throw MarketDataException("All ${symbols.size} symbols failed to refresh ($details)")
         }
         return results
     }
+
+    private var lastFailure: String? = null
 
     private fun fetchSingleQuote(symbol: String): Quote? {
         val url = baseUrlProvider().toHttpUrl().newBuilder()
@@ -49,20 +55,42 @@ class YahooMarketDataClient @Inject constructor(
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
+            lastFailure = "${e.javaClass.simpleName}: ${e.message ?: "no message"}"
             return null
         }
         response.use { resp ->
-            if (!resp.isSuccessful) return null
-            val body = resp.body?.string() ?: return null
+            if (!resp.isSuccessful) {
+                lastFailure = "HTTP ${resp.code}"
+                return null
+            }
+            val body = resp.body?.string()
+            if (body.isNullOrBlank()) {
+                lastFailure = "empty body"
+                return null
+            }
             return try {
                 val chart = JSONObject(body).getJSONObject("chart")
-                if (chart.optJSONObject("error") != null) return null
+                if (chart.optJSONObject("error") != null) {
+                    lastFailure = "chart.error: ${chart.getJSONObject("error").optString("description", "?")}"
+                    return null
+                }
                 val result = chart.optJSONArray("result")
-                    ?.optJSONObject(0) ?: return null
+                    ?.optJSONObject(0)
+                if (result == null) {
+                    lastFailure = "empty result array"
+                    return null
+                }
                 val meta = result.getJSONObject("meta")
                 val currency = meta.optString("currency", "USD")
                 val price = meta.optDouble("regularMarketPrice", Double.NaN)
-                if (!price.isFinite() || price <= 0.0) return null
+                if (!price.isFinite()) {
+                    lastFailure = "price NaN"
+                    return null
+                }
+                if (price <= 0.0) {
+                    lastFailure = "price $price <= 0"
+                    return null
+                }
                 val asOfSec = meta.optLong("regularMarketTime", 0L)
                 Quote(
                     symbol = symbol,
@@ -71,6 +99,7 @@ class YahooMarketDataClient @Inject constructor(
                     asOfEpochMillis = asOfSec * 1000L,
                 )
             } catch (e: Exception) {
+                lastFailure = "parse: ${e.javaClass.simpleName}: ${e.message ?: "?"}"
                 null
             }
         }
