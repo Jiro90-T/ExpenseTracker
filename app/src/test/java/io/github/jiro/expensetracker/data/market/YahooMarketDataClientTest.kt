@@ -8,6 +8,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -49,7 +50,7 @@ class YahooMarketDataClientTest {
 
     @Test fun unknownSymbol_returnsNullInPosition() = runTest {
         server.enqueue(MockResponse().setBody("""
-            {"chart":{"result":[],"error":null}}
+            {"chart":{"result":[{"meta":{"currency":"USD","symbol":"AAPL","regularMarketPrice":123.45,"regularMarketTime":1}}],"error":null}}
         """.trimIndent()).setResponseCode(200))
         server.enqueue(MockResponse().setBody("""
             {"chart":{"result":[],"error":null}}
@@ -57,8 +58,21 @@ class YahooMarketDataClientTest {
 
         val result = client.fetchQuotes(listOf("AAPL", "ZZZZ"))
         assertEquals(2, result.size)
-        assertNull(result[0])
+        assertNotNull(result[0])
         assertNull(result[1])
+    }
+
+    @Test fun allSymbolsUnknown_throwsMarketDataException() = runTest {
+        server.enqueue(MockResponse().setBody("""
+            {"chart":{"result":[],"error":null}}
+        """.trimIndent()).setResponseCode(200))
+        server.enqueue(MockResponse().setBody("""
+            {"chart":{"result":[],"error":null}}
+        """.trimIndent()).setResponseCode(200))
+
+        val ex = runCatching { client.fetchQuotes(listOf("AAPL", "ZZZZ")) }.exceptionOrNull()
+        assertNotNull(ex)
+        assertEquals(MarketDataException::class.java, ex!!.javaClass)
     }
 
     @Test fun serverError_returnsNullForThatSymbol() = runTest {
@@ -102,7 +116,7 @@ class YahooMarketDataClientTest {
     @Test fun requestUrl_isChartEndpoint_perSymbol() = runTest {
         repeat(2) {
             server.enqueue(MockResponse().setBody("""
-                {"chart":{"result":[],"error":null}}
+                {"chart":{"result":[{"meta":{"currency":"USD","symbol":"X","regularMarketPrice":1.0,"regularMarketTime":1}}],"error":null}}
             """.trimIndent()).setResponseCode(200))
         }
 
@@ -118,5 +132,27 @@ class YahooMarketDataClientTest {
         val result = client.fetchQuotes(emptyList())
         assertEquals(0, result.size)
         assertEquals(0, server.requestCount)
+    }
+
+    @Test fun allSymbolsFailed_throwsMarketDataException() = runTest {
+        server.enqueue(MockResponse().setResponseCode(500).setBody("server boom"))
+        server.enqueue(MockResponse().setResponseCode(500).setBody("server boom"))
+
+        val ex = runCatching { client.fetchQuotes(listOf("AAPL", "MSFT")) }.exceptionOrNull()
+        assertNotNull(ex)
+        assertEquals(MarketDataException::class.java, ex!!.javaClass)
+        assertTrue(ex.message!!.contains("All 2 symbols failed"))
+    }
+
+    @Test fun partialFailure_succeedsAndReturnsNulls_noThrow() = runTest {
+        server.enqueue(MockResponse().setResponseCode(500).setBody("server boom"))
+        server.enqueue(MockResponse().setBody("""
+            {"chart":{"result":[{"meta":{"currency":"USD","symbol":"AAPL","regularMarketPrice":123.45,"regularMarketTime":1}}],"error":null}}
+        """.trimIndent()).setResponseCode(200))
+
+        val result = client.fetchQuotes(listOf("ZZZZ", "AAPL"))
+        assertEquals(2, result.size)
+        assertNull(result[0])
+        assertNotNull(result[1])
     }
 }

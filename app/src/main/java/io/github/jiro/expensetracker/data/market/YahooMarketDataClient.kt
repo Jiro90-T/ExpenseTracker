@@ -19,10 +19,19 @@ class YahooMarketDataClient @Inject constructor(
 
     override suspend fun fetchQuotes(symbols: List<String>): List<Quote?> {
         if (symbols.isEmpty()) return emptyList()
-        return symbols.mapIndexed { index, symbol ->
+        val results = symbols.mapIndexed { index, symbol ->
             if (index > 0) delay(REQUEST_DELAY_MS)
             fetchSingleQuote(symbol)
         }
+        // If every symbol failed, surface a transport-level error so the
+        // caller can show the user something concrete. Partial failures
+        // (some null, some Quote) stay silent — the cached entries for
+        // the nulls are preserved, and any successfully fetched symbols
+        // are written through.
+        if (results.isNotEmpty() && results.all { it == null }) {
+            throw MarketDataException("All ${symbols.size} symbols failed to refresh")
+        }
+        return results
     }
 
     private fun fetchSingleQuote(symbol: String): Quote? {
@@ -37,7 +46,9 @@ class YahooMarketDataClient @Inject constructor(
             .build()
         val response = try {
             httpClient.newCall(request).execute()
-        } catch (e: Throwable) {
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
             return null
         }
         response.use { resp ->
@@ -51,7 +62,7 @@ class YahooMarketDataClient @Inject constructor(
                 val meta = result.getJSONObject("meta")
                 val currency = meta.optString("currency", "USD")
                 val price = meta.optDouble("regularMarketPrice", Double.NaN)
-                if (price.isNaN()) return null
+                if (!price.isFinite() || price <= 0.0) return null
                 val asOfSec = meta.optLong("regularMarketTime", 0L)
                 Quote(
                     symbol = symbol,
@@ -59,7 +70,7 @@ class YahooMarketDataClient @Inject constructor(
                     currencyCode = currency,
                     asOfEpochMillis = asOfSec * 1000L,
                 )
-            } catch (e: Throwable) {
+            } catch (e: Exception) {
                 null
             }
         }

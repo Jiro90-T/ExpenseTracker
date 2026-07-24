@@ -38,7 +38,8 @@ class AccountsListViewModel @Inject constructor(
         settingsRepository.fxRates,
         settingsRepository.homeCurrency,
     ) { showClosed, allAccounts, activeAccounts, fx, home ->
-        val listed = if (showClosed) allAccounts else activeAccounts
+        val listed = (if (showClosed) allAccounts else activeAccounts)
+            .sortedBy { it.account.name.lowercase() }
         val net = computeNetBalanceInHome(allAccounts, home, fx)
         // `net` is in major units (Double) — convert to minor (Long) so
         // MoneyFormat can apply thousands grouping ("39,318.12" not "39318.12").
