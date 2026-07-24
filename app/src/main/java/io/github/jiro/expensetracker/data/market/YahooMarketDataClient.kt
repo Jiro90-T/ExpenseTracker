@@ -3,7 +3,9 @@ package io.github.jiro.expensetracker.data.market
 import io.github.jiro.expensetracker.data.local.MoneyFormat
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -19,6 +21,15 @@ class YahooMarketDataClient @Inject constructor(
 
     override suspend fun fetchQuotes(symbols: List<String>): List<Quote?> {
         if (symbols.isEmpty()) return emptyList()
+        // Blocking HTTP I/O must run off the main thread, otherwise Android
+        // throws NetworkOnMainThreadException. Callers (ViewModelScope)
+        // default to Dispatchers.Main.immediate, so we hop to IO here.
+        // JSON parsing stays on IO too — JSONObject on a multi-KB body is
+        // not free, and keeping it off the UI thread is cheap.
+        return withContext(Dispatchers.IO) { fetchQuotesBlocking(symbols) }
+    }
+
+    private suspend fun fetchQuotesBlocking(symbols: List<String>): List<Quote?> {
         val failures = mutableMapOf<String, String>()
         val results = symbols.mapIndexed { index, symbol ->
             if (index > 0) delay(REQUEST_DELAY_MS)

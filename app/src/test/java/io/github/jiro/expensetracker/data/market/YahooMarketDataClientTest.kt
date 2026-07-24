@@ -187,4 +187,38 @@ class YahooMarketDataClientTest {
         assertNull(result[0])
         assertNotNull(result[1])
     }
+
+    @Test fun fetchQuotes_runsHttpOffTheTestDispatcherThread() = runTest {
+        // Captures the client-side thread at the moment the OkHttp call is
+        // initiated. The client must switch to Dispatchers.IO before calling
+        // httpClient.newCall().execute() — otherwise on Android the call
+        // hits the main thread and StrictMode throws
+        // NetworkOnMainThreadException. (runTest uses a TestDispatcher
+        // whose thread is named "Test worker" — the IO dispatcher uses a
+        // different pool, typically ForkJoinPool or Default.)
+        val testThreadName = Thread.currentThread().name
+        val callThreadName = arrayOfNulls<String>(1)
+        val capturingClient = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                callThreadName[0] = Thread.currentThread().name
+                chain.proceed(chain.request())
+            }
+            .build()
+        val ioClient = YahooMarketDataClient(
+            httpClient = capturingClient,
+            baseUrlProvider = { server.url("/").toString().removeSuffix("/") },
+        )
+        server.enqueue(MockResponse().setBody("""
+            {"chart":{"result":[{"meta":{"currency":"USD","symbol":"AAPL","regularMarketPrice":1.0,"regularMarketTime":1}}],"error":null}}
+        """.trimIndent()).setResponseCode(200))
+
+        ioClient.fetchQuotes(listOf("AAPL"))
+
+        assertNotNull(callThreadName[0])
+        assertTrue(
+            "expected HTTP call to run off the test dispatcher; " +
+                "test=$testThreadName client=${callThreadName[0]}",
+            callThreadName[0] != testThreadName,
+        )
+    }
 }
