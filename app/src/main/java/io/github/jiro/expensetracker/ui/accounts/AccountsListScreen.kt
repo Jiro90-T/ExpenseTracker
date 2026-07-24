@@ -32,6 +32,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -52,7 +54,7 @@ import io.github.jiro.expensetracker.data.repository.AccountWithBalance
 @Composable
 fun AccountsListScreen(
     onBack: () -> Unit,
-    onAddAccount: () -> Unit,
+    onAddAccount: (type: String?) -> Unit,
     onAccountClick: (accountId: Long, type: String) -> Unit,
     viewModel: AccountsListViewModel = hiltViewModel(),
 ) {
@@ -87,54 +89,99 @@ fun AccountsListScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAddAccount) {
+            FloatingActionButton(
+                onClick = {
+                    val type = if (state.activeTab == AccountsTab.INVESTMENT) "INVESTMENT" else null
+                    onAddAccount(type)
+                },
+            ) {
                 Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.account_add_title))
             }
         },
     ) { padding ->
-        Row(
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(padding)
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+                .fillMaxSize()
+                .padding(padding),
         ) {
-            FilterChip(
-                selected = state.showClosed,
-                onClick = { viewModel.setShowClosed(!state.showClosed) },
-                label = { Text(stringResource(R.string.account_filter_show_closed)) },
+            AccountsTabRow(
+                activeTab = state.activeTab,
+                bankCount = state.bankCount,
+                investmentCount = state.investmentCount,
+                onTabChange = viewModel::setActiveTab,
             )
-            Text(
-                text = stringResource(R.string.accounts_header_count, state.count),
-                style = MaterialTheme.typography.labelMedium,
-            )
-        }
-        if (state.accounts.isEmpty() && !state.isLoading) {
-            EmptyState(modifier = Modifier.fillMaxSize().padding(padding))
-            return@Scaffold
-        }
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                HeaderCard(
-                    netBalanceInHome = state.netBalanceInHome,
-                    count = state.count,
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                FilterChip(
+                    selected = state.showClosed,
+                    onClick = { viewModel.setShowClosed(!state.showClosed) },
+                    label = { Text(stringResource(R.string.account_filter_show_closed)) },
+                )
+                Text(
+                    text = stringResource(R.string.accounts_header_count, state.count),
+                    style = MaterialTheme.typography.labelMedium,
                 )
             }
-            items(state.accounts, key = { it.account.id }) { aw ->
-                AccountTile(
-                    accountWithBalance = aw,
-                    archived = aw.account.archived,
-                    onClick = { onAccountClick(aw.account.id, aw.account.type) },
+            if (state.accounts.isEmpty() && !state.isLoading) {
+                EmptyState(
+                    tab = state.activeTab,
+                    modifier = Modifier.fillMaxSize(),
                 )
+                return@Scaffold
+            }
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    HeaderCard(
+                        netBalanceInHome = state.netBalanceInHome,
+                        count = state.count,
+                    )
+                }
+                items(state.accounts, key = { it.account.id }) { aw ->
+                    AccountTile(
+                        accountWithBalance = aw,
+                        archived = aw.account.archived,
+                        onClick = { onAccountClick(aw.account.id, aw.account.type) },
+                    )
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun AccountsTabRow(
+    activeTab: AccountsTab,
+    bankCount: Int,
+    investmentCount: Int,
+    onTabChange: (AccountsTab) -> Unit,
+) {
+    val bankLabel = stringResource(R.string.accounts_tab_bank) +
+        if (bankCount > 0) " ($bankCount)" else ""
+    val investLabel = stringResource(R.string.accounts_tab_investments) +
+        if (investmentCount > 0) " ($investmentCount)" else ""
+    val selectedIndex = if (activeTab == AccountsTab.BANK) 0 else 1
+    TabRow(selectedTabIndex = selectedIndex) {
+        Tab(
+            selected = activeTab == AccountsTab.BANK,
+            onClick = { onTabChange(AccountsTab.BANK) },
+            text = { Text(bankLabel) },
+        )
+        Tab(
+            selected = activeTab == AccountsTab.INVESTMENT,
+            onClick = { onTabChange(AccountsTab.INVESTMENT) },
+            text = { Text(investLabel) },
+        )
     }
 }
 
@@ -224,10 +271,14 @@ private fun AccountTile(
 }
 
 @Composable
-private fun EmptyState(modifier: Modifier = Modifier) {
+private fun EmptyState(tab: AccountsTab, modifier: Modifier = Modifier) {
+    val text = when (tab) {
+        AccountsTab.BANK -> stringResource(R.string.accounts_empty_bank)
+        AccountsTab.INVESTMENT -> stringResource(R.string.accounts_empty_investments)
+    }
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         Text(
-            text = stringResource(R.string.account_add_title),
+            text = text,
             style = MaterialTheme.typography.titleMedium,
         )
     }

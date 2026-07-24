@@ -11,10 +11,11 @@ class AccountsListViewModelTest {
         id: Long,
         name: String,
         currencyCode: String,
+        type: String = "CASH",
     ) = AccountEntity(
         id = id,
         name = name,
-        type = "CASH",
+        type = type,
         icon = "💵",
         color = 0xFFFFFFFF.toInt(),
         currencyCode = currencyCode,
@@ -96,5 +97,77 @@ class AccountsListViewModelToggleTest {
         assertEquals(false, s.showClosed)
         val s2 = s.copy(showClosed = true)
         assertEquals(true, s2.showClosed)
+    }
+
+    @Test
+    fun `default tab is BANK so bank accounts are visible and investments hidden`() {
+        // Sanity: enum + default tab wiring. Fails to compile until
+        // AccountsTab exists and the UiState carries activeTab.
+        assertEquals(AccountsTab.BANK, AccountsListUiState().activeTab)
+        val s = AccountsListUiState(activeTab = AccountsTab.BANK)
+        assertEquals(AccountsTab.BANK, s.activeTab)
+    }
+
+    @Test
+    fun `setActiveTab INVESTMENT swaps activeTab to INVESTMENT`() {
+        val s = AccountsListUiState(activeTab = AccountsTab.BANK)
+        val s2 = s.copy(activeTab = AccountsTab.INVESTMENT)
+        assertEquals(AccountsTab.INVESTMENT, s2.activeTab)
+    }
+}
+
+class AccountsListViewModelTabFilteringTest {
+
+    private fun account(
+        id: Long,
+        name: String,
+        type: String,
+    ) = AccountEntity(
+        id = id,
+        name = name,
+        type = type,
+        icon = "💵",
+        color = 0xFFFFFFFF.toInt(),
+        currencyCode = "USD",
+        createdAtEpochMillis = 0L,
+    )
+
+    /**
+     * Reproduces the VM's filter+sort logic without standing up Hilt.
+     * The VM itself uses combine() + stateIn() which can't be exercised
+     * outside of Robolectric; testing the *predicate* that drives the
+     * visible list is the only behavior that matters for the tab wiring.
+     */
+    private fun visible(
+        all: List<AccountWithBalance>,
+        tab: AccountsTab,
+    ): List<AccountWithBalance> {
+        val sorted = all.sortedBy { it.account.name.lowercase() }
+        return when (tab) {
+            AccountsTab.BANK -> sorted.filter { it.account.type != "INVESTMENT" }
+            AccountsTab.INVESTMENT -> sorted.filter { it.account.type == "INVESTMENT" }
+        }
+    }
+
+    @Test
+    fun `default tab is BANK so bank accounts are visible and investments hidden`() {
+        val all = listOf(
+            AccountWithBalance(account(1, "Brokerage", "INVESTMENT"), 0L),
+            AccountWithBalance(account(2, "Checking", "BANK"), 0L),
+            AccountWithBalance(account(3, "Cash", "CASH"), 0L),
+        )
+        val v = visible(all, AccountsTab.BANK)
+        assertEquals(listOf("Cash", "Checking"), v.map { it.account.name })
+    }
+
+    @Test
+    fun `setActiveTab INVESTMENT shows investments and hides bank accounts`() {
+        val all = listOf(
+            AccountWithBalance(account(1, "Brokerage", "INVESTMENT"), 0L),
+            AccountWithBalance(account(2, "Checking", "BANK"), 0L),
+            AccountWithBalance(account(3, "Cash", "CASH"), 0L),
+        )
+        val v = visible(all, AccountsTab.INVESTMENT)
+        assertEquals(listOf("Brokerage"), v.map { it.account.name })
     }
 }

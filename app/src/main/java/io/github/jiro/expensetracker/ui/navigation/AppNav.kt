@@ -74,6 +74,9 @@ object Routes {
     const val ACCOUNT_EDIT = "account_edit"
     const val ACCOUNT_EDIT_WITH_ID = "account_edit/{accountId}"
     const val ACCOUNT_EDIT_ARG_ID = "accountId"
+    const val ACCOUNT_EDIT_NO_ID = "account_edit"
+    const val ACCOUNT_EDIT_WITH_TYPE = "account_edit?type={type}"
+    const val ACCOUNT_EDIT_ARG_TYPE = "type"
     const val MEMBER_CARDS = "member_cards"
     const val MEMBER_CARDS_DETAIL = "member_cards/{cardId}"
     const val MEMBER_CARDS_DETAIL_ARG_ID = "cardId"
@@ -97,6 +100,9 @@ fun addEditRoute(transactionId: Long? = null): String =
 
 fun addEditRoute(accountId: Long): String =
     "add_edit?accountId=$accountId"
+
+fun accountEditRoute(type: String? = null): String =
+    if (type == null) Routes.ACCOUNT_EDIT else "account_edit?type=$type"
 
 fun memberCardEditRoute(cardId: Long? = null): String =
     if (cardId == null) Routes.MEMBER_CARDS_EDIT_NO_ID else "member_cards/edit?id=$cardId"
@@ -248,7 +254,9 @@ fun AppNavHost(
             composable(Routes.ACCOUNTS_LIST) {
                 AccountsListScreen(
                     onBack = { navController.popBackStack() },
-                    onAddAccount = { navController.navigate(Routes.ACCOUNT_EDIT) },
+                    onAddAccount = { type ->
+                        navController.navigate(accountEditRoute(type))
+                    },
                     onAccountClick = { id, type ->
                         if (type == "INVESTMENT") {
                             navController.navigate("investment_account/$id")
@@ -278,6 +286,18 @@ fun AppNavHost(
                 route = Routes.ACCOUNT_EDIT_WITH_ID,
                 arguments = listOf(
                     navArgument(Routes.ACCOUNT_EDIT_ARG_ID) { type = NavType.LongType },
+                ),
+            ) {
+                AddEditAccountScreen(onBack = { navController.popBackStack() })
+            }
+            composable(
+                route = Routes.ACCOUNT_EDIT_WITH_TYPE,
+                arguments = listOf(
+                    navArgument(Routes.ACCOUNT_EDIT_ARG_TYPE) {
+                        type = NavType.StringType
+                        defaultValue = "CASH"
+                        nullable = true
+                    },
                 ),
             ) {
                 AddEditAccountScreen(onBack = { navController.popBackStack() })

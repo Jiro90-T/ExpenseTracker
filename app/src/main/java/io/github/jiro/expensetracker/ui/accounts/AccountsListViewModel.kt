@@ -15,8 +15,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 
+/** Which sub-list is currently visible on the Manage Accounts screen. */
+enum class AccountsTab { BANK, INVESTMENT }
+
 data class AccountsListUiState(
     val accounts: List<AccountWithBalance> = emptyList(),
+    val bankCount: Int = 0,
+    val investmentCount: Int = 0,
+    val activeTab: AccountsTab = AccountsTab.BANK,
     val netBalanceInHome: String = "",
     val count: Int = 0,
     val isLoading: Boolean = true,
@@ -30,24 +36,47 @@ class AccountsListViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _showClosed = MutableStateFlow(false)
+    private val _activeTab = MutableStateFlow(AccountsTab.BANK)
 
     val state: StateFlow<AccountsListUiState> = combine(
         _showClosed,
+        _activeTab,
         accountRepository.observeAllWithBalances(),
         accountRepository.observeWithBalances(),
         settingsRepository.fxRates,
         settingsRepository.homeCurrency,
-    ) { showClosed, allAccounts, activeAccounts, fx, home ->
-        val listed = (if (showClosed) allAccounts else activeAccounts)
+    ) { values ->
+        @Suppress("UNCHECKED_CAST")
+        val showClosed = values[0] as Boolean
+        @Suppress("UNCHECKED_CAST")
+        val tab = values[1] as AccountsTab
+        @Suppress("UNCHECKED_CAST")
+        val allAccounts = values[2] as List<AccountWithBalance>
+        @Suppress("UNCHECKED_CAST")
+        val activeAccounts = values[3] as List<AccountWithBalance>
+        @Suppress("UNCHECKED_CAST")
+        val fx = values[4] as Map<String, Double>
+        @Suppress("UNCHECKED_CAST")
+        val home = values[5] as String
+
+        val source = if (showClosed) allAccounts else activeAccounts
+        val bank = source.filter { it.account.type != "INVESTMENT" }
             .sortedBy { it.account.name.lowercase() }
+        val invest = source.filter { it.account.type == "INVESTMENT" }
+            .sortedBy { it.account.name.lowercase() }
+        val visible = if (tab == AccountsTab.BANK) bank else invest
+
+        // Net balance: still totals ALL accounts so the user sees the grand
+        // total, not the tab-scoped sum. Matches the pre-tab behavior.
         val net = computeNetBalanceInHome(allAccounts, home, fx)
-        // `net` is in major units (Double) — convert to minor (Long) so
-        // MoneyFormat can apply thousands grouping ("39,318.12" not "39318.12").
         val netMinor = kotlin.math.round(net * 100.0).toLong()
         AccountsListUiState(
-            accounts = listed,
+            accounts = visible,
+            bankCount = bank.size,
+            investmentCount = invest.size,
+            activeTab = tab,
             netBalanceInHome = "${MoneyFormat.formatForDisplay(netMinor)} $home",
-            count = listed.size,
+            count = visible.size,
             isLoading = false,
             showClosed = showClosed,
         )
@@ -59,6 +88,10 @@ class AccountsListViewModel @Inject constructor(
 
     fun setShowClosed(value: Boolean) {
         _showClosed.value = value
+    }
+
+    fun setActiveTab(tab: AccountsTab) {
+        _activeTab.value = tab
     }
 }
 

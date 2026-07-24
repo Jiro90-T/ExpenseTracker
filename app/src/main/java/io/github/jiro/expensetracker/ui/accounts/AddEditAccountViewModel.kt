@@ -85,7 +85,22 @@ class AddEditAccountViewModel @Inject constructor(
         .get<Long>("accountId")
         ?.takeIf { it >= 0 }
 
-    private val _state = MutableStateFlow(AddEditAccountUiState(isEdit = accountId != null))
+    /**
+     * Optional `?type=` route arg. When the user opens Add from the
+     * Investments tab the screenset pre-seeds this so the form lands
+     * on "INVESTMENT" instead of "CASH". Ignored for Edit (the existing
+     * row wins).
+     */
+    private val initialType: String? = savedStateHandle
+        .get<String>("type")
+        ?.takeIf { it.isNotBlank() }
+
+    private val _state = MutableStateFlow(
+        AddEditAccountUiState(
+            isEdit = accountId != null,
+            type = initialType ?: "CASH",
+        )
+    )
     val state: StateFlow<AddEditAccountUiState> = _state.asStateFlow()
 
     init {
