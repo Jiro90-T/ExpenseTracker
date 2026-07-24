@@ -10,6 +10,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -20,6 +22,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -59,6 +62,13 @@ fun AddEditHoldingScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
+                    }
+                },
+                actions = {
+                    if (state.isEdit) {
+                        IconButton(onClick = viewModel::onDeleteClick) {
+                            Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.action_delete))
+                        }
                     }
                 },
             )
@@ -144,5 +154,19 @@ fun AddEditHoldingScreen(
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(R.string.action_save)) }
         }
+    }
+
+    if (state.showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = viewModel::onDeleteDismiss,
+            title = { Text(stringResource(R.string.holding_delete_confirm_title)) },
+            text = { Text(stringResource(R.string.holding_delete_confirm_message)) },
+            confirmButton = {
+                TextButton(onClick = viewModel::delete) { Text(stringResource(R.string.action_delete)) }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::onDeleteDismiss) { Text(stringResource(R.string.action_cancel)) }
+            },
+        )
     }
 }

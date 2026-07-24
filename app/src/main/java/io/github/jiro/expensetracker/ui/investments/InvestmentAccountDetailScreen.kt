@@ -64,6 +64,7 @@ fun InvestmentAccountDetailScreen(
     onEditAccount: (Long) -> Unit,
     onAddHolding: (Long) -> Unit,
     onEditHolding: (accountId: Long, holdingId: Long) -> Unit,
+    onOpenSettings: () -> Unit = {},
     viewModel: InvestmentAccountDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -140,7 +141,7 @@ fun InvestmentAccountDetailScreen(
         ) {
             item("total") { TotalCard(state = state, currency = account.currencyCode) }
             if (state.missingFxPairs.isNotEmpty()) {
-                item("fx_warning") { FxWarningChip(pairs = state.missingFxPairs) }
+                item("fx_warning") { FxWarningChip(pairs = state.missingFxPairs, onManageRates = onOpenSettings) }
             }
             if (state.holdings.isEmpty()) {
                 item("empty") {
@@ -279,7 +280,7 @@ private fun TotalCard(state: InvestmentDetailUiState, currency: String) {
 }
 
 @Composable
-private fun FxWarningChip(pairs: List<String>) {
+private fun FxWarningChip(pairs: List<String>, onManageRates: () -> Unit) {
     Surface(
         shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.tertiaryContainer,
@@ -293,6 +294,10 @@ private fun FxWarningChip(pairs: List<String>) {
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
+            TextButton(
+                onClick = onManageRates,
+                modifier = Modifier.align(Alignment.End),
+            ) { Text(stringResource(R.string.investment_fx_manage_rates)) }
         }
     }
 }

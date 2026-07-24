@@ -30,6 +30,7 @@ data class AddEditHoldingUiState(
     val isLoaded: Boolean = false,
     val isSaving: Boolean = false,
     val saveComplete: Boolean = false,
+    val showDeleteConfirm: Boolean = false,
 )
 
 @HiltViewModel
@@ -129,6 +130,22 @@ class AddEditHoldingViewModel @Inject constructor(
                 ))
             }
             _state.update { it.copy(isSaving = false, saveComplete = true) }
+        }
+    }
+
+    fun onDeleteClick() {
+        _state.update { it.copy(showDeleteConfirm = true) }
+    }
+
+    fun onDeleteDismiss() {
+        _state.update { it.copy(showDeleteConfirm = false) }
+    }
+
+    fun delete() {
+        val id = holdingId ?: return
+        viewModelScope.launch {
+            holdingDao.delete(id)
+            _state.update { it.copy(showDeleteConfirm = false, saveComplete = true) }
         }
     }
 

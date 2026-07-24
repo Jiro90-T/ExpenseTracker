@@ -135,6 +135,27 @@ class AddEditHoldingViewModelTest {
         advanceUntilIdle()
         assertTrue(v.state.value.saveComplete)
     }
+
+    @Test fun delete_removesRowAndSetsSaveComplete() = runTest(dispatcher) {
+        dao = FakeHoldingDao(initial = InvestmentHoldingEntity(
+            id = 42L, accountId = 1L, symbol = "AAPL", quantity = 10.0,
+            costBasisMinor = 150_000L, currencyCode = "USD", createdAtEpochMillis = 1L,
+        ))
+        val v = vm(accountId = 1L, holdingId = 42L)
+        advanceUntilIdle()
+        v.delete()
+        advanceUntilIdle()
+        assertNull(dao.findById(42L))
+        assertTrue(v.state.value.saveComplete)
+    }
+
+    @Test fun delete_inAddMode_isNoOp() = runTest(dispatcher) {
+        dao = FakeHoldingDao()
+        val v = vm(accountId = 1L)
+        v.delete()
+        advanceUntilIdle()
+        assertEquals(false, v.state.value.saveComplete)
+    }
 }
 
 private class FakeHoldingDao(initial: InvestmentHoldingEntity? = null) : InvestmentHoldingDao {

@@ -505,6 +505,8 @@
     <!-- Investment holding form -->
     <string name="holding_add_title">Add holding</string>
     <string name="holding_edit_title">Edit holding</string>
+    <string name="holding_delete_confirm_title">Delete holding?</string>
+    <string name="holding_delete_confirm_message">This will permanently remove the holding from this account.</string>
     <string name="field_holding_symbol">Symbol</string>
     <string name="field_holding_quantity">Quantity</string>
     <string name="field_holding_cost_basis">Total cost</string>
@@ -520,6 +522,7 @@
     <string name="investment_total_current">Current: %1$s</string>
     <string name="investment_unrealized">Unrealized: %1$s</string>
     <string name="investment_fx_missing">FX rate missing: %1$s → %2$s — add in Settings</string>
+    <string name="investment_fx_manage_rates">Manage FX rates</string>
     <string name="investment_stale_updated">Updated %1$s ago</string>
     <string name="investment_no_price">No price</string>
     <string name="investment_holding_subtitle">%1$s · %2$s @ %3$s/share</string>

@@ -366,6 +366,7 @@ fun AppNavHost(
                     onEditAccount = { id -> navController.navigate("account_edit/$id") },
                     onAddHolding = { accountId -> navController.navigate(investmentHoldingEditRoute(accountId, null)) },
                     onEditHolding = { accountId, holdingId -> navController.navigate(investmentHoldingEditRoute(accountId, holdingId)) },
+                    onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                 )
             }
             composable(
