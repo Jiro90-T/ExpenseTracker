@@ -14,6 +14,8 @@ import io.github.jiro.expensetracker.backup.BackupManager
 import io.github.jiro.expensetracker.data.accountimport.AccountImportRepository
 import io.github.jiro.expensetracker.data.accountimport.ImportApplyResult
 import io.github.jiro.expensetracker.data.accountimport.ImportPreview
+import io.github.jiro.expensetracker.data.fx.FxRateClient
+import io.github.jiro.expensetracker.data.fx.FxRateFetchException
 import io.github.jiro.expensetracker.preferences.SettingsRepository
 import io.github.jiro.expensetracker.preferences.ThemePreference
 import io.github.jiro.expensetracker.preferences.addRate
@@ -53,6 +55,7 @@ class SettingsViewModel @Inject internal constructor(
     private val accountImportRepository: AccountImportRepository,
     private val cloudSyncRepository: CloudSyncRepository,
     private val transactionMutationBus: TransactionMutationBus,
+    private val fxRateClient: FxRateClient,
 ) : ViewModel() {
 
     val theme: StateFlow<ThemePreference> = settingsRepository.theme
@@ -77,6 +80,54 @@ class SettingsViewModel @Inject internal constructor(
     fun removeFxRate(displayKey: String) {
         val updated = removeRate(settingsRepository.fxRates.value, displayKey)
         settingsRepository.setFxRates(updated)
+    }
+
+    /** Pulls the latest USD-base rates from the FX provider and replaces the
+     *  in-memory map. Existing user-edited rates that aren't USD-base get
+     *  preserved (we merge rather than replace) — refresh only updates
+     *  USD_to_XXX keys, leaving manually-added non-USD base pairs alone. */
+    private val _fxRefreshInFlight = MutableStateFlow(false)
+    val fxRefreshInFlight: StateFlow<Boolean> = _fxRefreshInFlight.asStateFlow()
+
+    fun refreshFxRates() {
+        if (_fxRefreshInFlight.value) return
+        _fxRefreshInFlight.value = true
+        viewModelScope.launch {
+            try {
+                val fetched = fxRateClient.fetchLatestUsdRates()
+                val merged = settingsRepository.fxRates.value.toMutableMap().apply {
+                    // Drop any prior USD_to_XXX entries; preserve non-USD
+                    // base pairs the user added manually.
+                    val toDrop = keys.filter { it.startsWith("USD_to_") }
+                    toDrop.forEach { remove(it) }
+                    putAll(fetched)
+                }
+                settingsRepository.setFxRates(merged)
+                _message.value = SettingsMessage(
+                    appContext.getString(
+                        R.string.settings_fx_refreshed,
+                        fetched.size,
+                    ),
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: FxRateFetchException) {
+                _message.value = SettingsMessage(
+                    appContext.getString(R.string.settings_fx_refresh_failed, e.message ?: ""),
+                    isError = true,
+                )
+            } catch (e: Exception) {
+                _message.value = SettingsMessage(
+                    appContext.getString(
+                        R.string.settings_fx_refresh_failed,
+                        e.message ?: e.javaClass.simpleName,
+                    ),
+                    isError = true,
+                )
+            } finally {
+                _fxRefreshInFlight.value = false
+            }
+        }
     }
 
     private val _exportUri = MutableStateFlow<Uri?>(null)

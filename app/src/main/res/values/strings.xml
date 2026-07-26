@@ -310,6 +310,9 @@
     <string name="settings_fx_rate_hint">Rate (1 from = ? to)</string>
     <string name="settings_fx_empty">No FX rates yet. Add one to convert foreign transactions.</string>
     <string name="settings_fx_delete">Delete rate</string>
+    <string name="settings_fx_refresh">Refresh from open.er-api.com</string>
+    <string name="settings_fx_refreshed">Loaded %1$d FX rates from USD base.</string>
+    <string name="settings_fx_refresh_failed">Could not refresh FX rates: %1$s</string>
     <string name="settings_dialog_ok">OK</string>
     <string name="settings_dialog_cancel">Cancel</string>
 

@@ -313,11 +313,30 @@ fun SettingsScreen(
                             }
                         }
                     }
-                    TextButton(
-                        onClick = { showAddRateDialog = true },
-                        modifier = Modifier.padding(horizontal = 8.dp),
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(stringResource(R.string.settings_fx_add))
+                        TextButton(
+                            onClick = { showAddRateDialog = true },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text(stringResource(R.string.settings_fx_add))
+                        }
+                        val refreshing by viewModel.fxRefreshInFlight.collectAsStateWithLifecycle()
+                        TextButton(
+                            onClick = viewModel::refreshFxRates,
+                            enabled = !refreshing,
+                        ) {
+                            if (refreshing) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                            } else {
+                                Text(stringResource(R.string.settings_fx_refresh))
+                            }
+                        }
                     }
                 }
             }
