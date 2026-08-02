@@ -13,7 +13,7 @@ import org.json.JSONObject
 class ExchangeRateApiClient @Inject constructor(
     private val httpClient: OkHttpClient,
     /** Indirection so tests can inject a MockWebServer URL. Production
-     *  binding returns the public open.er-api.com endpoint. */
+     *  binding returns the public Frankfurter endpoint. */
     private val baseUrlProvider: () -> String = { DEFAULT_BASE_URL },
 ) : FxRateClient {
 
@@ -25,7 +25,8 @@ class ExchangeRateApiClient @Inject constructor(
 
     private fun fetchLatestUsdRatesBlocking(): Map<String, Double> {
         val url = baseUrlProvider().toHttpUrl().newBuilder()
-            .addPathSegments("v6/latest/USD")
+            .addPathSegments("v1/latest")
+            .addQueryParameter("base", "USD")
             .build()
         val request = Request.Builder()
             .url(url)
@@ -50,16 +51,11 @@ class ExchangeRateApiClient @Inject constructor(
             }
             return try {
                 val root = JSONObject(body)
-                val result = root.optString("result", "")
-                if (result != "success") {
-                    throw FxRateFetchException("API result: $result")
-                }
-                val baseCode = root.optString("base_code", "")
+                val baseCode = root.optString("base", "")
                 if (baseCode != "USD") {
-                    // Shouldn't happen for v6/latest/USD, but defensive:
-                    // we'd be writing keys "USD_to_XXX" while the response
-                    // is actually based on something else.
-                    throw FxRateFetchException("unexpected base_code: $baseCode")
+                    // Defensive: would be writing "USD_to_XXX" keys for a
+                    // response that isn't actually USD-based.
+                    throw FxRateFetchException("unexpected base: $baseCode")
                 }
                 val rates = root.optJSONObject("rates") ?: throw FxRateFetchException("missing rates object")
                 val out = mutableMapOf<String, Double>()
@@ -87,7 +83,10 @@ class ExchangeRateApiClient @Inject constructor(
     }
 
     companion object {
-        const val DEFAULT_BASE_URL = "https://open.er-api.com"
+        // Frankfurter (api.frankfurter.dev) — free, no key, ECB-backed,
+        // MYR/EUR/GBP/JPY/SGD/HKD included. Switched from open.er-api.com
+        // which was geo-blocking users in some regions.
+        const val DEFAULT_BASE_URL = "https://api.frankfurter.dev"
         const val USER_AGENT = "Mozilla/5.0"
     }
 }

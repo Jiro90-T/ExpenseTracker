@@ -29,54 +29,54 @@ class ExchangeRateApiClientTest {
 
     @Test fun happyPath_returnsUsdToXxxMap() = runTest {
         server.enqueue(MockResponse().setBody("""
-            {"result":"success","base_code":"USD","rates":{"MYR":4.45,"JPY":156.7,"EUR":0.91}}
+            {"amount":1.0,"base":"USD","date":"2026-08-02","rates":{"MYR":4.0865,"JPY":160.24,"EUR":0.8707}}
         """.trimIndent()).setResponseCode(200))
 
         val map = client.fetchLatestUsdRates()
 
         assertEquals(3, map.size)
-        assertEquals(4.45, map["USD_to_MYR"]!!, 0.0001)
-        assertEquals(156.7, map["USD_to_JPY"]!!, 0.0001)
-        assertEquals(0.91, map["USD_to_EUR"]!!, 0.0001)
+        assertEquals(4.0865, map["USD_to_MYR"]!!, 0.0001)
+        assertEquals(160.24, map["USD_to_JPY"]!!, 0.0001)
+        assertEquals(0.8707, map["USD_to_EUR"]!!, 0.0001)
     }
 
     @Test fun usdItself_isImplicit_notIncluded() = runTest {
         server.enqueue(MockResponse().setBody("""
-            {"result":"success","base_code":"USD","rates":{"USD":1.0,"MYR":4.45}}
+            {"amount":1.0,"base":"USD","date":"2026-08-02","rates":{"USD":1.0,"MYR":4.0865}}
         """.trimIndent()).setResponseCode(200))
 
         val map = client.fetchLatestUsdRates()
 
         assertEquals(1, map.size)
         assertNull("USD_to_USD should not be in map", map["USD_to_USD"])
-        assertEquals(4.45, map["USD_to_MYR"]!!, 0.0001)
+        assertEquals(4.0865, map["USD_to_MYR"]!!, 0.0001)
     }
 
     @Test fun nonPositiveRate_isSkipped() = runTest {
         server.enqueue(MockResponse().setBody("""
-            {"result":"success","base_code":"USD","rates":{"MYR":4.45,"BAD":-1.0,"ZERO":0.0}}
+            {"amount":1.0,"base":"USD","date":"2026-08-02","rates":{"MYR":4.0865,"BAD":-1.0,"ZERO":0.0}}
         """.trimIndent()).setResponseCode(200))
 
         val map = client.fetchLatestUsdRates()
 
         assertEquals(1, map.size)
-        assertEquals(4.45, map["USD_to_MYR"]!!, 0.0001)
+        assertEquals(4.0865, map["USD_to_MYR"]!!, 0.0001)
     }
 
     @Test fun nonThreeLetterCode_isSkipped() = runTest {
         server.enqueue(MockResponse().setBody("""
-            {"result":"success","base_code":"USD","rates":{"MYR":4.45,"ABCD":1.0,"EU":0.91}}
+            {"amount":1.0,"base":"USD","date":"2026-08-02","rates":{"MYR":4.0865,"ABCD":1.0,"EU":0.91}}
         """.trimIndent()).setResponseCode(200))
 
         val map = client.fetchLatestUsdRates()
 
         assertEquals(1, map.size)
-        assertEquals(4.45, map["USD_to_MYR"]!!, 0.0001)
+        assertEquals(4.0865, map["USD_to_MYR"]!!, 0.0001)
     }
 
     @Test fun noUsableRates_throws() = runTest {
         server.enqueue(MockResponse().setBody("""
-            {"result":"success","base_code":"USD","rates":{"USD":1.0}}
+            {"amount":1.0,"base":"USD","date":"2026-08-02","rates":{"USD":1.0}}
         """.trimIndent()).setResponseCode(200))
 
         val ex = runCatching { client.fetchLatestUsdRates() }.exceptionOrNull()
@@ -87,31 +87,19 @@ class ExchangeRateApiClientTest {
 
     @Test fun wrongBaseCode_throws() = runTest {
         server.enqueue(MockResponse().setBody("""
-            {"result":"success","base_code":"EUR","rates":{"MYR":4.45}}
+            {"amount":1.0,"base":"EUR","date":"2026-08-02","rates":{"MYR":4.0865}}
         """.trimIndent()).setResponseCode(200))
 
         val ex = runCatching { client.fetchLatestUsdRates() }.exceptionOrNull()
         assertNotNull(ex)
         assertEquals(FxRateFetchException::class.java, ex!!.javaClass)
-        assertTrue(ex.message!!.contains("unexpected base_code"))
+        assertTrue(ex.message!!.contains("unexpected base"))
         assertTrue(ex.message!!.contains("EUR"))
-    }
-
-    @Test fun resultNotSuccess_throws() = runTest {
-        server.enqueue(MockResponse().setBody("""
-            {"result":"failure","base_code":"USD"}
-        """.trimIndent()).setResponseCode(200))
-
-        val ex = runCatching { client.fetchLatestUsdRates() }.exceptionOrNull()
-        assertNotNull(ex)
-        assertEquals(FxRateFetchException::class.java, ex!!.javaClass)
-        assertTrue(ex.message!!.contains("API result"))
-        assertTrue(ex.message!!.contains("failure"))
     }
 
     @Test fun missingRatesObject_throws() = runTest {
         server.enqueue(MockResponse().setBody("""
-            {"result":"success","base_code":"USD"}
+            {"amount":1.0,"base":"USD","date":"2026-08-02"}
         """.trimIndent()).setResponseCode(200))
 
         val ex = runCatching { client.fetchLatestUsdRates() }.exceptionOrNull()
@@ -147,15 +135,15 @@ class ExchangeRateApiClientTest {
         assertTrue(ex.message!!.contains("parse"))
     }
 
-    @Test fun requestUrl_isLatestUsdPath() = runTest {
+    @Test fun requestUrl_isFrankfurterLatestUsdPath() = runTest {
         server.enqueue(MockResponse().setBody("""
-            {"result":"success","base_code":"USD","rates":{"MYR":4.45}}
+            {"amount":1.0,"base":"USD","date":"2026-08-02","rates":{"MYR":4.0865}}
         """.trimIndent()).setResponseCode(200))
 
         client.fetchLatestUsdRates()
 
         val request = server.takeRequest()
-        assertEquals("/v6/latest/USD", request.path)
+        assertEquals("/v1/latest?base=USD", request.path)
         assertEquals("GET", request.method)
     }
 
@@ -176,7 +164,7 @@ class ExchangeRateApiClientTest {
             baseUrlProvider = { server.url("/").toString().removeSuffix("/") },
         )
         server.enqueue(MockResponse().setBody("""
-            {"result":"success","base_code":"USD","rates":{"MYR":4.45}}
+            {"amount":1.0,"base":"USD","date":"2026-08-02","rates":{"MYR":4.0865}}
         """.trimIndent()).setResponseCode(200))
 
         ioClient.fetchLatestUsdRates()
@@ -189,19 +177,21 @@ class ExchangeRateApiClientTest {
         )
     }
 
-    @Test fun realisticOpenErApiResponse_parsesCorrectly() = runTest {
-        // Captured from open.er-api.com on 2026-07-25 — representative sample
-        // subset of the full payload to confirm shape compatibility.
+    @Test fun realisticFrankfurterResponse_parsesCorrectly() = runTest {
+        // Captured from api.frankfurter.dev on 2026-08-02 — representative
+        // sample to confirm shape compatibility and that the user's needed
+        // currencies (MYR, JPY, EUR, GBP, SGD, HKD) are present.
         server.enqueue(MockResponse().setBody("""
-            {"result":"success","provider":"https://www.exchangerate-api.com","documentation":"https://www.exchangerate-api.com/docs/free","terms_of_use":"https://www.exchangerate-api.com/terms","time_last_update_unix":1721846401,"time_last_update_utc":"Tue, 23 Jul 2024 00:00:01 +0000","time_next_update_unix":1721932801,"time_next_update_utc":"Wed, 24 Jul 2024 00:00:01 +0000","time_eol_unix":0,"base_code":"USD","rates":{"USD":1,"AED":3.673,"AFN":71.81,"MYR":4.448,"JPY":156.78,"EUR":0.916,"GBP":0.773}}
+            {"amount":1.0,"base":"USD","date":"2026-07-31","rates":{"AUD":1.4249,"BRL":5.0583,"CAD":1.4041,"CHF":0.8101,"CNY":6.7513,"CZK":21.081,"DKK":6.5087,"EUR":0.8707,"GBP":0.74508,"HKD":7.8432,"HUF":317.15,"IDR":18052,"ILS":3.0574,"INR":95.39,"ISK":124.16,"JPY":160.24,"KRW":1443.61,"MXN":17.3715,"MYR":4.0865,"NOK":9.5272,"NZD":1.7056,"PHP":61.269,"PLN":3.7558,"RON":4.5683,"SEK":9.5651,"SGD":1.2849,"THB":33.465,"TRY":47.525,"ZAR":16.575}}
         """.trimIndent()).setResponseCode(200))
 
         val map = client.fetchLatestUsdRates()
 
-        assertEquals(6, map.size)
-        assertEquals(4.448, map["USD_to_MYR"]!!, 0.0001)
-        assertEquals(156.78, map["USD_to_JPY"]!!, 0.0001)
-        assertEquals(0.916, map["USD_to_EUR"]!!, 0.0001)
-        assertEquals(0.773, map["USD_to_GBP"]!!, 0.0001)
+        assertEquals(29, map.size)
+        assertEquals(4.0865, map["USD_to_MYR"]!!, 0.0001)
+        assertEquals(160.24, map["USD_to_JPY"]!!, 0.0001)
+        assertEquals(0.8707, map["USD_to_EUR"]!!, 0.0001)
+        assertEquals(0.74508, map["USD_to_GBP"]!!, 0.0001)
+        assertEquals(1.2849, map["USD_to_SGD"]!!, 0.0001)
     }
 }
