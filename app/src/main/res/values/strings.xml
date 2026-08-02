@@ -529,6 +529,7 @@
     <string name="investment_stale_updated">Updated %1$s ago</string>
     <string name="investment_no_price">No price</string>
     <string name="investment_holding_subtitle">%1$s · %2$s @ %3$s/share</string>
+    <string name="investment_holding_current_price">now %1$s</string>
     <string name="investment_refresh">Refresh prices</string>
     <string name="investment_refresh_failed">Refresh failed: %1$s</string>
     <string name="investment_empty_title">No holdings yet</string>

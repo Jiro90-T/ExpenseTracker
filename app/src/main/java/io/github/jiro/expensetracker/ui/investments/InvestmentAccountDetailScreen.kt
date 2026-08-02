@@ -328,13 +328,20 @@ private fun HoldingRowView(row: HoldingRow, currency: String, onClick: () -> Uni
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
+                    val subtitle = stringResource(
+                        R.string.investment_holding_subtitle,
+                        "%.4f".format(Locale.US, row.holding.quantity).trimEnd('0').trimEnd('.'),
+                        row.holding.currencyCode,
+                        avgCostPerShareText,
+                    )
+                    val currentPriceText = if (row.cachedPriceMinor != null && row.cachedPriceCurrency != null) {
+                        " · " + stringResource(
+                            R.string.investment_holding_current_price,
+                            MoneyFormat.formatForDisplay(row.cachedPriceMinor) + " " + row.cachedPriceCurrency,
+                        )
+                    } else ""
                     Text(
-                        text = stringResource(
-                            R.string.investment_holding_subtitle,
-                            "%.4f".format(Locale.US, row.holding.quantity).trimEnd('0').trimEnd('.'),
-                            row.holding.currencyCode,
-                            avgCostPerShareText,
-                        ),
+                        text = subtitle + currentPriceText,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
