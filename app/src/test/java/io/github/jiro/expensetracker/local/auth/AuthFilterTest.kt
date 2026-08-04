@@ -21,8 +21,8 @@ class AuthFilterTest {
     private val expectedToken = "expected-secret-token"
 
     private fun io.ktor.server.application.Application.setupTestApp() {
-        authFilter(expectedToken)
         routing {
+            authFilter(expectedToken)
             get("/protected") { call.respondText("ok") }
             get("/static/foo.js") { call.respondText("js") }
         }

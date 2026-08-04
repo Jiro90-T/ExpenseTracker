@@ -1,16 +1,27 @@
 package io.github.jiro.expensetracker.local.auth
 
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.ApplicationCallPipeline
 import io.ktor.server.application.call
 import io.ktor.server.response.respondText
+import io.ktor.server.routing.Route
+import io.ktor.util.pipeline.PipelineContext
 
-// Ktor interceptor that rejects any request whose ?t= query param or
-// Authorization: Bearer header doesn't match [expectedToken]. Requests
-// to /static/* are always allowed (those are htmx/picocss assets).
-fun Application.authFilter(expectedToken: String) {
+/**
+ * Ktor interceptor that rejects any request whose `?t=` query param or
+ * `Authorization: Bearer` header doesn't match [expectedToken]. Requests
+ * to `/static/...` are always allowed (those are htmx/picocss assets).
+ *
+ * Install at the root of the routing graph:
+ * ```
+ * routing {
+ *     authFilter(token)
+ *     get("/") { ... }
+ * }
+ * ```
+ */
+fun Route.authFilter(expectedToken: String) {
     intercept(ApplicationCallPipeline.Plugins) {
         val path = call.request.local.uri
         if (path.startsWith("/static/")) return@intercept
@@ -22,7 +33,7 @@ fun Application.authFilter(expectedToken: String) {
     }
 }
 
-private suspend fun io.ktor.util.pipeline.PipelineContext<Unit, ApplicationCall>.renderUnauthorizedAndFinish() {
+private suspend fun PipelineContext<Unit, ApplicationCall>.renderUnauthorizedAndFinish() {
     val body = """
         <!doctype html>
         <html lang="en"><head><meta charset="utf-8"><title>Unauthorized</title></head>
