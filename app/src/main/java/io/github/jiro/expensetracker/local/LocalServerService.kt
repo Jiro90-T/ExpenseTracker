@@ -8,32 +8,41 @@ import android.content.Intent
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import dagger.hilt.android.AndroidEntryPoint
 import io.github.jiro.expensetracker.MainActivity
 import io.github.jiro.expensetracker.R
-import io.ktor.server.application.call
+import io.github.jiro.expensetracker.data.repository.AccountRepository
+import io.github.jiro.expensetracker.data.repository.BudgetRepository
+import io.github.jiro.expensetracker.data.repository.CategoryRepository
+import io.github.jiro.expensetracker.data.repository.TransactionRepository
+import io.github.jiro.expensetracker.local.auth.SessionTokenGenerator
+import io.github.jiro.expensetracker.preferences.SettingsRepository
+import io.ktor.server.cio.CIO
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.server.engine.embeddedServer
-import io.ktor.server.cio.CIO
-import io.ktor.server.response.respondText
-import io.ktor.server.routing.get
-import io.ktor.server.routing.routing
+import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
-/**
- * Foreground service that hosts the Ktor engine for the local PC browser
- * server. Started by Settings → "Start server"; the persistent
- * notification keeps the process alive while the embedded server is
- * running.
- */
+@AndroidEntryPoint
 class LocalServerService : Service() {
+
+    @Inject lateinit var transactionRepository: TransactionRepository
+    @Inject lateinit var accountRepository: AccountRepository
+    @Inject lateinit var categoryRepository: CategoryRepository
+    @Inject lateinit var budgetRepository: BudgetRepository
+    @Inject lateinit var settingsRepository: SettingsRepository
+    @Inject lateinit var sessionTokenGenerator: SessionTokenGenerator
 
     private val scope: CoroutineScope =
         CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var server: ApplicationEngine? = null
+    private var currentToken: String? = null
+
+    fun activeToken(): String? = currentToken
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -43,12 +52,18 @@ class LocalServerService : Service() {
         startForeground(NOTIFICATION_ID, buildNotification(port))
         scope.launch {
             if (server == null) {
-                server = embeddedServer(CIO, port = port, host = "0.0.0.0") {
-                    routing {
-                        get("/") {
-                            call.respondText("placeholder — see Task 6")
-                        }
-                    }
+                val token = sessionTokenGenerator.generate()
+                currentToken = token
+                val localServer = LocalServer(
+                    transactionRepository,
+                    accountRepository,
+                    categoryRepository,
+                    budgetRepository,
+                    settingsRepository,
+                    token,
+                )
+                server = embeddedServer(CIO, port, "0.0.0.0") {
+                    with(localServer) { module() }
                 }.start(wait = false)
             }
         }
@@ -58,6 +73,7 @@ class LocalServerService : Service() {
     override fun onDestroy() {
         server?.stop(gracePeriodMillis = 0, timeoutMillis = 1000)
         server = null
+        currentToken = null
         scope.cancel()
         super.onDestroy()
     }
