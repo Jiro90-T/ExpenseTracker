@@ -58,6 +58,8 @@ class ExpenseTrackerApp : Application(), Configuration.Provider {
     }
 
     private fun createLocalServerNotificationChannel() {
+        // NotificationChannel requires API 26; project minSdk is 24.
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.O) return
         val nm = getSystemService<NotificationManager>() ?: return
         val channel = NotificationChannel(
             LocalServerService.CHANNEL_ID,
