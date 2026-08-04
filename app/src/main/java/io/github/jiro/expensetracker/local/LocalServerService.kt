@@ -1,7 +1,6 @@
 package io.github.jiro.expensetracker.local
 
 import android.app.Notification
-import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
@@ -22,13 +21,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 /**
  * Foreground service that hosts the Ktor engine for the local PC browser
  * server. Started by Settings → "Start server"; the persistent
  * notification keeps the process alive while the embedded server is
- * running. The full HTTP surface (dashboard, transactions, etc.) is
- * layered on top of the placeholder route in the next task.
+ * running.
  */
 class LocalServerService : Service() {
 
@@ -42,14 +41,16 @@ class LocalServerService : Service() {
         val port = intent?.getIntExtra(EXTRA_PORT, LocalServerState.DEFAULT_PORT)
             ?: LocalServerState.DEFAULT_PORT
         startForeground(NOTIFICATION_ID, buildNotification(port))
-        if (server == null) {
-            server = embeddedServer(CIO, port = port, host = "0.0.0.0") {
-                routing {
-                    get("/") {
-                        call.respondText("placeholder — see Task 6")
+        scope.launch {
+            if (server == null) {
+                server = embeddedServer(CIO, port = port, host = "0.0.0.0") {
+                    routing {
+                        get("/") {
+                            call.respondText("placeholder — see Task 6")
+                        }
                     }
-                }
-            }.start(wait = false)
+                }.start(wait = false)
+            }
         }
         return START_NOT_STICKY
     }
@@ -87,10 +88,9 @@ class LocalServerService : Service() {
         const val EXTRA_PORT = "extra.port"
 
         /**
-         * Start this foreground service. Uses `ContextCompat.startForegroundService`
-         * so the call is correct on every supported API level — project
-         * minSdk is 24, but `Context.startForegroundService` was only
-         * added in API 26.
+         * `ContextCompat.startForegroundService` keeps the call correct on
+         * every supported API level — minSdk is 24, but
+         * `Context.startForegroundService` only exists from API 26.
          */
         fun start(ctx: Context, port: Int) {
             val intent = Intent(ctx, LocalServerService::class.java)
