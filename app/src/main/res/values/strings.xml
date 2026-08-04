@@ -539,4 +539,27 @@
     <string name="investment_delete_blocked_message">This account still holds %1$d position(s). Delete them first.</string>
     <string name="investment_delete_confirm_title">Delete account?</string>
     <string name="investment_delete_confirm_message">This permanently deletes the account and all its holdings.</string>
+    <!-- Local server -->
+    <string name="local_server_title">Local server</string>
+    <string name="local_server_toggle_on">Start server</string>
+    <string name="local_server_toggle_off">Stop server</string>
+    <string name="local_server_status_running">Running on port %1$d · %2$s</string>
+    <string name="local_server_status_off">Off</string>
+    <string name="local_server_url_label">Open in browser</string>
+    <string name="local_server_copy_url">Copy URL</string>
+    <string name="local_server_copy_failed">Could not copy URL</string>
+    <string name="local_server_port_in_use">Port %1$d is in use.</string>
+    <string name="local_server_notification_title">ExpenseTracker local server</string>
+    <string name="local_server_notification_text">Local server :%1$d — tap to manage</string>
+    <string name="local_server_ip_unknown">&lt;unknown-ip&gt; — connect to WiFi</string>
+    <string name="local_server_unauthorized_title">Token missing or wrong</string>
+    <string name="local_server_unauthorized_body">Run the server on your phone, then copy the URL from Settings.</string>
+    <string name="local_server_foreground_channel_name">Local server</string>
+    <string name="local_server_foreground_channel_description">Persistent notification while the local PC browser server is running.</string>
+    <string name="local_server_filter_account">Account</string>
+    <string name="local_server_filter_from">From</string>
+    <string name="local_server_filter_to">To</string>
+    <string name="local_server_filter_category">Category</string>
+    <string name="local_server_filter_apply">Apply</string>
+    <string name="local_server_filter_clear">Clear</string>
 </resources>

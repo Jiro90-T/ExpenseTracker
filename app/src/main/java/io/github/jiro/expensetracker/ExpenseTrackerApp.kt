@@ -1,6 +1,9 @@
 package io.github.jiro.expensetracker
 
 import android.app.Application
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import androidx.core.content.getSystemService
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -11,6 +14,7 @@ import androidx.work.WorkManager
 import dagger.hilt.android.HiltAndroidApp
 import io.github.jiro.expensetracker.data.local.AccountSeeder
 import io.github.jiro.expensetracker.data.local.CategorySeeder
+import io.github.jiro.expensetracker.local.LocalServerService
 import io.github.jiro.expensetracker.sync.CloudSyncRepository
 import io.github.jiro.expensetracker.work.RecurringTransactionWorker
 import java.util.concurrent.TimeUnit
@@ -36,6 +40,7 @@ class ExpenseTrackerApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        createLocalServerNotificationChannel()
         // Run the seeder on a background scope so first-launch doesn't block.
         val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         appScope.launch {
@@ -50,6 +55,19 @@ class ExpenseTrackerApp : Application(), Configuration.Provider {
         }
         scheduleRecurringTransactionJob()
         triggerRecurringTransactionCheckOnLaunch()
+    }
+
+    private fun createLocalServerNotificationChannel() {
+        val nm = getSystemService<NotificationManager>() ?: return
+        val channel = NotificationChannel(
+            LocalServerService.CHANNEL_ID,
+            getString(R.string.local_server_foreground_channel_name),
+            NotificationManager.IMPORTANCE_LOW,
+        ).apply {
+            description = getString(R.string.local_server_foreground_channel_description)
+            setShowBadge(false)
+        }
+        nm.createNotificationChannel(channel)
     }
 
     /**
