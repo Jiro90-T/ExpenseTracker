@@ -26,8 +26,7 @@ data class TxForm(
     val error: String? = null,
 )
 
-fun renderTransactionsList(state: LocalServerState, rows: List<TxListRow>): String {
-    val token = state.token ?: ""
+fun renderTransactionsList(state: LocalServerState, token: String, rows: List<TxListRow>): String {
     val body = buildString {
         append("<hgroup><h1>Transactions</h1>")
         append("<p><a href=\"/transactions/new?t=$token\" role=\"button\">New</a></p></hgroup>")
@@ -63,8 +62,7 @@ fun renderTransactionsList(state: LocalServerState, rows: List<TxListRow>): Stri
     return renderLayout(state, token, "Transactions", body)
 }
 
-fun renderTransactionsForm(state: LocalServerState, form: TxForm): String {
-    val token = state.token ?: ""
+fun renderTransactionsForm(state: LocalServerState, token: String, form: TxForm): String {
     val heading = if (form.id == null) "New transaction" else "Edit transaction"
     val action = if (form.id == null) "/transactions/new?t=$token" else "/transactions/${form.id}/edit?t=$token"
     val typeOptions = listOf("EXPENSE", "INCOME", "TRANSFER", "ADJUSTMENT")
