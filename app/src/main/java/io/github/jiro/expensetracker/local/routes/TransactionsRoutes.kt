@@ -14,7 +14,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
 import io.ktor.server.application.call
 import io.ktor.server.request.receiveParameters
-import io.ktor.server.response.respondRedirect
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
@@ -96,7 +95,7 @@ fun Route.transactionsRoutes(
             createdAtEpochMillis = now,
         )
         transactionRepository.add(tx)
-        call.respondRedirect("/transactions?t=$token")
+        call.respondRedirect303("/transactions?t=$token")
     }
 
     get("/transactions/{id}/edit") {
@@ -156,14 +155,14 @@ fun Route.transactionsRoutes(
             note = params["note"],
         )
         transactionRepository.update(updated)
-        call.respondRedirect("/transactions?t=$token")
+        call.respondRedirect303("/transactions?t=$token")
     }
 
     post("/transactions/{id}/delete") {
         val id = call.parameters["id"]!!.toLong()
         val tx = transactionRepository.findById(id)
         if (tx != null) transactionRepository.delete(tx)
-        call.respondRedirect("/transactions?t=$token")
+        call.respondRedirect303("/transactions?t=$token")
     }
 }
 

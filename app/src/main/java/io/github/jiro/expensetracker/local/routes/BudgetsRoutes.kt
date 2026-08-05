@@ -13,7 +13,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
 import io.ktor.server.application.call
 import io.ktor.server.request.receiveParameters
-import io.ktor.server.response.respondRedirect
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
@@ -95,16 +94,22 @@ fun Route.budgetsRoutes(
             amountMinor = params["amount"]!!.toLong(),
         )
         budgetRepository.upsert(b)
-        call.respondRedirect("/budgets?t=$token")
+        call.respondRedirect303("/budgets?t=$token")
     }
 
     post("/budgets/{id}/delete") {
         val id = call.parameters["id"]!!
-        val parts = id.split("_")
-        val catId = parts[0].toLong()
-        val month = parts[1].toLong()
-        budgetRepository.deleteByKey(catId, month)
-        call.respondRedirect("/budgets?t=$token")
+        val parsed = runCatching {
+            val parts = id.split("_")
+            val catId = parts[0].toLong()
+            val month = parts[1].toLong()
+            catId to month
+        }
+        parsed.fold(
+            onSuccess = { (catId, month) -> budgetRepository.deleteByKey(catId, month) },
+            onFailure = { /* ignore — nothing to delete */ },
+        )
+        call.respondRedirect303("/budgets?t=$token")
     }
 }
 

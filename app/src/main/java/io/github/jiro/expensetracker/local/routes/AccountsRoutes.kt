@@ -13,7 +13,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
 import io.ktor.server.application.call
 import io.ktor.server.request.receiveParameters
-import io.ktor.server.response.respondRedirect
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
@@ -62,7 +61,7 @@ fun Route.accountsRoutes(token: String, accountRepository: AccountRepository) {
             createdAtEpochMillis = now,
         )
         accountRepository.add(account)
-        call.respondRedirect("/accounts?t=$token")
+        call.respondRedirect303("/accounts?t=$token")
     }
 
     get("/accounts/{id}/edit") {
@@ -105,7 +104,7 @@ fun Route.accountsRoutes(token: String, accountRepository: AccountRepository) {
             openingBalanceMinor = (params["openingBalanceMinor"] ?: acc.openingBalanceMinor.toString()).toLong(),
         )
         accountRepository.update(updated)
-        call.respondRedirect("/accounts?t=$token")
+        call.respondRedirect303("/accounts?t=$token")
     }
 
     post("/accounts/{id}/delete") {
@@ -124,7 +123,7 @@ fun Route.accountsRoutes(token: String, accountRepository: AccountRepository) {
             }
             accountRepository.delete(id)
         }
-        call.respondRedirect("/accounts?t=$token")
+        call.respondRedirect303("/accounts?t=$token")
     }
 }
 

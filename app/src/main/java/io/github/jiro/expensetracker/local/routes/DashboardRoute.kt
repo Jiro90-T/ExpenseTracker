@@ -1,7 +1,6 @@
 package io.github.jiro.expensetracker.local.routes
 
 import io.github.jiro.expensetracker.data.local.MoneyFormat
-import io.github.jiro.expensetracker.data.repository.AccountRepository
 import io.github.jiro.expensetracker.data.repository.TransactionRepository
 import io.github.jiro.expensetracker.local.LocalServerState
 import io.github.jiro.expensetracker.local.templates.TxRow
@@ -39,7 +38,6 @@ fun Route.dashboardRoute(token: String) {
 fun Route.dashboardRoute(
     token: String,
     transactionRepository: TransactionRepository,
-    accountRepository: AccountRepository,
 ) {
     get("/") {
         val firstTen = transactionRepository.observeAll().first().take(10)

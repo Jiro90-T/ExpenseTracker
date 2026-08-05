@@ -12,7 +12,6 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.request.receiveParameters
-import io.ktor.server.response.respondRedirect
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
@@ -74,7 +73,7 @@ fun Route.categoriesRoutes(
                 )
                 return@post
             }
-        call.respondRedirect("/categories?t=$token")
+        call.respondRedirect303("/categories?t=$token")
     }
 
     get("/categories/{id}/edit") {
@@ -125,7 +124,7 @@ fun Route.categoriesRoutes(
                 )
                 return@post
             }
-        call.respondRedirect("/categories?t=$token")
+        call.respondRedirect303("/categories?t=$token")
     }
 
     post("/categories/{id}/delete") {
@@ -143,6 +142,6 @@ fun Route.categoriesRoutes(
                     return@post
                 }
         }
-        call.respondRedirect("/categories?t=$token")
+        call.respondRedirect303("/categories?t=$token")
     }
 }
