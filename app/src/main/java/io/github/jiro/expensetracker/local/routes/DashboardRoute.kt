@@ -7,6 +7,8 @@ import io.ktor.server.routing.get
 
 fun Route.dashboardRoute(token: String) {
     get("/") {
-        call.respondText("dashboard placeholder")
+        call.respondText(
+            """<!doctype html><html><head><title>Dashboard</title><script src="/static/htmx.min.js" defer></script></head><body><h1>Dashboard</h1></body></html>""",
+        )
     }
 }
