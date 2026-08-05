@@ -54,6 +54,7 @@ fun Route.dashboardRoute(
         }
         call.respondText(
             renderDashboard(LocalServerState(token = token), rows),
+            contentType = ContentType.Text.Html,
         )
     }
 }
