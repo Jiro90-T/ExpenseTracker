@@ -108,4 +108,27 @@ class LocalServerController @Inject constructor(
     fun refreshIpAddress() {
         _state.update { it.copy(ipAddress = ipProvider()) }
     }
+
+    /**
+     * Replaces the IP-address resolver. Called once from [SettingsViewModel]'s init to
+     * install the real WiFi-backed provider; the default returns null so unit tests
+     * (and any caller that never installs one) stay free of Android framework calls.
+     */
+    fun setIpProvider(provider: () -> String?) {
+        ipProvider = provider
+    }
+
+    /**
+     * Re-reads the session token published by the service.
+     *
+     * [start] dispatches the service via `startForegroundService` and reads the token
+     * immediately afterwards, but the service publishes it from `onStartCommand`, which
+     * runs asynchronously — so that first read can race and come back null. Callers that
+     * start the server should call this again shortly after to pick up the real token.
+     * A null read is ignored so a late call can never clear a token already in state.
+     */
+    fun refreshToken() {
+        val token = tokenRetriever() ?: return
+        _state.update { it.copy(token = token) }
+    }
 }

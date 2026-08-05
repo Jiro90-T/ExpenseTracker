@@ -1,7 +1,10 @@
 package io.github.jiro.expensetracker.ui.settings
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.net.Uri
+import android.net.wifi.WifiManager
 import android.provider.OpenableColumns
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
@@ -16,6 +19,8 @@ import io.github.jiro.expensetracker.data.accountimport.ImportApplyResult
 import io.github.jiro.expensetracker.data.accountimport.ImportPreview
 import io.github.jiro.expensetracker.data.fx.FxRateClient
 import io.github.jiro.expensetracker.data.fx.FxRateFetchException
+import io.github.jiro.expensetracker.local.LocalServerController
+import io.github.jiro.expensetracker.local.LocalServerState
 import io.github.jiro.expensetracker.preferences.SettingsRepository
 import io.github.jiro.expensetracker.preferences.ThemePreference
 import io.github.jiro.expensetracker.preferences.addRate
@@ -26,9 +31,11 @@ import io.github.jiro.expensetracker.sync.CloudSyncSessionState
 import io.github.jiro.expensetracker.sync.SyncProviderId
 import io.github.jiro.expensetracker.sync.TransactionMutationBus
 import java.io.File
+import java.net.InetAddress
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -56,7 +63,14 @@ class SettingsViewModel @Inject internal constructor(
     private val cloudSyncRepository: CloudSyncRepository,
     private val transactionMutationBus: TransactionMutationBus,
     private val fxRateClient: FxRateClient,
+    private val localServerController: LocalServerController,
 ) : ViewModel() {
+
+    init {
+        // The controller defaults to a null IP provider so it stays framework-free in
+        // tests; install the real WiFi-backed resolver now that we have a Context.
+        localServerController.setIpProvider { currentWifiIp() }
+    }
 
     val theme: StateFlow<ThemePreference> = settingsRepository.theme
 
@@ -393,7 +407,83 @@ class SettingsViewModel @Inject internal constructor(
         }
     }
 
+    // ---- Local server ----
+
+    val localServerState: StateFlow<LocalServerState> = localServerController.state
+
+    /**
+     * Starts the local server. The controller's `start()` is suspending, so this fires
+     * and forgets into [viewModelScope]; the UI reacts through [localServerState].
+     */
+    fun startLocalServer() {
+        viewModelScope.launch {
+            val result = localServerController.start()
+            result.onFailure {
+                _message.value = SettingsMessage(
+                    appContext.getString(
+                        R.string.local_server_port_in_use,
+                        LocalServerState.DEFAULT_PORT,
+                    ),
+                    isError = true,
+                )
+                return@launch
+            }
+            // The service publishes its token from onStartCommand, which runs after
+            // startForegroundService returns — so the read inside start() may have
+            // raced and come back null. Re-read once the service has had a moment.
+            delay(TOKEN_REFRESH_DELAY_MS)
+            localServerController.refreshToken()
+            localServerController.refreshIpAddress()
+        }
+    }
+
+    fun stopLocalServer() {
+        localServerController.stop()
+    }
+
+    /** The full browser URL, or null while the IP or token is still unresolved. */
+    fun fullUrl(state: LocalServerState): String? {
+        val ip = state.ipAddress ?: return null
+        val token = state.token ?: return null
+        return "http://$ip:${state.port}/?t=$token"
+    }
+
+    /** Returns false if the clipboard was unavailable, so the UI can warn the user. */
+    fun copyToClipboard(text: String): Boolean = runCatching {
+        val clipboard = appContext.getSystemService(ClipboardManager::class.java)
+            ?: return@runCatching false
+        clipboard.setPrimaryClip(ClipData.newPlainText(CLIP_LABEL, text))
+        true
+    }.getOrDefault(false)
+
+    fun consumeLocalServerError() {
+        _message.value = null
+    }
+
+    /** Current WiFi IPv4 address, or null when not on WiFi. */
+    private fun currentWifiIp(): String? = runCatching {
+        val wifiManager = appContext.applicationContext
+            .getSystemService(WifiManager::class.java) ?: return@runCatching null
+        @Suppress("DEPRECATION")
+        val raw = wifiManager.connectionInfo.ipAddress
+        if (raw == 0) return@runCatching null
+        // WifiInfo.ipAddress is little-endian; unpack it low byte first.
+        InetAddress.getByAddress(
+            byteArrayOf(
+                (raw and 0xFF).toByte(),
+                ((raw shr 8) and 0xFF).toByte(),
+                ((raw shr 16) and 0xFF).toByte(),
+                ((raw shr 24) and 0xFF).toByte(),
+            ),
+        ).hostAddress
+    }.getOrNull()
+
     fun consumeMessage() {
         _message.value = null
+    }
+
+    private companion object {
+        const val TOKEN_REFRESH_DELAY_MS = 300L
+        const val CLIP_LABEL = "Local server URL"
     }
 }

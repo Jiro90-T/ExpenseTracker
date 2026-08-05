@@ -47,6 +47,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -75,6 +76,7 @@ import io.github.jiro.expensetracker.data.accountimport.ImportPreview
 import io.github.jiro.expensetracker.data.accountimport.ImportStatus
 import io.github.jiro.expensetracker.data.accountimport.ResolvedImportRow
 import io.github.jiro.expensetracker.data.local.MoneyFormat
+import io.github.jiro.expensetracker.local.LocalServerState
 import io.github.jiro.expensetracker.preferences.SUPPORTED_CURRENCIES
 import io.github.jiro.expensetracker.preferences.ThemePreference
 import io.github.jiro.expensetracker.preferences.parseRates
@@ -342,6 +344,19 @@ fun SettingsScreen(
                 }
             }
 
+            // --- Local server ---
+            SettingsSectionHeader(stringResource(R.string.local_server_title))
+            val localServerState by viewModel.localServerState.collectAsStateWithLifecycle()
+            LocalServerSection(
+                state = localServerState,
+                url = viewModel.fullUrl(localServerState),
+                onToggle = { running ->
+                    if (running) viewModel.stopLocalServer() else viewModel.startLocalServer()
+                },
+                onCopyUrl = viewModel::copyToClipboard,
+            )
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
             // --- Cloud sync ---
             SettingsSectionHeader(stringResource(R.string.settings_sync_section_title))
             val cloudSession by viewModel.cloudSyncSession.collectAsStateWithLifecycle()
@@ -450,6 +465,82 @@ private fun SettingsSectionHeader(text: String) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
     )
+}
+
+/**
+ * Toggle for the on-device web server, plus the URL to open on a PC once it's up.
+ * The URL only appears when both the WiFi IP and the session token have resolved.
+ */
+@Composable
+private fun LocalServerSection(
+    state: LocalServerState,
+    url: String?,
+    onToggle: (running: Boolean) -> Unit,
+    onCopyUrl: (String) -> Boolean,
+) {
+    var copyFailed by remember { mutableStateOf(false) }
+    val copyFailedText = stringResource(R.string.local_server_copy_failed)
+    val unknownIp = stringResource(R.string.local_server_ip_unknown)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = if (state.isRunning) {
+                        stringResource(
+                            R.string.local_server_status_running,
+                            state.port,
+                            state.ipAddress ?: unknownIp,
+                        )
+                    } else {
+                        stringResource(R.string.local_server_status_off)
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.weight(1f),
+                )
+                Switch(
+                    checked = state.isRunning,
+                    onCheckedChange = {
+                        copyFailed = false
+                        onToggle(state.isRunning)
+                    },
+                )
+            }
+
+            if (state.isRunning && url != null) {
+                Text(
+                    text = stringResource(R.string.local_server_url_label),
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                Text(
+                    text = url,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.Monospace,
+                )
+                Spacer(Modifier.size(4.dp))
+                Button(onClick = { copyFailed = !onCopyUrl(url) }) {
+                    Text(stringResource(R.string.local_server_copy_url))
+                }
+            }
+
+            if (copyFailed) {
+                Text(
+                    text = copyFailedText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+    }
 }
 
 @Composable
