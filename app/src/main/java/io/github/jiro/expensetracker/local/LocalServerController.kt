@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 @Singleton
 class LocalServerController @Inject constructor(
@@ -31,7 +33,9 @@ class LocalServerController @Inject constructor(
         LocalServerService.start(context, port)
     }
     private var serviceStopper: () -> Unit = { LocalServerService.stop(context) }
-    private var tokenRetriever: () -> String? = { null }
+
+    // The service publishes its session token to a companion holder, so no binding is required here.
+    private var tokenRetriever: () -> String? = { LocalServerService.currentToken }
     private var ipProvider: () -> String? = { null }
 
     internal constructor(
@@ -57,12 +61,15 @@ class LocalServerController @Inject constructor(
     private val _state = MutableStateFlow(LocalServerState())
     val state: StateFlow<LocalServerState> = _state.asStateFlow()
 
-    fun start(): Result<Unit> {
-        if (_state.value.isRunning) return Result.success(Unit)
-        return try {
+    private val startMutex = Mutex()
+
+    suspend fun start(): Result<Unit> = startMutex.withLock {
+        if (_state.value.isRunning) return@withLock Result.success(Unit)
+        try {
             serviceStarter(LocalServerState.DEFAULT_PORT)
             _state.update {
                 it.copy(
+                    // Dispatch only: the port binds inside the service, so BindException shows here only if the foreground start fails.
                     isRunning = true,
                     port = LocalServerState.DEFAULT_PORT,
                     ipAddress = ipProvider(),
@@ -93,6 +100,7 @@ class LocalServerController @Inject constructor(
     }
 
     fun stop() {
+        if (!_state.value.isRunning) return
         serviceStopper()
         _state.update { it.copy(isRunning = false, token = null, lastError = null) }
     }

@@ -53,6 +53,7 @@ class LocalServerService : Service() {
         if (currentToken == null) {
             val token = sessionTokenGenerator.generate()
             currentToken = token
+            Companion.currentToken = token
             scope.launch {
                 val localServer = LocalServer(
                     transactionRepository,
@@ -74,6 +75,7 @@ class LocalServerService : Service() {
         server?.stop(gracePeriodMillis = 0, timeoutMillis = 1000)
         server = null
         currentToken = null
+        Companion.currentToken = null
         scope.cancel()
         super.onDestroy()
     }
@@ -102,6 +104,14 @@ class LocalServerService : Service() {
         const val CHANNEL_ID = "local_server_channel"
         const val NOTIFICATION_ID = 7301
         const val EXTRA_PORT = "extra.port"
+
+        /**
+         * Published by the running service so callers that hold no binding —
+         * the controller in particular — can still read the live session token.
+         */
+        @Volatile
+        var currentToken: String? = null
+            private set
 
         /**
          * `ContextCompat.startForegroundService` keeps the call correct on
