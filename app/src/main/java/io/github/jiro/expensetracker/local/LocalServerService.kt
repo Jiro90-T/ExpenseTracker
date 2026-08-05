@@ -50,10 +50,10 @@ class LocalServerService : Service() {
         val port = intent?.getIntExtra(EXTRA_PORT, LocalServerState.DEFAULT_PORT)
             ?: LocalServerState.DEFAULT_PORT
         startForeground(NOTIFICATION_ID, buildNotification(port))
-        scope.launch {
-            if (server == null) {
-                val token = sessionTokenGenerator.generate()
-                currentToken = token
+        if (currentToken == null) {
+            val token = sessionTokenGenerator.generate()
+            currentToken = token
+            scope.launch {
                 val localServer = LocalServer(
                     transactionRepository,
                     accountRepository,
