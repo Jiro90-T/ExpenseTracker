@@ -467,7 +467,12 @@ class SettingsViewModel @Inject internal constructor(
         @Suppress("DEPRECATION")
         val raw = wifiManager.connectionInfo.ipAddress
         if (raw == 0) return@runCatching null
-        // WifiInfo.ipAddress is little-endian; unpack it low byte first.
+        // Do NOT "fix" this to MSB-first. WifiInfo.ipAddress is in host byte order
+        // (little-endian on every real device), so the low byte is the FIRST octet:
+        // 192.168.1.42 arrives as 0x2A01A8C0. AOSP's own NetworkUtils.intToInetAddress
+        // — what the deprecated Formatter.formatIpAddress(int) delegates to — unpacks it
+        // low byte first for exactly this reason, despite its javadoc saying
+        // "network byte order". Reversing these bytes yields 42.1.168.192.
         InetAddress.getByAddress(
             byteArrayOf(
                 (raw and 0xFF).toByte(),
