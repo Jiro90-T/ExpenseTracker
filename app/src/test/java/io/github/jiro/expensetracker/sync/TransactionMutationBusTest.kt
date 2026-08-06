@@ -2,6 +2,7 @@ package io.github.jiro.expensetracker.sync
 
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.onSubscription
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
@@ -14,9 +15,11 @@ class TransactionMutationBusTest {
     @Test
     fun emit_emitsValue() = runBlocking {
         val bus = TransactionMutationBus()
-        val received = async { bus.events.first() }
-        bus.tryEmit()
-        assertEquals(Unit, received.await())
+        // Emit from onSubscription so the collector is guaranteed to be registered
+        // first. events has replay=0, so a tryEmit() with no subscriber is dropped
+        // outright and first() would wait forever.
+        val received = bus.events.onSubscription { bus.tryEmit() }.first()
+        assertEquals(Unit, received)
     }
 
     @Test
