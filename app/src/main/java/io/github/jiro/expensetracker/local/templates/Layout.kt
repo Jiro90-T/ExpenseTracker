@@ -23,6 +23,7 @@ fun renderLayout(state: LocalServerState, token: String, title: String, body: St
             <meta name="viewport" content="width=device-width, initial-scale=1">
             <title>$safeTitle</title>
             <link rel="stylesheet" href="/static/pico.min.css">
+            <link rel="stylesheet" href="/static/local.css">
             <script src="/static/htmx.min.js" defer></script>
         </head>
         <body>

@@ -1,6 +1,7 @@
 package io.github.jiro.expensetracker.local.routes
 
 import io.github.jiro.expensetracker.data.local.BudgetEntity
+import io.github.jiro.expensetracker.data.local.MoneyFormat
 import io.github.jiro.expensetracker.data.repository.BudgetRepository
 import io.github.jiro.expensetracker.data.repository.CategoryRepository
 import io.github.jiro.expensetracker.local.LocalServerState
@@ -8,6 +9,7 @@ import io.github.jiro.expensetracker.local.templates.BudgetForm
 import io.github.jiro.expensetracker.local.templates.BudgetRow
 import io.github.jiro.expensetracker.local.templates.renderBudgetsForm
 import io.github.jiro.expensetracker.local.templates.renderBudgetsList
+import io.github.jiro.expensetracker.preferences.SettingsRepository
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
@@ -28,11 +30,13 @@ fun Route.budgetsRoutes(
     token: String,
     budgetRepository: BudgetRepository,
     categoryRepository: CategoryRepository,
+    settingsRepository: SettingsRepository,
 ) {
     val state = { LocalServerState(token = token) }
     val monthStart = BudgetRepository.currentMonthStart()
 
     get("/budgets") {
+        val homeCurrency = settingsRepository.homeCurrency.first()
         val categories = categoryRepository.observeAll().first()
             .associateBy { it.id }
         val rows = budgetRepository.observeByMonth(monthStart).first()
@@ -42,7 +46,8 @@ fun Route.budgetsRoutes(
                     id = "${b.categoryId}_${b.monthStartEpochMs}",
                     category = cat,
                     month = MONTH_FMT.format(Date(b.monthStartEpochMs)),
-                    amount = "${b.amountMinor}",
+                    amount = MoneyFormat.minorToDisplay(b.amountMinor, homeCurrency) +
+                        " " + homeCurrency,
                 )
             }
         call.respondText(
@@ -88,10 +93,29 @@ fun Route.budgetsRoutes(
             )
             return@post
         }
+        val amountMinor = MoneyFormat.parseAmountToMinor(params["amount"]!!) ?: run {
+            val cats = categoryRepository.observeAll().first()
+                .map { cat -> cat.id.toString() to cat.name }
+            call.respondText(
+                renderBudgetsForm(
+                    state(), token,
+                    BudgetForm(
+                        categoryId = params["categoryId"]?.toLongOrNull(),
+                        monthStart = params["monthStart"] ?: "",
+                        amount = params["amount"] ?: "",
+                        categories = cats,
+                        error = "Amount must be a number (e.g. 200.00)",
+                    ),
+                ),
+                status = HttpStatusCode.BadRequest,
+                contentType = ContentType.Text.Html,
+            )
+            return@post
+        }
         val b = BudgetEntity(
             categoryId = params["categoryId"]!!.toLong(),
             monthStartEpochMs = monthStart,
-            amountMinor = params["amount"]!!.toLong(),
+            amountMinor = amountMinor,
         )
         budgetRepository.upsert(b)
         call.respondRedirect303("/budgets?t=$token")
@@ -116,8 +140,8 @@ fun Route.budgetsRoutes(
 private fun validate(params: Parameters): String? {
     val cat = params["categoryId"].orEmpty()
     if (cat.isBlank()) return "Category is required"
-    val amt = params["amount"].orEmpty().toLongOrNull()
-        ?: return "Amount must be a whole number (minor units)"
+    val amt = MoneyFormat.parseAmountToMinor(params["amount"].orEmpty())
+        ?: return "Amount must be a number (e.g. 200.00)"
     if (amt <= 0) return "Amount must be positive"
     return null
 }

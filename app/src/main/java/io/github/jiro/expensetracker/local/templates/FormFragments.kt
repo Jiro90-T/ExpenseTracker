@@ -1,12 +1,20 @@
 package io.github.jiro.expensetracker.local.templates
 
-fun textField(label: String, name: String, value: String = "", type: String = "text"): String {
+fun textField(
+    label: String,
+    name: String,
+    value: String = "",
+    type: String = "text",
+    placeholder: String = "",
+): String {
     val safeLabel = escapeHtml(label)
     val safeValue = escapeHtml(value)
+    val safePlaceholder = escapeHtml(placeholder)
+    val placeholderAttr = if (placeholder.isEmpty()) "" else " placeholder=\"$safePlaceholder\""
     return """
         <label>
             $safeLabel
-            <input type="$type" name="$name" value="$safeValue">
+            <input type="$type" name="$name" value="$safeValue"$placeholderAttr>
         </label>
     """.trimIndent()
 }

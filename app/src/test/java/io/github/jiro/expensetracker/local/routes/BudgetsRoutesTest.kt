@@ -1,5 +1,6 @@
 package io.github.jiro.expensetracker.local.routes
 
+import androidx.test.core.app.ApplicationProvider
 import io.github.jiro.expensetracker.data.local.BudgetDao
 import io.github.jiro.expensetracker.data.local.BudgetEntity
 import io.github.jiro.expensetracker.data.local.CategoryDao
@@ -7,6 +8,7 @@ import io.github.jiro.expensetracker.data.local.CategoryEntity
 import io.github.jiro.expensetracker.data.repository.BudgetRepository
 import io.github.jiro.expensetracker.data.repository.CategoryRepository
 import io.github.jiro.expensetracker.local.auth.authFilter
+import io.github.jiro.expensetracker.preferences.SettingsRepository
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
@@ -21,7 +23,10 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class BudgetsRoutesTest {
 
     private val token = "test-token"
@@ -29,7 +34,7 @@ class BudgetsRoutesTest {
     private fun io.ktor.server.application.Application.setupTestApp() {
         routing {
             authFilter(token)
-            budgetsRoutes(token, stubBudgetRepo, stubCategoryRepo)
+            budgetsRoutes(token, stubBudgetRepo, stubCategoryRepo, stubBudgetsSettingsRepo)
         }
     }
 
@@ -69,6 +74,9 @@ class BudgetsRoutesTest {
 private val stubBudgetRepo: BudgetRepository = BudgetRepository(StubBudgetsBudgetDao)
 
 private val stubCategoryRepo: CategoryRepository = CategoryRepository(StubBudgetsCategoryDao)
+
+private val stubBudgetsSettingsRepo: SettingsRepository =
+    SettingsRepository(ApplicationProvider.getApplicationContext())
 
 private object StubBudgetsBudgetDao : BudgetDao {
     override fun observeByMonth(monthStart: Long): Flow<List<BudgetEntity>> =

@@ -7,6 +7,27 @@ data class AccountRow(
     val name: String,
     val type: String,
     val currency: String,
+    val balance: String,
+)
+
+data class AccountDetailTx(
+    val id: Long,
+    val date: String,
+    val title: String,
+    val category: String,
+    val amount: String,
+    val type: String,
+)
+
+data class AccountDetailView(
+    val id: Long,
+    val name: String,
+    val type: String,
+    val currency: String,
+    val openingBalance: String,
+    val runningBalance: String,
+    val icon: String,
+    val transactions: List<AccountDetailTx>,
 )
 
 data class AccountForm(
@@ -28,13 +49,14 @@ fun renderAccountsList(state: LocalServerState, token: String, rows: List<Accoun
             append("<p>No accounts.</p>")
         } else {
             append("<table>")
-            append("<thead><tr><th>Name</th><th>Type</th><th>Currency</th><th></th></tr></thead>")
+            append("<thead><tr><th>Name</th><th>Type</th><th>Currency</th><th>Balance</th><th></th></tr></thead>")
             append("<tbody>")
             for (row in rows) {
                 append("<tr>")
-                append("<td>${escapeHtml(row.name)}</td>")
+                append("<td><a href=\"/accounts/${row.id}?t=$token\">${escapeHtml(row.name)}</a></td>")
                 append("<td>${escapeHtml(row.type)}</td>")
                 append("<td>${escapeHtml(row.currency)}</td>")
+                append("<td><strong>${escapeHtml(row.balance)}</strong></td>")
                 append("<td>")
                 append("<a href=\"/accounts/${row.id}/edit?t=$token\" role=\"button\" class=\"secondary\">Edit</a>")
                 append(
@@ -49,6 +71,48 @@ fun renderAccountsList(state: LocalServerState, token: String, rows: List<Accoun
         }
     }
     return renderLayout(state, token, "Accounts", body)
+}
+
+fun renderAccountDetail(state: LocalServerState, token: String, view: AccountDetailView): String {
+    val body = buildString {
+        append("<p><a href=\"/accounts?t=$token\">← Back to accounts</a></p>")
+        append("<article class=\"account-header\">")
+        append("<header>")
+        append("<hgroup>")
+        append("<h1>${escapeHtml(view.icon)} ${escapeHtml(view.name)}</h1>")
+        append("<p>${escapeHtml(view.type)} · ${escapeHtml(view.currency)}</p>")
+        append("</hgroup>")
+        append("<p class=\"balance-label\">Running balance</p>")
+        append("<p class=\"balance-amount\">${escapeHtml(view.runningBalance)}</p>")
+        append("<p class=\"balance-opens\">Opening: ${escapeHtml(view.openingBalance)}</p>")
+        append("</header>")
+        append("<footer>")
+        append("<a href=\"/transactions/new?accountId=${view.id}&t=$token\" role=\"button\">")
+        append("+ Add transaction</a>")
+        append("<a href=\"/accounts/${view.id}/edit?t=$token\" role=\"button\" class=\"secondary\">")
+        append("Edit account</a>")
+        append("</footer>")
+        append("</article>")
+        if (view.transactions.isEmpty()) {
+            append("<p>No transactions for this account yet.</p>")
+        } else {
+            append("<h2>Recent transactions</h2>")
+            append("<table>")
+            append("<thead><tr><th>Date</th><th>Title</th><th>Category</th><th>Amount</th></tr></thead>")
+            append("<tbody>")
+            for (tx in view.transactions) {
+                append("<tr>")
+                append("<td>${escapeHtml(tx.date)}</td>")
+                append("<td>${escapeHtml(tx.title)}</td>")
+                append("<td>${escapeHtml(tx.category)}</td>")
+                append("<td><span class=\"amount ${escapeHtml(tx.type.lowercase())}\">${escapeHtml(tx.amount)}</span></td>")
+                append("</tr>")
+            }
+            append("</tbody>")
+            append("</table>")
+        }
+    }
+    return renderLayout(state, token, view.name, body)
 }
 
 fun renderAccountsForm(state: LocalServerState, token: String, form: AccountForm): String {

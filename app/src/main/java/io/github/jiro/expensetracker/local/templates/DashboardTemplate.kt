@@ -2,7 +2,7 @@ package io.github.jiro.expensetracker.local.templates
 
 import io.github.jiro.expensetracker.local.LocalServerState
 
-data class TxRow(val date: String, val title: String, val amount: String)
+data class TxRow(val date: String, val title: String, val amount: String, val type: String)
 
 fun renderDashboard(state: LocalServerState, recent: List<TxRow>): String {
     val body = buildString {
@@ -15,7 +15,8 @@ fun renderDashboard(state: LocalServerState, recent: List<TxRow>): String {
             append("<thead><tr><th>Date</th><th>Title</th><th>Amount</th></tr></thead>")
             append("<tbody>")
             for (row in recent) {
-                append("<tr><td>${escapeHtml(row.date)}</td><td>${escapeHtml(row.title)}</td><td>${escapeHtml(row.amount)}</td></tr>")
+                append("<tr><td>${escapeHtml(row.date)}</td><td>${escapeHtml(row.title)}</td>")
+                append("<td><span class=\"amount ${escapeHtml(row.type.lowercase())}\">${escapeHtml(row.amount)}</span></td></tr>")
             }
             append("</tbody>")
             append("</table>")

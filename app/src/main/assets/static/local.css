@@ -1,0 +1,77 @@
+/* Local-server-specific styles. PicoCSS does the heavy lifting; this mostly
+ * adds amount colors and the account-detail balance card so the amount
+ * column is scannable at a glance. Loaded after pico.min.css. */
+
+.amount {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+}
+
+.amount.income {
+    color: #1a7f37;
+}
+
+.amount.expense {
+    color: #cf222e;
+}
+
+.amount.transfer,
+.amount.adjustment {
+    color: #57606a;
+}
+
+table td .amount {
+    white-space: nowrap;
+}
+
+/* Account-detail header card. PicoCSS's <article> is fine, but we want the
+ * balance to be the visual anchor rather than the body text. */
+.account-header {
+    text-align: center;
+    padding: 1.5rem 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.account-header hgroup h1 {
+    margin-bottom: 0.25rem;
+}
+
+.account-header .balance-label {
+    margin-top: 1rem;
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.85rem;
+    color: var(--pico-muted-color, #57606a);
+}
+
+.account-header .balance-amount {
+    margin: 0;
+    font-size: 2.6rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+}
+
+.account-header .balance-opens {
+    margin-top: 0.4rem;
+    font-size: 0.85rem;
+    color: var(--pico-muted-color, #57606a);
+}
+
+.account-header footer {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    border: 0;
+    padding: 0;
+}
+
+.account-header footer a {
+    margin: 0;
+}
+
+h2 {
+    margin-top: 1.5rem;
+}

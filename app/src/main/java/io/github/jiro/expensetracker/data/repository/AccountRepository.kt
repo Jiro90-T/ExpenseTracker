@@ -58,6 +58,8 @@ open class AccountRepository @Inject constructor(
 
     fun observeAllBalances(): Flow<List<AccountBalanceRow>> = dao.observeAllBalances()
 
+    fun observeBalances(): Flow<List<AccountBalanceRow>> = dao.observeBalances()
+
     suspend fun listAllOnce(): List<AccountEntity> = dao.listAllOnce()
 
     /** Applies a batch of resolved CSV import rows in one Room transaction. */

@@ -51,9 +51,9 @@ class LocalServer(
             staticResources("/static", "static")
             dashboardRoute(token, transactionRepository)
             transactionsRoutes(token, transactionRepository, accountRepository, categoryRepository)
-            accountsRoutes(token, accountRepository)
+            accountsRoutes(token, accountRepository, transactionRepository, categoryRepository)
             categoriesRoutes(token, categoryRepository, transactionRepository)
-            budgetsRoutes(token, budgetRepository, categoryRepository)
+            budgetsRoutes(token, budgetRepository, categoryRepository, settingsRepository)
             settingsRoute(token, settingsRepository)
         }
     }

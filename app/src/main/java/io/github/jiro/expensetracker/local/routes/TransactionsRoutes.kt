@@ -1,5 +1,6 @@
 package io.github.jiro.expensetracker.local.routes
 
+import io.github.jiro.expensetracker.data.local.MoneyFormat
 import io.github.jiro.expensetracker.data.local.TransactionEntity
 import io.github.jiro.expensetracker.data.repository.AccountRepository
 import io.github.jiro.expensetracker.data.repository.CategoryRepository
@@ -41,13 +42,17 @@ fun Route.transactionsRoutes(
         val txs = transactionRepository.observeAll().first()
         val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
         val rows = txs.map { twc ->
+            val t = twc.transaction
+            val amount = MoneyFormat.minorToDisplay(t.amountMinor, t.currencyCode) +
+                " " + t.currencyCode
             TxListRow(
-                id = twc.transaction.id,
-                date = fmt.format(Date(twc.transaction.occurredAtEpochMillis)),
-                title = twc.transaction.title,
-                category = cats[twc.transaction.categoryId]?.name ?: "—",
-                account = accounts[twc.transaction.accountId]?.name ?: "—",
-                amount = "${twc.transaction.amountMinor} ${twc.transaction.currencyCode}",
+                id = t.id,
+                date = fmt.format(Date(t.occurredAtEpochMillis)),
+                title = t.title,
+                category = cats[t.categoryId]?.name ?: "—",
+                account = accounts[t.accountId]?.name ?: "—",
+                amount = amount,
+                type = t.type,
             )
         }
         call.respondText(
@@ -57,11 +62,19 @@ fun Route.transactionsRoutes(
     }
 
     get("/transactions/new") {
+        val presetAccountId = call.parameters["accountId"]?.toLongOrNull()
+        val backHref = if (presetAccountId != null) {
+            "/accounts/${presetAccountId}"
+        } else {
+            "/transactions"
+        }
         val form = TxForm(
             categories = categoryRepository.observeAll().first()
                 .map { cat -> cat.id.toString() to cat.name },
             accounts = accountRepository.listActiveOnce()
                 .map { acc -> acc.id to acc.name },
+            accountId = presetAccountId,
+            backHref = backHref,
         )
         call.respondText(
             renderTransactionsForm(state(), token, form),
@@ -73,7 +86,7 @@ fun Route.transactionsRoutes(
         val params = call.receiveParameters()
         val error = validateTxForm(params)
         if (error != null) {
-            val form = paramsToForm(params, error)
+            val form = paramsToForm(params, error, backHrefFor(params))
             call.respondText(
                 renderTransactionsForm(state(), token, form),
                 status = HttpStatusCode.BadRequest,
@@ -83,9 +96,19 @@ fun Route.transactionsRoutes(
         }
         val now = System.currentTimeMillis()
         val occurred = DATE_FMT.parse(params["occurredAt"]!!)!!.time
+        val amountMinor = MoneyFormat.parseAmountToMinor(params["amount"]!!)
+            ?: run {
+                call.respondText(
+                    renderTransactionsForm(state(), token,
+                        paramsToForm(params, "Amount must be a number", backHrefFor(params))),
+                    status = HttpStatusCode.BadRequest,
+                    contentType = ContentType.Text.Html,
+                )
+                return@post
+            }
         val tx = TransactionEntity(
             title = params["title"]!!,
-            amountMinor = params["amount"]!!.toLong(),
+            amountMinor = amountMinor,
             currencyCode = params["currencyCode"]!!,
             type = params["type"] ?: "EXPENSE",
             categoryId = params["categoryId"]?.toLongOrNull(),
@@ -95,7 +118,7 @@ fun Route.transactionsRoutes(
             createdAtEpochMillis = now,
         )
         transactionRepository.add(tx)
-        call.respondRedirect303("/transactions?t=$token")
+        call.respondRedirect303(redirectAfterSave(params, token))
     }
 
     get("/transactions/{id}/edit") {
@@ -108,7 +131,7 @@ fun Route.transactionsRoutes(
         val form = TxForm(
             id = id,
             title = tx.title,
-            amount = tx.amountMinor.toString(),
+            amount = MoneyFormat.formatAmountForEdit(tx.amountMinor),
             currencyCode = tx.currencyCode,
             occurredAt = DATE_FMT.format(Date(tx.occurredAtEpochMillis)),
             note = tx.note.orEmpty(),
@@ -119,6 +142,7 @@ fun Route.transactionsRoutes(
                 .map { cat -> cat.id.toString() to cat.name },
             accounts = accountRepository.listActiveOnce()
                 .map { acc -> acc.id to acc.name },
+            backHref = "/accounts/${tx.accountId}",
         )
         call.respondText(
             renderTransactionsForm(state(), token, form),
@@ -136,7 +160,7 @@ fun Route.transactionsRoutes(
         val params = call.receiveParameters()
         val error = validateTxForm(params)
         if (error != null) {
-            val form = paramsToForm(params, error).copy(id = id)
+            val form = paramsToForm(params, error, "/accounts/${existing.accountId}").copy(id = id)
             call.respondText(
                 renderTransactionsForm(state(), token, form),
                 status = HttpStatusCode.BadRequest,
@@ -144,9 +168,19 @@ fun Route.transactionsRoutes(
             )
             return@post
         }
+        val amountMinor = MoneyFormat.parseAmountToMinor(params["amount"]!!)
+            ?: run {
+                call.respondText(
+                    renderTransactionsForm(state(), token,
+                        paramsToForm(params, "Amount must be a number", "/accounts/${existing.accountId}").copy(id = id)),
+                    status = HttpStatusCode.BadRequest,
+                    contentType = ContentType.Text.Html,
+                )
+                return@post
+            }
         val updated = existing.copy(
             title = params["title"]!!,
-            amountMinor = params["amount"]!!.toLong(),
+            amountMinor = amountMinor,
             currencyCode = params["currencyCode"]!!,
             type = params["type"] ?: "EXPENSE",
             categoryId = params["categoryId"]?.toLongOrNull(),
@@ -155,22 +189,25 @@ fun Route.transactionsRoutes(
             note = params["note"],
         )
         transactionRepository.update(updated)
-        call.respondRedirect303("/transactions?t=$token")
+        call.respondRedirect303("/accounts/${updated.accountId}?t=$token")
     }
 
     post("/transactions/{id}/delete") {
         val id = call.parameters["id"]!!.toLong()
         val tx = transactionRepository.findById(id)
+        val accountId = tx?.accountId
         if (tx != null) transactionRepository.delete(tx)
-        call.respondRedirect303("/transactions?t=$token")
+        val target = if (accountId != null) "/accounts/$accountId?t=$token" else "/transactions?t=$token"
+        call.respondRedirect303(target)
     }
 }
 
 private fun validateTxForm(params: Parameters): String? {
     val title = params["title"].orEmpty()
     if (title.isBlank()) return "Title is required"
-    val amount = params["amount"].orEmpty().toLongOrNull()
-        ?: return "Amount must be a whole number (minor units)"
+    val amountStr = params["amount"].orEmpty()
+    val amount = MoneyFormat.parseAmountToMinor(amountStr)
+        ?: return "Amount must be a number (e.g. 12.50)"
     if (amount <= 0) return "Amount must be positive"
     val code = params["currencyCode"].orEmpty()
     if (code.length != 3) return "Currency code must be 3 letters"
@@ -180,7 +217,7 @@ private fun validateTxForm(params: Parameters): String? {
     return null
 }
 
-private fun paramsToForm(params: Parameters, error: String): TxForm =
+private fun paramsToForm(params: Parameters, error: String, backHref: String): TxForm =
     TxForm(
         title = params["title"].orEmpty(),
         amount = params["amount"].orEmpty(),
@@ -190,5 +227,16 @@ private fun paramsToForm(params: Parameters, error: String): TxForm =
         type = params["type"] ?: "EXPENSE",
         categoryId = params["categoryId"]?.toLongOrNull(),
         accountId = params["accountId"]?.toLongOrNull(),
+        backHref = backHref,
         error = error,
     )
+
+private fun backHrefFor(params: Parameters): String {
+    val accountId = params["accountId"]?.toLongOrNull()
+    return if (accountId != null) "/accounts/$accountId" else "/transactions"
+}
+
+private fun redirectAfterSave(params: Parameters, token: String): String {
+    val accountId = params["accountId"]?.toLongOrNull()
+    return if (accountId != null) "/accounts/$accountId?t=$token" else "/transactions?t=$token"
+}

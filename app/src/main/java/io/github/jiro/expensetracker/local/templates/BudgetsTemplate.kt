@@ -40,7 +40,7 @@ fun renderBudgetsForm(state: LocalServerState, token: String, form: BudgetForm):
         append("<form method=\"post\" action=\"$action\">")
         append(selectField("Category", "categoryId", form.categories, form.categoryId?.toString()))
         append(textField("Month (yyyy-MM-01)", "monthStart", form.monthStart, "date"))
-        append(textField("Amount (minor units)", "amount", form.amount, "number"))
+        append(textField("Amount", "amount", form.amount, "number", placeholder = "e.g. 200.00"))
         append(fieldError(form.error))
         append("<button type=\"submit\">Save</button>")
         append("<a href=\"/budgets?t=$token\" role=\"button\" class=\"secondary\">Cancel</a>")

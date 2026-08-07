@@ -43,11 +43,14 @@ fun Route.dashboardRoute(
         val firstTen = transactionRepository.observeAll().first().take(10)
         val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
         val rows = firstTen.map { twc ->
+            val t = twc.transaction
+            val amount = MoneyFormat.minorToDisplay(t.amountMinor, t.currencyCode) +
+                " " + t.currencyCode
             TxRow(
-                date = fmt.format(Date(twc.transaction.occurredAtEpochMillis)),
-                title = twc.transaction.title,
-                amount = MoneyFormat.formatForDisplay(twc.transaction.amountMinor) +
-                    " " + twc.transaction.currencyCode,
+                date = fmt.format(Date(t.occurredAtEpochMillis)),
+                title = t.title,
+                amount = amount,
+                type = t.type,
             )
         }
         call.respondText(

@@ -9,6 +9,7 @@ data class TxListRow(
     val category: String,
     val account: String,
     val amount: String,
+    val type: String,
 )
 
 data class TxForm(
@@ -23,6 +24,7 @@ data class TxForm(
     val accountId: Long? = null,
     val categories: List<Pair<String, String>> = emptyList(),
     val accounts: List<Pair<Long, String>> = emptyList(),
+    val backHref: String = "/transactions",
     val error: String? = null,
 )
 
@@ -45,7 +47,7 @@ fun renderTransactionsList(state: LocalServerState, token: String, rows: List<Tx
                 append("<td>${escapeHtml(row.title)}</td>")
                 append("<td>${escapeHtml(row.category)}</td>")
                 append("<td>${escapeHtml(row.account)}</td>")
-                append("<td>${escapeHtml(row.amount)}</td>")
+                append("<td><span class=\"amount ${escapeHtml(row.type.lowercase())}\">${escapeHtml(row.amount)}</span></td>")
                 append("<td>")
                 append("<a href=\"/transactions/${row.id}/edit?t=$token\" role=\"button\" class=\"secondary\">Edit</a>")
                 append(
@@ -74,7 +76,7 @@ fun renderTransactionsForm(state: LocalServerState, token: String, form: TxForm)
         append("<h1>$heading</h1>")
         append("<form method=\"post\" action=\"$action\">")
         append(textField("Title", "title", form.title))
-        append(textField("Amount", "amount", form.amount, "number"))
+        append(textField("Amount", "amount", form.amount, "number", placeholder = "e.g. 12.50"))
         append(textField("Currency", "currencyCode", form.currencyCode))
         append(textField("Date", "occurredAt", form.occurredAt))
         append(textField("Note", "note", form.note))
@@ -90,7 +92,7 @@ fun renderTransactionsForm(state: LocalServerState, token: String, form: TxForm)
         append("<fieldset><legend>Type</legend>$typeRadios</fieldset>")
         append(fieldError(form.error))
         append("<button type=\"submit\">Save</button>")
-        append("<a href=\"/transactions?t=$token\" role=\"button\" class=\"secondary\">Cancel</a>")
+        append("<a href=\"${escapeHtml(form.backHref)}&t=$token\" role=\"button\" class=\"secondary\">Cancel</a>")
         append("</form>")
     }
     return renderLayout(state, token, "Transaction", body)
