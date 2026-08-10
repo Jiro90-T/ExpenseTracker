@@ -72,14 +72,16 @@ class AccountsRoutesTest {
         }
     }
 
-    @Test fun accountDetail_rendersBalanceAndAddLink() = runTest {
+    @Test fun accountDetail_rendersBalanceAndInlineAddForm() = runTest {
         testApplication {
             application { setupTestApp() }
             val resp = client.get("/accounts/42?t=$token")
             assertEquals(HttpStatusCode.OK, resp.status)
             val body = resp.bodyAsText()
-            assertTrue("expected Add transaction link, was: $body",
-                body.contains("/transactions/new?accountId=42"))
+            assertTrue("expected inline add form action, was: $body",
+                body.contains("action=\"/transactions/new?t=$token\""))
+            assertTrue("expected hidden accountId 42, was: $body",
+                body.contains("name=\"accountId\" value=\"42\""))
             assertTrue("expected 'No transactions' fallback, was: $body",
                 body.contains("No transactions for this account"))
             assertTrue("expected 'Running balance' label, was: $body",

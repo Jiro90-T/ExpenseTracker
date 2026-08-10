@@ -18,6 +18,7 @@ data class AccountDetailTx(
     val amount: String,
     val type: String,
     val runningBalance: String,
+    val runningBalanceNegative: Boolean,
 )
 
 data class AccountDetailView(
@@ -29,6 +30,8 @@ data class AccountDetailView(
     val runningBalance: String,
     val icon: String,
     val transactions: List<AccountDetailTx>,
+    val categories: List<Pair<String, String>>,
+    val today: String,
 )
 
 data class AccountForm(
@@ -78,6 +81,11 @@ fun renderAccountsList(state: LocalServerState, token: String, rows: List<Accoun
 }
 
 fun renderAccountDetail(state: LocalServerState, token: String, view: AccountDetailView): String {
+    val typeOptions = listOf("EXPENSE", "INCOME", "TRANSFER", "ADJUSTMENT")
+    val typeRadios = typeOptions.joinToString("") { option ->
+        val checked = if (option == "EXPENSE") " checked" else ""
+        "<label><input type=\"radio\" name=\"type\" value=\"$option\"$checked>$option</label>"
+    }
     val body = buildString {
         append("<p><a href=\"/accounts?t=$token\">← Back to accounts</a></p>")
         append("<article class=\"account-header\">")
@@ -91,17 +99,28 @@ fun renderAccountDetail(state: LocalServerState, token: String, view: AccountDet
         append("<p class=\"balance-opens\">Opening: ${escapeHtml(view.openingBalance)}</p>")
         append("</header>")
         append("<footer>")
-        append("<a href=\"/transactions/new?accountId=${view.id}&t=$token\" role=\"button\">")
-        append("+ Add transaction</a>")
         append("<a href=\"/accounts/${view.id}/edit?t=$token\" role=\"button\" class=\"secondary\">")
         append("Edit account</a>")
         append("</footer>")
         append("</article>")
+        append("<details class=\"inline-add-form\">")
+        append("<summary>+ Add transaction</summary>")
+        append("<form method=\"post\" action=\"/transactions/new?t=$token\">")
+        append("<input type=\"hidden\" name=\"accountId\" value=\"${view.id}\">")
+        append(textField("Title", "title", ""))
+        append(textField("Amount", "amount", "", "number", "e.g. 12.50"))
+        append(textField("Date", "occurredAt", view.today, placeholder = "yyyy-MM-dd"))
+        append(selectField("Category", "categoryId", view.categories, null))
+        append("<fieldset><legend>Type</legend>$typeRadios</fieldset>")
+        append(textField("Note", "note", ""))
+        append("<button type=\"submit\">Save</button>")
+        append("</form>")
+        append("</details>")
         if (view.transactions.isEmpty()) {
             append("<p>No transactions for this account yet.</p>")
         } else {
             append("<h2>Reconciliation</h2>")
-            append("<p class=\"muted\">Transactions in chronological order. The Running Balance column starts at the opening balance and accumulates each row so you can match against a bank statement.</p>")
+            append("<p class=\"muted\">Newest transactions first. The Running Balance column starts at the opening balance and accumulates each row so you can match against a bank statement.</p>")
             append("<div class=\"table-scroll\">")
             append("<table class=\"reconcile-table\">")
             append("<thead><tr><th>Date</th><th>Title</th><th>Category</th><th>Amount</th><th class=\"num\">Running balance</th><th></th></tr></thead>")
@@ -112,7 +131,8 @@ fun renderAccountDetail(state: LocalServerState, token: String, view: AccountDet
                 append("<td>${escapeHtml(tx.title)}</td>")
                 append("<td>${escapeHtml(tx.category)}</td>")
                 append("<td><span class=\"amount ${escapeHtml(tx.type.lowercase())}\">${escapeHtml(tx.amount)}</span></td>")
-                append("<td class=\"num running\">${escapeHtml(tx.runningBalance)}</td>")
+                val negClass = if (tx.runningBalanceNegative) " negative" else ""
+                append("<td class=\"num running$negClass\">${escapeHtml(tx.runningBalance)}</td>")
                 append("<td class=\"row-actions\">")
                 append("<a href=\"/transactions/${tx.id}/edit?t=$token\" role=\"button\" class=\"secondary outline compact\">Edit</a>")
                 append(

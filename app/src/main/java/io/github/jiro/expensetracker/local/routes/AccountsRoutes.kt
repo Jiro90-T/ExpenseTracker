@@ -70,11 +70,11 @@ fun Route.accountsRoutes(
             .firstOrNull { it.accountId == id }?.balanceMinor ?: 0L
         val cats = categoryRepository.observeAll().first().associateBy { it.id }
         // Merge outflows (accountId == this) with inflows (transferAccountId == this)
-        // and sort ascending so reconciliation reads top-to-bottom chronologically.
+        // and sort descending so the newest row sits at the top of the table.
         val outflows = transactionRepository.observeByAccount(id).first()
         val inflows = transactionRepository.observeTransfersToAccount(id).first()
         val merged = (outflows + inflows).distinctBy { it.transaction.id }
-            .sortedBy { it.transaction.occurredAtEpochMillis }
+            .sortedByDescending { it.transaction.occurredAtEpochMillis }
         var running = acc.openingBalanceMinor
         val txs = merged.map { twc ->
             val t = twc.transaction
@@ -89,6 +89,7 @@ fun Route.accountsRoutes(
                 type = t.type,
                 runningBalance = MoneyFormat.minorToDisplay(running, t.currencyCode) +
                     " " + t.currencyCode,
+                runningBalanceNegative = running < 0L,
             )
         }
         val view = AccountDetailView(
@@ -102,6 +103,9 @@ fun Route.accountsRoutes(
                 " " + acc.currencyCode,
             icon = acc.icon,
             transactions = txs,
+            categories = categoryRepository.observeAll().first()
+                .map { cat -> cat.id.toString() to cat.name },
+            today = DATE_FMT.format(Date()),
         )
         call.respondText(
             renderAccountDetail(state(), token, view),

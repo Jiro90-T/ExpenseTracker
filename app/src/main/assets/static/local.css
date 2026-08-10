@@ -208,3 +208,57 @@ p.muted {
     font-size: 0.9rem;
     margin-bottom: 1rem;
 }
+
+/* Section headers: subtle top divider so h2 reads as a new section rather than
+ * floating below whatever came before. */
+h2 {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--pico-muted-border-color, #d0d7de);
+}
+
+/* Inline add-transaction form on the account detail page. The <details>
+ * element is collapsed by default; the summary acts as the trigger. */
+.inline-add-form {
+    border: 1px solid var(--pico-muted-border-color, #d0d7de);
+    border-radius: 8px;
+    padding: 0.75rem 1.25rem 1.25rem;
+    margin-bottom: 1.5rem;
+    background: var(--pico-card-background-color, #f6f8fa);
+}
+
+.inline-add-form > summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--pico-primary, #1095c1);
+    padding: 0.25rem 0;
+}
+
+.inline-add-form[open] > summary {
+    margin-bottom: 0.75rem;
+    color: var(--pico-color, inherit);
+}
+
+.inline-add-form form {
+    margin-bottom: 0;
+}
+
+.inline-add-form form label {
+    margin-bottom: 0.5rem;
+}
+
+/* Subtle zebra striping + hover on body rows for every table on the site.
+ * Keeps the amount column scannable when there are 20+ rows. */
+table tbody tr:nth-child(even) {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+table tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+}
+
+/* When the running balance in a reconciliation row is negative, tint the
+ * cell red so a glance shows which balances have gone below zero. */
+.reconcile-table td.running.negative {
+    color: #cf222e;
+}
