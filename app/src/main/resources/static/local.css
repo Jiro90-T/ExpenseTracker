@@ -1,0 +1,289 @@
+/* Local-server-specific styles. PicoCSS does the heavy lifting; this mostly
+ * adds amount colors, the account-detail balance card, the dashboard tile
+ * grid, and the reconciliation table so the amount column is scannable at
+ * a glance. Loaded after pico.min.css. */
+
+.amount {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+}
+
+.amount.income,
+.amount.positive {
+    color: #1a7f37;
+}
+
+.amount.expense,
+.amount.negative {
+    color: #cf222e;
+}
+
+.amount.transfer,
+.amount.adjustment {
+    color: #57606a;
+}
+
+table td .amount {
+    white-space: nowrap;
+}
+
+/* Horizontal scroll wrapper so wide tables don't break the page on phone. */
+.table-scroll {
+    overflow-x: auto;
+    margin-bottom: 1rem;
+}
+
+.table-scroll table {
+    margin-bottom: 0;
+}
+
+/* Compact row action buttons in list/detail tables. */
+.row-actions {
+    white-space: nowrap;
+    text-align: right;
+}
+
+button.compact,
+a.compact,
+[role="button"].compact {
+    padding: 0.25rem 0.55rem;
+    margin: 0 0 0 0.25rem;
+    font-size: 0.8rem;
+    line-height: 1.2;
+}
+
+/* Account-detail header card. PicoCSS's <article> is fine, but we want the
+ * balance to be the visual anchor rather than the body text. */
+.account-header {
+    text-align: center;
+    padding: 1.5rem 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.account-header hgroup h1 {
+    margin-bottom: 0.25rem;
+}
+
+.account-header .balance-label {
+    margin-top: 1rem;
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.85rem;
+    color: var(--pico-muted-color, #57606a);
+}
+
+.account-header .balance-amount {
+    margin: 0;
+    font-size: 2.6rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+}
+
+.account-header .balance-opens {
+    margin-top: 0.4rem;
+    font-size: 0.85rem;
+    color: var(--pico-muted-color, #57606a);
+}
+
+.account-header footer {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    border: 0;
+    padding: 0;
+}
+
+.account-header footer a {
+    margin: 0;
+}
+
+h2 {
+    margin-top: 1.5rem;
+}
+
+/* Make the accounts list balance look clickable and bold. */
+.balance-cell {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    text-decoration: none;
+}
+
+.balance-cell:hover {
+    text-decoration: underline;
+}
+
+/* Negatives pop on the accounts list and dashboard tiles. */
+.balance-cell.negative,
+.account-tile.negative .tile-balance {
+    color: #cf222e;
+}
+
+/* Dashboard tiles: responsive grid of account cards. */
+.tile-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Net worth card sits above the tile grid. Reuses the balance-card aesthetic. */
+.net-worth-card {
+    text-align: center;
+    padding: 1.25rem 1rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--pico-muted-border-color, #d0d7de);
+    border-radius: 8px;
+    background: var(--pico-card-background-color, #fff);
+}
+
+.net-worth-card.negative .balance-amount {
+    color: #cf222e;
+}
+
+.tile-group-header {
+    margin-top: 1.25rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--pico-muted-color, #57606a);
+    font-weight: 600;
+}
+
+.account-tile {
+    display: block;
+    padding: 1rem;
+    border: 1px solid var(--pico-muted-border-color, #d0d7de);
+    border-radius: 8px;
+    text-decoration: none;
+    color: inherit;
+    background: var(--pico-card-background-color, #fff);
+    transition: transform 0.08s ease, border-color 0.08s ease;
+}
+
+.account-tile:hover {
+    border-color: var(--pico-primary, #1095c1);
+    transform: translateY(-1px);
+}
+
+.account-tile .tile-icon {
+    font-size: 1.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.account-tile .tile-name {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.account-tile .tile-balance {
+    font-variant-numeric: tabular-nums;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+/* Transaction-form "Adding to" context card. */
+.context-card {
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    border-left: 4px solid var(--pico-primary, #1095c1);
+    background: var(--pico-card-background-color, #f6f8fa);
+}
+
+/* Reconciliation table: pin the running-balance column right and emphasize it. */
+.reconcile-table td.running,
+.reconcile-table th.num,
+.reconcile-table td.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.reconcile-table td.running {
+    font-weight: 600;
+}
+
+/* Tint a reconciliation row light red once the running balance has gone
+ * below zero — makes it obvious which rows have crossed the line. */
+.reconcile-table tr.row-negative {
+    background-color: rgba(207, 34, 46, 0.06);
+}
+
+.reconcile-table tr.row-negative:hover {
+    background-color: rgba(207, 34, 46, 0.10);
+}
+
+/* Slightly more breathing room in the reconciliation rows so the
+ * amount and running-balance columns are easy to scan. */
+.reconcile-table th,
+.reconcile-table td {
+    padding-top: 0.55rem;
+    padding-bottom: 0.55rem;
+}
+
+.reconcile-table td.title {
+    font-weight: 500;
+}
+
+p.muted {
+    color: var(--pico-muted-color, #57606a);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+/* Section headers: subtle top divider so h2 reads as a new section rather than
+ * floating below whatever came before. */
+h2 {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--pico-muted-border-color, #d0d7de);
+}
+
+/* Inline add-transaction form on the account detail page. The <details>
+ * element is collapsed by default; the summary acts as the trigger. */
+.inline-add-form {
+    border: 1px solid var(--pico-muted-border-color, #d0d7de);
+    border-radius: 8px;
+    padding: 0.75rem 1.25rem 1.25rem;
+    margin-bottom: 1.5rem;
+    background: var(--pico-card-background-color, #f6f8fa);
+}
+
+.inline-add-form > summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--pico-primary, #1095c1);
+    padding: 0.25rem 0;
+}
+
+.inline-add-form[open] > summary {
+    margin-bottom: 0.75rem;
+    color: var(--pico-color, inherit);
+}
+
+.inline-add-form form {
+    margin-bottom: 0;
+}
+
+.inline-add-form form label {
+    margin-bottom: 0.5rem;
+}
+
+/* Subtle zebra striping + hover on body rows for every table on the site.
+ * Keeps the amount column scannable when there are 20+ rows. */
+table tbody tr:nth-child(even) {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+table tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+}
+
+/* When the running balance in a reconciliation row is negative, tint the
+ * cell red so a glance shows which balances have gone below zero. */
+.reconcile-table td.running.negative {
+    color: #cf222e;
+}
