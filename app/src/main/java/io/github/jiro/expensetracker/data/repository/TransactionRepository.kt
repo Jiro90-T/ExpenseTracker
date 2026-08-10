@@ -55,4 +55,8 @@ open class TransactionRepository @Inject constructor(
 
     fun observeByAccount(accountId: Long): Flow<List<TransactionWithCategory>> =
         dao.observeByAccount(accountId)
+
+    /** Incoming transfers where [accountId] is the destination account. */
+    fun observeTransfersToAccount(accountId: Long): Flow<List<TransactionWithCategory>> =
+        dao.observeTransfersToAccount(accountId)
 }

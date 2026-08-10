@@ -68,12 +68,16 @@ fun Route.transactionsRoutes(
         } else {
             "/transactions"
         }
+        val presetAccount = presetAccountId?.let { accountRepository.findById(it) }
         val form = TxForm(
             categories = categoryRepository.observeAll().first()
                 .map { cat -> cat.id.toString() to cat.name },
             accounts = accountRepository.listActiveOnce()
                 .map { acc -> acc.id to acc.name },
             accountId = presetAccountId,
+            presetAccountLabel = presetAccount?.let { "${it.icon} ${it.name}" },
+            occurredAt = DATE_FMT.format(Date()),
+            currencyCode = presetAccount?.currencyCode ?: "USD",
             backHref = backHref,
         )
         call.respondText(

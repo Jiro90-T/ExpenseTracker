@@ -86,6 +86,17 @@ class AccountsRoutesTest {
                 body.contains("Running balance"))
         }
     }
+
+    @Test fun listPage_includesQuickAddButtonPerRow() = runTest {
+        testApplication {
+            application { setupTestApp() }
+            val resp = client.get("/accounts?t=$token")
+            assertEquals(HttpStatusCode.OK, resp.status)
+            val body = resp.bodyAsText()
+            assertTrue("expected per-account +Tx button, was: $body",
+                body.contains("/transactions/new?accountId=42"))
+        }
+    }
 }
 
 private val accountsPageTxRepo: TransactionRepository = TransactionRepository(
@@ -125,11 +136,26 @@ private object StubAccountsPageTransactionDao : TransactionDao {
     override suspend fun countReferencingAccount(id: Long): Int = 0
     override fun observeByAccount(accountId: Long): Flow<List<TransactionWithCategory>> =
         MutableStateFlow<List<TransactionWithCategory>>(emptyList()).asStateFlow()
+    override fun observeTransfersToAccount(accountId: Long): Flow<List<TransactionWithCategory>> =
+        MutableStateFlow<List<TransactionWithCategory>>(emptyList()).asStateFlow()
 }
 
 private object StubAccountsPageAccountDao : AccountDao {
     override fun observeActive(): Flow<List<AccountEntity>> =
-        MutableStateFlow<List<AccountEntity>>(emptyList()).asStateFlow()
+        MutableStateFlow<List<AccountEntity>>(
+            listOf(
+                AccountEntity(
+                    id = 42L,
+                    name = "Checking",
+                    type = "BANK",
+                    icon = "🏦",
+                    color = 0xFF888888.toInt(),
+                    currencyCode = "USD",
+                    openingBalanceMinor = 10_000L,
+                    createdAtEpochMillis = 0L,
+                ),
+            ),
+        ).asStateFlow()
     override suspend fun listActiveOnce(): List<AccountEntity> = emptyList()
     override suspend fun findById(id: Long): AccountEntity? = AccountEntity(
         id = id,

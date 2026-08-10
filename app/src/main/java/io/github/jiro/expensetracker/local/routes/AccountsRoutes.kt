@@ -3,6 +3,7 @@ package io.github.jiro.expensetracker.local.routes
 import android.graphics.Color
 import io.github.jiro.expensetracker.data.local.AccountEntity
 import io.github.jiro.expensetracker.data.local.MoneyFormat
+import io.github.jiro.expensetracker.data.local.TransactionEntity
 import io.github.jiro.expensetracker.data.repository.AccountRepository
 import io.github.jiro.expensetracker.data.repository.CategoryRepository
 import io.github.jiro.expensetracker.data.repository.TransactionRepository
@@ -68,18 +69,26 @@ fun Route.accountsRoutes(
         val balanceMinor = accountRepository.observeBalances().first()
             .firstOrNull { it.accountId == id }?.balanceMinor ?: 0L
         val cats = categoryRepository.observeAll().first().associateBy { it.id }
-        val recent = transactionRepository.observeByAccount(id).first().take(10)
-        val txs = recent.map { twc ->
+        // Merge outflows (accountId == this) with inflows (transferAccountId == this)
+        // and sort ascending so reconciliation reads top-to-bottom chronologically.
+        val outflows = transactionRepository.observeByAccount(id).first()
+        val inflows = transactionRepository.observeTransfersToAccount(id).first()
+        val merged = (outflows + inflows).distinctBy { it.transaction.id }
+            .sortedBy { it.transaction.occurredAtEpochMillis }
+        var running = acc.openingBalanceMinor
+        val txs = merged.map { twc ->
             val t = twc.transaction
-            val amount = MoneyFormat.minorToDisplay(t.amountMinor, t.currencyCode) +
-                " " + t.currencyCode
+            running += signedDeltaForAccount(t, id)
             AccountDetailTx(
                 id = t.id,
                 date = DATE_FMT.format(Date(t.occurredAtEpochMillis)),
                 title = t.title,
                 category = cats[t.categoryId]?.name ?: "—",
-                amount = amount,
+                amount = MoneyFormat.minorToDisplay(t.amountMinor, t.currencyCode) +
+                    " " + t.currencyCode,
                 type = t.type,
+                runningBalance = MoneyFormat.minorToDisplay(running, t.currencyCode) +
+                    " " + t.currencyCode,
             )
         }
         val view = AccountDetailView(
@@ -213,6 +222,21 @@ private fun validate(params: Parameters): String? {
             ?: return "Opening balance must be a number (e.g. 100.00 or -50.00)"
     }
     return null
+}
+
+/**
+ * Signed change in minor units that [tx] applies to the balance of [accountId].
+ * Mirrors the SQL in AccountDao.observeBalances: amountMinor is stored positive,
+ * EXPENSE subtracts, INCOME/ADJUSTMENT add, and TRANSFER subtracts when this
+ * account is the source (accountId) or adds when it's the destination
+ * (transferAccountId).
+ */
+private fun signedDeltaForAccount(tx: TransactionEntity, accountId: Long): Long = when (tx.type) {
+    "EXPENSE" -> -tx.amountMinor
+    "INCOME" -> tx.amountMinor
+    "ADJUSTMENT" -> tx.amountMinor
+    "TRANSFER" -> if (tx.accountId == accountId) -tx.amountMinor else tx.amountMinor
+    else -> 0L
 }
 
 private fun paramsToForm(params: Parameters, error: String): AccountForm =

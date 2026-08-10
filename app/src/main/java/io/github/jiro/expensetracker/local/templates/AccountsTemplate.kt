@@ -17,6 +17,7 @@ data class AccountDetailTx(
     val category: String,
     val amount: String,
     val type: String,
+    val runningBalance: String,
 )
 
 data class AccountDetailView(
@@ -48,6 +49,7 @@ fun renderAccountsList(state: LocalServerState, token: String, rows: List<Accoun
         if (rows.isEmpty()) {
             append("<p>No accounts.</p>")
         } else {
+            append("<div class=\"table-scroll\">")
             append("<table>")
             append("<thead><tr><th>Name</th><th>Type</th><th>Currency</th><th>Balance</th><th></th></tr></thead>")
             append("<tbody>")
@@ -56,11 +58,12 @@ fun renderAccountsList(state: LocalServerState, token: String, rows: List<Accoun
                 append("<td><a href=\"/accounts/${row.id}?t=$token\">${escapeHtml(row.name)}</a></td>")
                 append("<td>${escapeHtml(row.type)}</td>")
                 append("<td>${escapeHtml(row.currency)}</td>")
-                append("<td><strong>${escapeHtml(row.balance)}</strong></td>")
-                append("<td>")
-                append("<a href=\"/accounts/${row.id}/edit?t=$token\" role=\"button\" class=\"secondary\">Edit</a>")
+                append("<td><a href=\"/accounts/${row.id}?t=$token\" class=\"balance-cell\">${escapeHtml(row.balance)}</a></td>")
+                append("<td class=\"row-actions\">")
+                append("<a href=\"/transactions/new?accountId=${row.id}&t=$token\" role=\"button\" class=\"secondary outline compact\" title=\"Add transaction to ${escapeHtml(row.name)}\">+ Tx</a>")
+                append("<a href=\"/accounts/${row.id}/edit?t=$token\" role=\"button\" class=\"secondary outline compact\">Edit</a>")
                 append(
-                    "<button class=\"secondary\" hx-post=\"/accounts/${row.id}/delete?t=$token\" " +
+                    "<button class=\"secondary outline compact\" hx-post=\"/accounts/${row.id}/delete?t=$token\" " +
                         "hx-confirm=\"Delete this account?\" hx-target=\"body\">Delete</button>",
                 )
                 append("</td>")
@@ -68,6 +71,7 @@ fun renderAccountsList(state: LocalServerState, token: String, rows: List<Accoun
             }
             append("</tbody>")
             append("</table>")
+            append("</div>")
         }
     }
     return renderLayout(state, token, "Accounts", body)
@@ -96,9 +100,11 @@ fun renderAccountDetail(state: LocalServerState, token: String, view: AccountDet
         if (view.transactions.isEmpty()) {
             append("<p>No transactions for this account yet.</p>")
         } else {
-            append("<h2>Recent transactions</h2>")
-            append("<table>")
-            append("<thead><tr><th>Date</th><th>Title</th><th>Category</th><th>Amount</th></tr></thead>")
+            append("<h2>Reconciliation</h2>")
+            append("<p class=\"muted\">Transactions in chronological order. The Running Balance column starts at the opening balance and accumulates each row so you can match against a bank statement.</p>")
+            append("<div class=\"table-scroll\">")
+            append("<table class=\"reconcile-table\">")
+            append("<thead><tr><th>Date</th><th>Title</th><th>Category</th><th>Amount</th><th class=\"num\">Running balance</th><th></th></tr></thead>")
             append("<tbody>")
             for (tx in view.transactions) {
                 append("<tr>")
@@ -106,10 +112,19 @@ fun renderAccountDetail(state: LocalServerState, token: String, view: AccountDet
                 append("<td>${escapeHtml(tx.title)}</td>")
                 append("<td>${escapeHtml(tx.category)}</td>")
                 append("<td><span class=\"amount ${escapeHtml(tx.type.lowercase())}\">${escapeHtml(tx.amount)}</span></td>")
+                append("<td class=\"num running\">${escapeHtml(tx.runningBalance)}</td>")
+                append("<td class=\"row-actions\">")
+                append("<a href=\"/transactions/${tx.id}/edit?t=$token\" role=\"button\" class=\"secondary outline compact\">Edit</a>")
+                append(
+                    "<button class=\"secondary outline compact\" hx-post=\"/transactions/${tx.id}/delete?t=$token\" " +
+                        "hx-confirm=\"Delete this transaction?\" hx-target=\"body\">Del</button>",
+                )
+                append("</td>")
                 append("</tr>")
             }
             append("</tbody>")
             append("</table>")
+            append("</div>")
         }
     }
     return renderLayout(state, token, view.name, body)

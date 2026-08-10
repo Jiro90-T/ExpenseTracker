@@ -112,6 +112,8 @@ private object StubTransactionDao : TransactionDao {
     override suspend fun countReferencingAccount(id: Long): Int = 0
     override fun observeByAccount(accountId: Long): Flow<List<TransactionWithCategory>> =
         MutableStateFlow<List<TransactionWithCategory>>(emptyList()).asStateFlow()
+    override fun observeTransfersToAccount(accountId: Long): Flow<List<TransactionWithCategory>> =
+        MutableStateFlow<List<TransactionWithCategory>>(emptyList()).asStateFlow()
 }
 
 private object StubAccountDao : AccountDao {

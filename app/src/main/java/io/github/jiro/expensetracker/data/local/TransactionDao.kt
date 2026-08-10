@@ -99,4 +99,14 @@ interface TransactionDao {
     @Transaction
     @Query("SELECT * FROM transactions WHERE accountId = :accountId ORDER BY occurredAtEpochMillis DESC")
     fun observeByAccount(accountId: Long): Flow<List<TransactionWithCategory>>
+
+    /**
+     * Incoming transfers where [accountId] is the destination (transferAccountId).
+     * Used by the account-detail reconciliation flow so transfers that ADD to
+     * this account's balance show up alongside regular outflows. Pairs with
+     * [observeByAccount] which returns outflows.
+     */
+    @Transaction
+    @Query("SELECT * FROM transactions WHERE transferAccountId = :accountId AND type = 'TRANSFER' ORDER BY occurredAtEpochMillis DESC")
+    fun observeTransfersToAccount(accountId: Long): Flow<List<TransactionWithCategory>>
 }

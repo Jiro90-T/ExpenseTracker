@@ -49,7 +49,7 @@ class LocalServer(
         routing {
             authFilter(token)
             staticResources("/static", "static")
-            dashboardRoute(token, transactionRepository)
+            dashboardRoute(token, transactionRepository, accountRepository)
             transactionsRoutes(token, transactionRepository, accountRepository, categoryRepository)
             accountsRoutes(token, accountRepository, transactionRepository, categoryRepository)
             categoriesRoutes(token, categoryRepository, transactionRepository)

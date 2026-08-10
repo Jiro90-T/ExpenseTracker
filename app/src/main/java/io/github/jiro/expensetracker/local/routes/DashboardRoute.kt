@@ -1,8 +1,10 @@
 package io.github.jiro.expensetracker.local.routes
 
 import io.github.jiro.expensetracker.data.local.MoneyFormat
+import io.github.jiro.expensetracker.data.repository.AccountRepository
 import io.github.jiro.expensetracker.data.repository.TransactionRepository
 import io.github.jiro.expensetracker.local.LocalServerState
+import io.github.jiro.expensetracker.local.templates.AccountTile
 import io.github.jiro.expensetracker.local.templates.TxRow
 import io.github.jiro.expensetracker.local.templates.renderDashboard
 import io.ktor.http.ContentType
@@ -38,6 +40,7 @@ fun Route.dashboardRoute(token: String) {
 fun Route.dashboardRoute(
     token: String,
     transactionRepository: TransactionRepository,
+    accountRepository: AccountRepository,
 ) {
     get("/") {
         val firstTen = transactionRepository.observeAll().first().take(10)
@@ -53,8 +56,22 @@ fun Route.dashboardRoute(
                 type = t.type,
             )
         }
+        val balances = accountRepository.observeBalances().first().associateBy { it.accountId }
+        val accounts = accountRepository.observeActive().first()
+        val tiles = accounts.map { acc ->
+            val balMinor = balances[acc.id]?.balanceMinor ?: acc.openingBalanceMinor
+            AccountTile(
+                id = acc.id,
+                icon = acc.icon,
+                name = acc.name,
+                currency = acc.currencyCode,
+                balance = MoneyFormat.minorToDisplay(balMinor, acc.currencyCode) +
+                    " " + acc.currencyCode,
+                isNegative = balMinor < 0L,
+            )
+        }
         call.respondText(
-            renderDashboard(LocalServerState(token = token), rows),
+            renderDashboard(LocalServerState(token = token), rows, tiles),
             contentType = ContentType.Text.Html,
         )
     }
