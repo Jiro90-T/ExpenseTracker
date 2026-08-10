@@ -127,6 +127,30 @@ h2 {
     margin-bottom: 1.5rem;
 }
 
+/* Net worth card sits above the tile grid. Reuses the balance-card aesthetic. */
+.net-worth-card {
+    text-align: center;
+    padding: 1.25rem 1rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--pico-muted-border-color, #d0d7de);
+    border-radius: 8px;
+    background: var(--pico-card-background-color, #fff);
+}
+
+.net-worth-card.negative .balance-amount {
+    color: #cf222e;
+}
+
+.tile-group-header {
+    margin-top: 1.25rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--pico-muted-color, #57606a);
+    font-weight: 600;
+}
+
 .account-tile {
     display: block;
     padding: 1rem;

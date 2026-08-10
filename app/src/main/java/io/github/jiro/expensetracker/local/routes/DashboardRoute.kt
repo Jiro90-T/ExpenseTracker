@@ -43,6 +43,7 @@ fun Route.dashboardRoute(
     accountRepository: AccountRepository,
 ) {
     get("/") {
+        val accountsById = accountRepository.observeActive().first().associateBy { it.id }
         val firstTen = transactionRepository.observeAll().first().take(10)
         val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
         val rows = firstTen.map { twc ->
@@ -54,12 +55,16 @@ fun Route.dashboardRoute(
                 title = t.title,
                 amount = amount,
                 type = t.type,
+                account = accountsById[t.accountId]?.name,
             )
         }
         val balances = accountRepository.observeBalances().first().associateBy { it.accountId }
         val accounts = accountRepository.observeActive().first()
+        var netWorthMinor = 0L
+        val netWorthCurrency = accounts.firstOrNull()?.currencyCode ?: "MYR"
         val tiles = accounts.map { acc ->
             val balMinor = balances[acc.id]?.balanceMinor ?: acc.openingBalanceMinor
+            netWorthMinor += balMinor
             AccountTile(
                 id = acc.id,
                 icon = acc.icon,
@@ -68,10 +73,19 @@ fun Route.dashboardRoute(
                 balance = MoneyFormat.minorToDisplay(balMinor, acc.currencyCode) +
                     " " + acc.currencyCode,
                 isNegative = balMinor < 0L,
+                type = acc.type,
             )
         }
+        val netWorthDisplay = MoneyFormat.minorToDisplay(netWorthMinor, netWorthCurrency) +
+            " " + netWorthCurrency
         call.respondText(
-            renderDashboard(LocalServerState(token = token), rows, tiles),
+            renderDashboard(
+                LocalServerState(token = token),
+                rows,
+                tiles,
+                netWorthDisplay,
+                netWorthNegative = netWorthMinor < 0L,
+            ),
             contentType = ContentType.Text.Html,
         )
     }
