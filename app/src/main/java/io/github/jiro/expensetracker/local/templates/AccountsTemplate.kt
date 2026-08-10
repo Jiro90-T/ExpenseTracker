@@ -17,6 +17,7 @@ data class AccountDetailTx(
     val category: String,
     val amount: String,
     val type: String,
+    val amountNegative: Boolean,
     val runningBalance: String,
     val runningBalanceNegative: Boolean,
 )
@@ -120,19 +121,22 @@ fun renderAccountDetail(state: LocalServerState, token: String, view: AccountDet
             append("<p>No transactions for this account yet.</p>")
         } else {
             append("<h2>Reconciliation</h2>")
-            append("<p class=\"muted\">Newest transactions first. The Running Balance column starts at the opening balance and accumulates each row so you can match against a bank statement.</p>")
+            append("<p class=\"muted\">Newest transactions first. Amounts are signed from this account's view: expenses and outgoing transfers are negative. The running balance on the top row matches the header above; the bottom row sits closest to the opening balance.</p>")
+            append("<p class=\"muted\"><strong>Starting from opening balance:</strong> ${escapeHtml(view.openingBalance)}</p>")
             append("<div class=\"table-scroll\">")
             append("<table class=\"reconcile-table\">")
-            append("<thead><tr><th>Date</th><th>Title</th><th>Category</th><th>Amount</th><th class=\"num\">Running balance</th><th></th></tr></thead>")
+            append("<thead><tr><th>Date</th><th>Title</th><th>Category</th><th class=\"num\">Amount</th><th class=\"num\">Running balance</th><th></th></tr></thead>")
             append("<tbody>")
             for (tx in view.transactions) {
-                append("<tr>")
+                val rowNeg = if (tx.runningBalanceNegative) " row-negative" else ""
+                append("<tr class=\"$rowNeg\">")
                 append("<td>${escapeHtml(tx.date)}</td>")
-                append("<td>${escapeHtml(tx.title)}</td>")
+                append("<td class=\"title\">${escapeHtml(tx.title)}</td>")
                 append("<td>${escapeHtml(tx.category)}</td>")
-                append("<td><span class=\"amount ${escapeHtml(tx.type.lowercase())}\">${escapeHtml(tx.amount)}</span></td>")
-                val negClass = if (tx.runningBalanceNegative) " negative" else ""
-                append("<td class=\"num running$negClass\">${escapeHtml(tx.runningBalance)}</td>")
+                val amtCls = if (tx.amountNegative) "negative" else "positive"
+                append("<td class=\"num\"><span class=\"amount $amtCls\">${escapeHtml(tx.amount)}</span></td>")
+                val runCls = if (tx.runningBalanceNegative) "running negative" else "running"
+                append("<td class=\"num $runCls\">${escapeHtml(tx.runningBalance)}</td>")
                 append("<td class=\"row-actions\">")
                 append("<a href=\"/transactions/${tx.id}/edit?t=$token\" role=\"button\" class=\"secondary outline compact\">Edit</a>")
                 append(

@@ -4,6 +4,7 @@ import android.graphics.Color
 import io.github.jiro.expensetracker.data.local.AccountEntity
 import io.github.jiro.expensetracker.data.local.MoneyFormat
 import io.github.jiro.expensetracker.data.local.TransactionEntity
+import io.github.jiro.expensetracker.data.local.TransactionWithCategory
 import io.github.jiro.expensetracker.data.repository.AccountRepository
 import io.github.jiro.expensetracker.data.repository.CategoryRepository
 import io.github.jiro.expensetracker.data.repository.TransactionRepository
@@ -69,27 +70,36 @@ fun Route.accountsRoutes(
         val balanceMinor = accountRepository.observeBalances().first()
             .firstOrNull { it.accountId == id }?.balanceMinor ?: 0L
         val cats = categoryRepository.observeAll().first().associateBy { it.id }
-        // Merge outflows (accountId == this) with inflows (transferAccountId == this)
-        // and sort descending so the newest row sits at the top of the table.
+        // Merge outflows (accountId == this) with inflows (transferAccountId == this),
+        // sort ASCENDING so the running balance accumulates in chronological order
+        // (opening → ... → final). The list is reversed for display so the newest
+        // row sits at the top of the table — at which point its running balance is
+        // the final balance, matching the header card.
         val outflows = transactionRepository.observeByAccount(id).first()
         val inflows = transactionRepository.observeTransfersToAccount(id).first()
         val merged = (outflows + inflows).distinctBy { it.transaction.id }
-            .sortedByDescending { it.transaction.occurredAtEpochMillis }
+            .sortedBy { it.transaction.occurredAtEpochMillis }
         var running = acc.openingBalanceMinor
-        val txs = merged.map { twc ->
-            val t = twc.transaction
-            running += signedDeltaForAccount(t, id)
+        data class Row(val twc: TransactionWithCategory, val signed: Long, val running: Long)
+        val rowsAsc = merged.map { twc ->
+            val signed = signedDeltaForAccount(twc.transaction, id)
+            running += signed
+            Row(twc, signed, running)
+        }
+        val txs = rowsAsc.reversed().map { row ->
+            val t = row.twc.transaction
             AccountDetailTx(
                 id = t.id,
                 date = DATE_FMT.format(Date(t.occurredAtEpochMillis)),
                 title = t.title,
                 category = cats[t.categoryId]?.name ?: "—",
-                amount = MoneyFormat.minorToDisplay(t.amountMinor, t.currencyCode) +
+                amount = MoneyFormat.minorToDisplay(row.signed, t.currencyCode) +
                     " " + t.currencyCode,
                 type = t.type,
-                runningBalance = MoneyFormat.minorToDisplay(running, t.currencyCode) +
+                amountNegative = row.signed < 0L,
+                runningBalance = MoneyFormat.minorToDisplay(row.running, t.currencyCode) +
                     " " + t.currencyCode,
-                runningBalanceNegative = running < 0L,
+                runningBalanceNegative = row.running < 0L,
             )
         }
         val view = AccountDetailView(

@@ -8,11 +8,13 @@
     font-weight: 600;
 }
 
-.amount.income {
+.amount.income,
+.amount.positive {
     color: #1a7f37;
 }
 
-.amount.expense {
+.amount.expense,
+.amount.negative {
     color: #cf222e;
 }
 
@@ -193,7 +195,8 @@ h2 {
 
 /* Reconciliation table: pin the running-balance column right and emphasize it. */
 .reconcile-table td.running,
-.reconcile-table th.num {
+.reconcile-table th.num,
+.reconcile-table td.num {
     text-align: right;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
@@ -201,6 +204,28 @@ h2 {
 
 .reconcile-table td.running {
     font-weight: 600;
+}
+
+/* Tint a reconciliation row light red once the running balance has gone
+ * below zero — makes it obvious which rows have crossed the line. */
+.reconcile-table tr.row-negative {
+    background-color: rgba(207, 34, 46, 0.06);
+}
+
+.reconcile-table tr.row-negative:hover {
+    background-color: rgba(207, 34, 46, 0.10);
+}
+
+/* Slightly more breathing room in the reconciliation rows so the
+ * amount and running-balance columns are easy to scan. */
+.reconcile-table th,
+.reconcile-table td {
+    padding-top: 0.55rem;
+    padding-bottom: 0.55rem;
+}
+
+.reconcile-table td.title {
+    font-weight: 500;
 }
 
 p.muted {
