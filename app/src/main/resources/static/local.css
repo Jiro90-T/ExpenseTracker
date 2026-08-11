@@ -216,6 +216,20 @@ h2 {
     background-color: rgba(207, 34, 46, 0.10);
 }
 
+/* Whole row is tappable (delegated to the edit URL via inline JS), so
+ * signal clickability with a pointer cursor and a hover background.
+ * The .row-actions cell still stops event propagation, so the
+ * Edit/Del buttons work as before. */
+.reconcile-table tr[data-edit-url] {
+    cursor: pointer;
+}
+.reconcile-table tr[data-edit-url]:hover {
+    background-color: rgba(0, 0, 0, 0.03);
+}
+.reconcile-table tr.row-negative[data-edit-url]:hover {
+    background-color: rgba(207, 34, 46, 0.10);
+}
+
 /* Slightly more breathing room in the reconciliation rows so the
  * amount and running-balance columns are easy to scan. */
 .reconcile-table th,

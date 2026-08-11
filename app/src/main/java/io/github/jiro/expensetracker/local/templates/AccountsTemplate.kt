@@ -129,7 +129,7 @@ fun renderAccountDetail(state: LocalServerState, token: String, view: AccountDet
             append("<tbody>")
             for (tx in view.transactions) {
                 val rowNeg = if (tx.runningBalanceNegative) " row-negative" else ""
-                append("<tr class=\"$rowNeg\">")
+                append("<tr class=\"$rowNeg\" data-edit-url=\"/transactions/${tx.id}/edit?t=$token\">")
                 append("<td>${escapeHtml(tx.date)}</td>")
                 append("<td class=\"title\">${escapeHtml(tx.title)}</td>")
                 append("<td>${escapeHtml(tx.category)}</td>")
@@ -149,6 +149,18 @@ fun renderAccountDetail(state: LocalServerState, token: String, view: AccountDet
             append("</tbody>")
             append("</table>")
             append("</div>")
+            // Tapping anywhere in a tx row (except the Edit/Del action buttons)
+            // should open the edit page — the buttons are too small to hit
+            // reliably on a phone, but the user expects the row itself to be
+            // tappable.
+            append(
+                "<script>(function(){var t=document.querySelector('table.reconcile-table');" +
+                    "if(!t)return;t.addEventListener('click',function(e){" +
+                    "if(e.target.closest('.row-actions'))return;" +
+                    "var tr=e.target.closest('tr[data-edit-url]');" +
+                    "if(tr)window.location.href=tr.getAttribute('data-edit-url');" +
+                    "});})();</script>",
+            )
         }
     }
     return renderLayout(state, token, view.name, body)

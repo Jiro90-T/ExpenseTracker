@@ -99,6 +99,42 @@ class AccountsRoutesTest {
                 body.contains("/transactions/new?accountId=42"))
         }
     }
+
+    @Test fun accountDetail_txRowHasEditUrlForWholeRowTap() = runTest {
+        // Seed a transaction for account 42 so the reconciliation table renders
+        // at least one data row. Reset to empty afterwards so the "No
+        // transactions" assertion in the other test still holds.
+        StubAccountsPageTransactionDao.seedTxs = listOf(
+            TransactionWithCategory(
+                transaction = TransactionEntity(
+                    id = 141L,
+                    title = "CC Payment",
+                    amountMinor = 11821L,
+                    currencyCode = "MYR",
+                    type = "EXPENSE",
+                    categoryId = null,
+                    accountId = 42L,
+                    occurredAtEpochMillis = 1_716_960_000_000L,
+                    createdAtEpochMillis = 0L,
+                ),
+                category = null,
+            ),
+        )
+        try {
+            testApplication {
+                application { setupTestApp() }
+                val resp = client.get("/accounts/42?t=$token")
+                assertEquals(HttpStatusCode.OK, resp.status)
+                val body = resp.bodyAsText()
+                assertTrue(
+                    "expected row to expose edit URL for whole-row tap, was: $body",
+                    body.contains("data-edit-url=\"/transactions/141/edit?t=$token\""),
+                )
+            }
+        } finally {
+            StubAccountsPageTransactionDao.seedTxs = emptyList()
+        }
+    }
 }
 
 private val accountsPageTxRepo: TransactionRepository = TransactionRepository(
@@ -117,10 +153,13 @@ private val accountsPageCategoryRepo: CategoryRepository =
 private object NoopAccountsPageApp : Application()
 
 private object StubAccountsPageTransactionDao : TransactionDao {
+    /** Per-test fixture: tests can seed transactions and must reset to empty. */
+    var seedTxs: List<TransactionWithCategory> = emptyList()
+
     override fun observeAllWithCategory(): Flow<List<TransactionWithCategory>> =
-        MutableStateFlow<List<TransactionWithCategory>>(emptyList()).asStateFlow()
+        MutableStateFlow(seedTxs).asStateFlow()
     override fun observeInRangeWithCategory(startMs: Long, endMs: Long): Flow<List<TransactionWithCategory>> =
-        MutableStateFlow<List<TransactionWithCategory>>(emptyList()).asStateFlow()
+        MutableStateFlow(seedTxs).asStateFlow()
     override suspend fun findById(id: Long): TransactionEntity? = null
     override suspend fun insert(transaction: TransactionEntity): Long = 0L
     override suspend fun restore(transaction: TransactionEntity): Long = 0L
@@ -137,7 +176,7 @@ private object StubAccountsPageTransactionDao : TransactionDao {
     override suspend fun countForAccount(accountId: Long): Int = 0
     override suspend fun countReferencingAccount(id: Long): Int = 0
     override fun observeByAccount(accountId: Long): Flow<List<TransactionWithCategory>> =
-        MutableStateFlow<List<TransactionWithCategory>>(emptyList()).asStateFlow()
+        MutableStateFlow(seedTxs).asStateFlow()
     override fun observeTransfersToAccount(accountId: Long): Flow<List<TransactionWithCategory>> =
         MutableStateFlow<List<TransactionWithCategory>>(emptyList()).asStateFlow()
 }
