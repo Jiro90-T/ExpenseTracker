@@ -17,6 +17,9 @@ import io.github.jiro.expensetracker.data.repository.ReceiptRepository
 import io.github.jiro.expensetracker.data.repository.TransactionRepository
 import io.github.jiro.expensetracker.local.auth.authFilter
 import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -72,6 +75,74 @@ class TransactionsRoutesTest {
             assertTrue("expected title field, was: $body", body.contains("name=\"title\""))
             assertTrue("expected amount field, was: $body", body.contains("name=\"amount\""))
             assertTrue("expected currencyCode field, was: $body", body.contains("name=\"currencyCode\""))
+        }
+    }
+
+    @Test fun newForm_rendersTransferAccountSelector() = runTest {
+        testApplication {
+            application { setupTestApp() }
+            val resp = client.get("/transactions/new?t=$token")
+            assertEquals(HttpStatusCode.OK, resp.status)
+            val body = resp.bodyAsText()
+            assertTrue(
+                "expected transferAccountId select, was: $body",
+                body.contains("name=\"transferAccountId\""),
+            )
+        }
+    }
+
+    @Test fun postNew_transferWithoutDestination_returnsBadRequest() = runTest {
+        testApplication {
+            application { setupTestApp() }
+            val resp = client.post("/transactions/new?t=$token") {
+                header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
+                setBody(
+                    "title=Move%20money&amount=50.00&currencyCode=USD" +
+                        "&occurredAt=2026-08-11&type=TRANSFER&accountId=1",
+                )
+            }
+            assertEquals(HttpStatusCode.BadRequest, resp.status)
+            val body = resp.bodyAsText()
+            assertTrue(
+                "expected transfer-destination error, was: $body",
+                body.contains("Transfer to", ignoreCase = true) ||
+                    body.contains("transfer account", ignoreCase = true),
+            )
+        }
+    }
+
+    @Test fun postNew_transferSameAccount_returnsBadRequest() = runTest {
+        testApplication {
+            application { setupTestApp() }
+            val resp = client.post("/transactions/new?t=$token") {
+                header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
+                setBody(
+                    "title=Move%20money&amount=50.00&currencyCode=USD" +
+                        "&occurredAt=2026-08-11&type=TRANSFER&accountId=1&transferAccountId=1",
+                )
+            }
+            assertEquals(HttpStatusCode.BadRequest, resp.status)
+            val body = resp.bodyAsText()
+            assertTrue(
+                "expected different-accounts error, was: $body",
+                body.contains("different", ignoreCase = true) ||
+                    body.contains("same", ignoreCase = true),
+            )
+        }
+    }
+
+    @Test fun postNew_transferValidRedirectsToAccount() = runTest {
+        testApplication {
+            application { setupTestApp() }
+            val resp = client.post("/transactions/new?t=$token") {
+                header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
+                setBody(
+                    "title=Move%20money&amount=50.00&currencyCode=USD" +
+                        "&occurredAt=2026-08-11&type=TRANSFER" +
+                        "&accountId=1&transferAccountId=2",
+                )
+            }
+            assertEquals(HttpStatusCode.SeeOther, resp.status)
         }
     }
 }

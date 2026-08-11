@@ -22,6 +22,7 @@ data class TxForm(
     val type: String = "EXPENSE",
     val categoryId: Long? = null,
     val accountId: Long? = null,
+    val transferAccountId: Long? = null,
     val presetAccountLabel: String? = null,
     val categories: List<Pair<String, String>> = emptyList(),
     val accounts: List<Pair<Long, String>> = emptyList(),
@@ -75,6 +76,7 @@ fun renderTransactionsForm(state: LocalServerState, token: String, form: TxForm)
         val checked = if (option == form.type) " checked" else ""
         "<label><input type=\"radio\" name=\"type\" value=\"$option\"$checked>$option</label>"
     }
+    val accountOptions = form.accounts.map { (id, label) -> id.toString() to label }
     val body = buildString {
         append("<p><a href=\"${escapeHtml(form.backHref)}?t=$token\">← Back</a></p>")
         append("<h1>$heading</h1>")
@@ -83,7 +85,14 @@ fun renderTransactionsForm(state: LocalServerState, token: String, form: TxForm)
             append("<strong>Adding to:</strong> ${escapeHtml(form.presetAccountLabel)}")
             append("</article>")
         }
-        append("<form method=\"post\" action=\"$action\">")
+        append(
+            "<style>.tx-transfer-only { display: none; } " +
+                ".tx-form[data-tx-type=\"TRANSFER\"] .tx-transfer-only { display: block; }</style>",
+        )
+        append(
+            "<form id=\"tx-form\" class=\"tx-form\" method=\"post\" action=\"$action\" " +
+                "data-tx-type=\"${escapeHtml(form.type)}\">",
+        )
         append(textField("Title", "title", form.title))
         append(textField("Amount", "amount", form.amount, "number", placeholder = "e.g. 12.50"))
         append(textField("Currency", "currencyCode", form.currencyCode))
@@ -98,16 +107,20 @@ fun renderTransactionsForm(state: LocalServerState, token: String, form: TxForm)
             append("<input type=\"hidden\" name=\"accountId\" value=\"${form.accountId}\">")
             append("</label>")
         } else {
-            append(
-                selectField(
-                    "Account",
-                    "accountId",
-                    form.accounts.map { (id, label) -> id.toString() to label },
-                    form.accountId?.toString(),
-                ),
-            )
+            append(selectField("Account", "accountId", accountOptions, form.accountId?.toString()))
         }
+        // Transfer destination — only meaningful for TRANSFER; CSS hides it
+        // for every other type, and JS toggles the data attribute on radio change.
+        append("<div class=\"tx-transfer-only\">")
+        append(selectField("Transfer to", "transferAccountId", accountOptions, form.transferAccountId?.toString()))
+        append("</div>")
         append("<fieldset><legend>Type</legend>$typeRadios</fieldset>")
+        append(
+            "<script>(function(){var f=document.getElementById('tx-form');if(!f)return;" +
+                "function sync(){var c=f.querySelector('input[name=\"type\"]:checked');" +
+                "f.setAttribute('data-tx-type',c?c.value:'');}" +
+                "f.addEventListener('change',sync);sync();})();</script>",
+        )
         append(fieldError(form.error))
         append("<button type=\"submit\">Save</button>")
         append("<a href=\"${escapeHtml(form.backHref)}?t=$token\" role=\"button\" class=\"secondary\">Cancel</a>")

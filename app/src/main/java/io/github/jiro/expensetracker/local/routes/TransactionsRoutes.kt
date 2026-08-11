@@ -110,13 +110,17 @@ fun Route.transactionsRoutes(
                 )
                 return@post
             }
+        val type = params["type"] ?: "EXPENSE"
+        val accountId = params["accountId"]!!.toLong()
+        val transferAccountId = params["transferAccountId"]?.toLongOrNull()
         val tx = TransactionEntity(
             title = params["title"]!!,
             amountMinor = amountMinor,
             currencyCode = params["currencyCode"]!!,
-            type = params["type"] ?: "EXPENSE",
+            type = type,
             categoryId = params["categoryId"]?.toLongOrNull(),
-            accountId = params["accountId"]!!.toLong(),
+            accountId = accountId,
+            transferAccountId = if (type == "TRANSFER") transferAccountId else null,
             occurredAtEpochMillis = occurred,
             note = params["note"],
             createdAtEpochMillis = now,
@@ -142,6 +146,7 @@ fun Route.transactionsRoutes(
             type = tx.type,
             categoryId = tx.categoryId,
             accountId = tx.accountId,
+            transferAccountId = tx.transferAccountId,
             categories = categoryRepository.observeAll().first()
                 .map { cat -> cat.id.toString() to cat.name },
             accounts = accountRepository.listActiveOnce()
@@ -182,13 +187,17 @@ fun Route.transactionsRoutes(
                 )
                 return@post
             }
+        val updatedType = params["type"] ?: "EXPENSE"
+        val updatedAccountId = params["accountId"]!!.toLong()
+        val updatedTransferAccountId = params["transferAccountId"]?.toLongOrNull()
         val updated = existing.copy(
             title = params["title"]!!,
             amountMinor = amountMinor,
             currencyCode = params["currencyCode"]!!,
-            type = params["type"] ?: "EXPENSE",
+            type = updatedType,
             categoryId = params["categoryId"]?.toLongOrNull(),
-            accountId = params["accountId"]!!.toLong(),
+            accountId = updatedAccountId,
+            transferAccountId = if (updatedType == "TRANSFER") updatedTransferAccountId else null,
             occurredAtEpochMillis = DATE_FMT.parse(params["occurredAt"]!!)!!.time,
             note = params["note"],
         )
@@ -218,6 +227,16 @@ private fun validateTxForm(params: Parameters): String? {
     val date = params["occurredAt"].orEmpty()
     if (date.isBlank()) return "Date is required"
     try { DATE_FMT.parse(date) } catch (e: Exception) { return "Date must be yyyy-MM-dd" }
+    val type = params["type"] ?: "EXPENSE"
+    if (type == "TRANSFER") {
+        val accountId = params["accountId"]?.toLongOrNull()
+            ?: return "Account is required"
+        val transferAccountId = params["transferAccountId"]?.toLongOrNull()
+            ?: return "Transfer to account is required for transfers"
+        if (transferAccountId == accountId) {
+            return "Transfer source and destination must be different accounts"
+        }
+    }
     return null
 }
 
@@ -231,6 +250,7 @@ private fun paramsToForm(params: Parameters, error: String, backHref: String): T
         type = params["type"] ?: "EXPENSE",
         categoryId = params["categoryId"]?.toLongOrNull(),
         accountId = params["accountId"]?.toLongOrNull(),
+        transferAccountId = params["transferAccountId"]?.toLongOrNull(),
         backHref = backHref,
         error = error,
     )
